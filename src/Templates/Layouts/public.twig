@@ -7,16 +7,16 @@
 </head>
 <body class="bg-pink-50 text-gray-900 relative">
 
-  {% include 'components/header.twig' %}
+  {% include 'Components/header.twig' %}
 
   <main class="p-6">
     {% block content %}{% endblock %}
   </main>
 
-  {% include 'components/footer.twig' %}
-  {% include 'components/sidebar-wishlist.twig' %}
-  {% include 'components/sidebar-cart.twig' %}
-  {% include 'components/modal.twig' %}
+  {% include 'Components/footer.twig' %}
+  {% include 'Components/sidebar-wishlist.twig' %}
+  {% include 'Components/sidebar-cart.twig' %}
+  {% include 'Components/modal.twig' %}
 
   <div id="overlay" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity z-40"></div>
 
