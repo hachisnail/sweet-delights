@@ -8,7 +8,7 @@ use Slim\Views\Twig;
 class DashboardController {
     public function dashboard(Request $request, Response $response): Response {
         $view = Twig::fromRequest($request);
-        return $view->render($response, 'admin/dashboard.twig', [
+        return $view->render($response, 'Admin/dashboard.twig', [
             'title' => 'Admin Dashboard',
         ]);
     }

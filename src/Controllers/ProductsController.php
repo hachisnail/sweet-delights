@@ -15,7 +15,7 @@ class ProductsController
         $products = require __DIR__ . '/../Data/products.php';
 
 
-        return $view->render($response, 'public/products.twig', [
+        return $view->render($response, 'Public/products.twig', [
             'title' => 'Our Products - Sweet Delights',
             'products' => $products,
             'app_url' => $_ENV['APP_URL'],

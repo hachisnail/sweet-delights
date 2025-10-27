@@ -9,7 +9,7 @@ class AboutController {
     public function index(Request $request, Response $response): Response {
         $view = Twig::fromRequest($request);
 
-        return $view->render($response, 'public/about.twig', [
+        return $view->render($response, 'Public/about.twig', [
             'title' => 'About Us - Sweet Delights',
             'description' => 'Learn about our story and passion for baking.',
             'team' => [
