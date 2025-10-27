@@ -1,10 +1,12 @@
 <?php
-$uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-
-// If the requested file exists, serve it directly
-if ($uri !== '/' && file_exists(__DIR__ . $uri)) {
-    return false;
+// Serve static files directly
+if (php_sapi_name() === 'cli-server') {
+    $url  = parse_url($_SERVER['REQUEST_URI']);
+    $file = __DIR__ . $url['path'];
+    if (is_file($file)) {
+        return false;
+    }
 }
 
-// Otherwise, route everything through index.php
-require_once __DIR__ . '/index.php';
+// Route everything else to Slim
+require __DIR__ . '/index.php';
