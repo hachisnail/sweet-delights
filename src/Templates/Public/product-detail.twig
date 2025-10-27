@@ -1,0 +1,142 @@
+{% extends "Layouts/public.twig" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow-lg border border-pink-100">
+  <div class="flex flex-col md:flex-row gap-8">
+    <!-- Product Image -->
+    <div class="md:w-1/2 flex justify-center">
+      <img src="{{ product.image }}" alt="{{ product.name }}" class="rounded-xl w-full max-w-md shadow-md">
+    </div>
+
+    <!-- Product Info -->
+    <div class="md:w-1/2 flex flex-col justify-center">
+      <h1 class="text-3xl font-bold text-[#835234] mb-2">{{ product.name }}</h1>
+      <p class="text-gray-600 mb-4 text-lg">₱{{ product.price }}</p>
+      <p class="text-gray-700 mb-6 leading-relaxed">
+        A delicious {{ product.name }} baked with love — perfect for every sweet tooth!
+      </p>
+
+      <p class="text-sm text-gray-500 mb-4">Available stock: {{ product.stock }}</p>
+
+      <!-- Quantity Selector -->
+      <div class="flex items-center gap-3 mb-6">
+        <button id="decreaseQty"
+          class="w-8 h-8 rounded-lg bg-[#f3d9d1] text-[#835234] font-bold hover:bg-[#eac0b0] transition">−</button>
+
+        <input id="quantityInput" type="number" min="1" max="{{ product.stock }}" value="1"
+          class="w-16 border border-gray-300 rounded-lg text-center font-semibold text-[#835234]">
+
+        <button id="increaseQty"
+          class="w-8 h-8 rounded-lg bg-[#f3d9d1] text-[#835234] font-bold hover:bg-[#eac0b0] transition">+</button>
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex gap-4">
+        <button id="addToCartBtn"
+          class="px-6 py-2 bg-[#b06f52] hover:bg-[#a26046] text-white font-semibold rounded-xl transition">
+          Add to Cart
+        </button>
+
+        <button id="addToWishlistBtn"
+          class="px-6 py-2 bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded-xl transition">
+          Add to Wishlist
+        </button>
+      </div>
+
+      <a href="/products"
+        class="mt-6 inline-block px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded-xl hover:bg-gray-300 transition">
+        Back to Products
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const product = {
+    id: "{{ product.id }}",
+    name: "{{ product.name }}",
+    price: {{ product.price }},
+    image: "{{ product.image }}",
+    stock: {{ product.stock }}
+  };
+
+  const quantityInput = document.getElementById("quantityInput");
+  const decreaseBtn = document.getElementById("decreaseQty");
+  const increaseBtn = document.getElementById("increaseQty");
+  const addToCartBtn = document.getElementById("addToCartBtn");
+  const addToWishlistBtn = document.getElementById("addToWishlistBtn");
+
+  // Quantity controls
+  decreaseBtn.addEventListener("click", () => {
+    const current = parseInt(quantityInput.value);
+    if (current > 1) quantityInput.value = current - 1;
+  });
+
+  increaseBtn.addEventListener("click", () => {
+    const current = parseInt(quantityInput.value);
+    if (current < product.stock) quantityInput.value = current + 1;
+  });
+
+  // Add to Cart
+  addToCartBtn.addEventListener("click", () => {
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const quantity = Math.min(parseInt(quantityInput.value) || 1, product.stock);
+    let existing = cart.find(item => item.id === product.id);
+
+    if (existing) {
+      if (existing.quantity + quantity > product.stock) {
+        showModal({
+          type: "warning",
+          title: "Not Enough Stock",
+          message: `Only ${product.stock} available for ${product.name}.`,
+          buttons: [{ text: "OK", variant: "cancel" }]
+        });
+        return;
+      }
+      existing.quantity += quantity;
+    } else {
+      cart.push({ ...product, quantity });
+    }
+
+    localStorage.setItem("cart", JSON.stringify(cart));
+    window.renderCart?.();
+    window.updateCartAndWishlistCounts?.();
+
+    showModal({
+      type: "success",
+      title: "Added to Cart",
+      message: `${quantity} × ${product.name} added to your cart!`,
+      buttons: [{ text: "OK", variant: "primary" }]
+    });
+  });
+
+  // Add to Wishlist
+  addToWishlistBtn.addEventListener("click", () => {
+    const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
+
+    if (!wishlist.find(item => item.id === product.id)) {
+      wishlist.push(product);
+      localStorage.setItem("wishlist", JSON.stringify(wishlist));
+
+      window.renderWishlist?.();
+      window.updateCartAndWishlistCounts?.();
+
+      showModal({
+        type: "success",
+        title: "Added to Wishlist",
+        message: `${product.name} has been added to your wishlist!`,
+        buttons: [{ text: "OK", variant: "primary" }]
+      });
+    } else {
+      showModal({
+        type: "info",
+        title: "Already Added",
+        message: `${product.name} is already in your wishlist.`,
+        buttons: [{ text: "Close", variant: "cancel" }]
+      });
+    }
+  });
+});
+</script>
+{% endblock %}

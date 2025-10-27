@@ -1,0 +1,16 @@
+{% extends "Layouts/public.twig" %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold text-pink-700 mb-6 text-center">Our Treats</h1>
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+    {% for product in products %}
+    <a href="{{app.url}}/products/{{ product.id }}">
+      <div class="bg-white p-4 rounded-2xl shadow text-center">
+        <img src="{{ product.image }}" alt="{{ product.name }}" class="rounded-xl mb-3">
+        <h2 class="font-semibold text-lg">{{ product.name }}</h2>
+        <p class="text-gray-500">₱{{ product.price }}</p>
+      </div>
+      </a>
+    {% endfor %}
+  </div>
+{% endblock %}
