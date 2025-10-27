@@ -36,7 +36,7 @@ class ProductsController
             return $response->withStatus(404);
         }
 
-        return $view->render($response, 'public/product-detail.twig', [
+        return $view->render($response, 'Public/product-detail.twig', [
             'title' => $product['name'],
             'product' => $product,
             'app_url' => $_ENV['APP_URL'] ?? '',
