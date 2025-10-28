@@ -1,0 +1,25 @@
+{
+  "name": "sweet-delights",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hachisnail/sweet-delights.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/hachisnail/sweet-delights/issues"
+  },
+  "homepage": "https://github.com/hachisnail/sweet-delights#readme",
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.16",
+    "tailwindcss": "^4.1.16"
+  }
+}

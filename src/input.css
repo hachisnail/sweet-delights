@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+/*
+  This is the key line:
+  Tell Tailwind to watch all .twig files inside your src/Templates/ folder
+  and any subfolders.
+*/
+@source "./src/Templates/**/*.twig";
+
+/* You might also want to add any JavaScript files 
+  if they manipulate classes.
+*/
+@source "./src/**/*.js";

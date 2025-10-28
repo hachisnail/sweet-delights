@@ -67,33 +67,51 @@ document.addEventListener("DOMContentLoaded", () => {
   const addToCartBtn = document.getElementById("addToCartBtn");
   const addToWishlistBtn = document.getElementById("addToWishlistBtn");
 
+  const getAvailableStock = () => {
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const existing = cart.find(item => item.id === product.id);
+    return product.stock - (existing?.quantity || 0);
+  };
+
+  const updateQuantityInput = (value) => {
+    const max = getAvailableStock();
+    quantityInput.value = Math.min(Math.max(1, value), max);
+  };
+
+  // Initialize quantity input based on existing cart
+  updateQuantityInput(parseInt(quantityInput.value));
+
   // Quantity controls
   decreaseBtn.addEventListener("click", () => {
-    const current = parseInt(quantityInput.value);
-    if (current > 1) quantityInput.value = current - 1;
+    updateQuantityInput(parseInt(quantityInput.value) - 1);
   });
 
   increaseBtn.addEventListener("click", () => {
-    const current = parseInt(quantityInput.value);
-    if (current < product.stock) quantityInput.value = current + 1;
+    updateQuantityInput(parseInt(quantityInput.value) + 1);
+  });
+
+  quantityInput.addEventListener("input", () => {
+    updateQuantityInput(parseInt(quantityInput.value) || 1);
   });
 
   // Add to Cart
   addToCartBtn.addEventListener("click", () => {
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    const quantity = Math.min(parseInt(quantityInput.value) || 1, product.stock);
-    let existing = cart.find(item => item.id === product.id);
+    const availableStock = getAvailableStock();
+    let quantity = Math.min(parseInt(quantityInput.value) || 1, availableStock);
 
+    if (quantity <= 0) {
+      showModal({
+        type: "warning",
+        title: "No Stock Available",
+        message: `No more stock available for ${product.name}.`,
+        buttons: [{ text: "OK", variant: "cancel" }]
+      });
+      return;
+    }
+
+    let existing = cart.find(item => item.id === product.id);
     if (existing) {
-      if (existing.quantity + quantity > product.stock) {
-        showModal({
-          type: "warning",
-          title: "Not Enough Stock",
-          message: `Only ${product.stock} available for ${product.name}.`,
-          buttons: [{ text: "OK", variant: "cancel" }]
-        });
-        return;
-      }
       existing.quantity += quantity;
     } else {
       cart.push({ ...product, quantity });
@@ -109,6 +127,9 @@ document.addEventListener("DOMContentLoaded", () => {
       message: `${quantity} × ${product.name} added to your cart!`,
       buttons: [{ text: "OK", variant: "primary" }]
     });
+
+    // Reset quantity to 1 or max available
+    updateQuantityInput(1);
   });
 
   // Add to Wishlist
@@ -138,5 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+</script>
+
 </script>
 {% endblock %}
