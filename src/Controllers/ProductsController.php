@@ -5,6 +5,9 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 
+// Controller to handle product listing and details
+// to do: implement inventory management (iom), search, filtering, and pagination, product management (pm)
+
 class ProductsController
 {
     public function index(Request $request, Response $response): Response

@@ -1,271 +1,254 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="snap-y snap-mandatory">
 <head>
   <meta charset="UTF-8">
   <title>{{ title|default('FlourEver') }}</title>
   <link rel="icon" type="image/png" href="/Assets/favicon.png">
-  {# <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script> #}
-  <link rel="stylesheet" href="../../globals.css">
+  {# <link rel="stylesheet" href="/css/globals.css"> #}
   <link href="/css/output.css" rel="stylesheet">
 
 </head>
-<body class="bg-pink-50 text-gray-900 relative">
+<body class="bg-pink-50 text-gray-900 relative ">
 
-  {% include 'Components/header.twig' %}
+
+  {% if not hideHeader %}
+    {% include 'Components/header.twig' %}
+  {% endif %}
 
   <main class="flex flex-col">
     {% block content %}{% endblock %}
   </main>
 
   {% include 'Components/footer.twig' %}
-  {% include 'Components/sidebar-wishlist.twig' %}
-  {% include 'Components/sidebar-cart.twig' %}
+  {% include 'Components/sidebar-favourite.twig' %} {% include 'Components/sidebar-cart.twig' %}
   {% include 'Components/modal.twig' %}
 
   <div id="overlay" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity z-40"></div>
 
+<script src="/js/modal.js"></script>
+
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  // Sidebar toggle logic
-  const wishlistBtn = document.getElementById("wishlistBtn");
-  const cartBtn = document.getElementById("cartBtn");
-  const wishlistSidebar = document.getElementById("wishlistSidebar");
-  const cartSidebar = document.getElementById("cartSidebar");
-  const overlay = document.getElementById("overlay");
-  const wishlistCountEl = document.getElementById("wishlistCount");
-  const cartCountEl = document.getElementById("cartCount");
+  // This patches pushState to fire a custom event we can listen for
+  (function(history) {
+    const pushState = history.pushState;
+    history.pushState = function() {
+      const result = pushState.apply(this, arguments);
+      window.dispatchEvent(new Event('pushstate')); 
+      return result;
+    };
 
-  function closeAll() {
-    wishlistSidebar?.classList.add("translate-x-full");
-    cartSidebar?.classList.add("translate-x-full");
-    overlay?.classList.add("hidden");
-  }
-
-  wishlistBtn?.addEventListener("click", () => {
-    closeAll();
-    wishlistSidebar?.classList.toggle("translate-x-full");
-    overlay?.classList.toggle("hidden");
-  });
-
-  cartBtn?.addEventListener("click", () => {
-    closeAll();
-    cartSidebar?.classList.toggle("translate-x-full");
-    overlay?.classList.toggle("hidden");
-  });
-
-  overlay?.addEventListener("click", closeAll);
-
-  // LocalStorage count update logic
-  function updateCounts() {
-    const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-
-    if (wishlistCountEl) {
-      wishlistCountEl.textContent = wishlist.length || "";
-      wishlistCountEl.style.display = wishlist.length ? "inline" : "none";
-    }
-
-    if (cartCountEl) {
-      cartCountEl.textContent = cart.length || "";
-      cartCountEl.style.display = cart.length ? "inline" : "none";
-    }
-  }
-
-  window.updateCartAndWishlistCounts = updateCounts;
-  updateCounts();
-});
+    const replaceState = history.replaceState;
+    history.replaceState = function() {
+      const result = replaceState.apply(this, arguments);
+      window.dispatchEvent(new Event('replacestate'));
+      return result;
+    };
+  })(window.history);
 </script>
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const modal = document.getElementById("alertModal");
-  const icon = document.getElementById("alertModalIcon");
-  const title = document.getElementById("alertModalTitle");
-  const message = document.getElementById("alertModalMessage");
-  const buttonsContainer = document.getElementById("alertModalButtons");
+  document.addEventListener("DOMContentLoaded", () => {
+  
+    // --- 1. GET ALL ELEMENTS ---
+    const favouriteBtn = document.getElementById("favouriteBtn"); 
+    const cartBtn = document.getElementById("cartBtn");
+    const favouriteSidebar = document.getElementById("favouriteSidebar"); 
+    const cartSidebar = document.getElementById("cartSidebar");
+    const overlay = document.getElementById("overlay");
+    
+    const favouriteCountEl = document.getElementById("favouriteCount"); 
+    const cartCountEl = document.getElementById("cartCount");
+    
+    const cartItemsContainer = document.getElementById("cartItems");
+    const favouriteItemsContainer = document.getElementById("favouriteItems"); 
+    const cartTotalEl = document.getElementById("cartTotal");
 
-  const types = {
-    success: { color: "bg-green-100 text-green-600", icon: "✓" },
-    error:   { color: "bg-red-100 text-red-600", icon: "✕" },
-    warning: { color: "bg-yellow-100 text-yellow-700", icon: "⚠" },
-    info:    { color: "bg-blue-100 text-blue-600", icon: "ℹ" },
-  };
+    const userMenuBtn = document.getElementById("userMenuBtn");
+    const userDropdown = document.getElementById("userDropdown");
 
-  function showModal({ 
-    type = "info", 
-    title: modalTitle = "Notification", 
-    message: modalMsg = "", 
-    buttons = [{ text: "OK", variant: "primary" }] 
-  } = {}) {
-
-    const style = types[type] || types.info;
-
-    // Set icon + styles
-    icon.innerHTML = style.icon;
-    icon.className = `mb-4 mx-auto w-12 h-12 flex items-center justify-center rounded-full text-2xl ${style.color}`;
-
-    // Set text
-    title.textContent = modalTitle;
-    message.textContent = modalMsg;
-
-    // Render buttons dynamically
-    buttonsContainer.innerHTML = "";
-    buttons.forEach(btn => {
-      const buttonEl = document.createElement("button");
-      const variants = {
-        primary: "bg-pink-500 hover:bg-pink-600 text-white",
-        cancel: "bg-gray-200 hover:bg-gray-300 text-gray-800",
-        danger: "bg-red-500 hover:bg-red-600 text-white"
-      };
-      buttonEl.className = `px-5 py-2 rounded-xl font-semibold transition ${variants[btn.variant] || variants.primary}`;
-      buttonEl.textContent = btn.text;
-
-      buttonEl.addEventListener("click", () => {
-        modal.classList.add("hidden");
-        btn.action?.();
-      });
-
-      buttonsContainer.appendChild(buttonEl);
-    });
-
-    modal.classList.remove("hidden");
-  }
-
-  // Allow click outside to close
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) modal.classList.add("hidden");
-  });
-
-  window.showModal = showModal; 
-});
-</script>
-
-
-
-{# Cart render, wishlist render #}
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const cartItemsContainer = document.getElementById("cartItems");
-  const wishlistItemsContainer = document.getElementById("wishlistItems");
-  const cartTotalEl = document.getElementById("cartTotal");
-
-  function renderCart() {
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    cartItemsContainer.innerHTML = "";
-
-    if (cart.length === 0) {
-      cartItemsContainer.innerHTML = `<p class="text-gray-500">Your cart is empty.</p>`;
-      cartTotalEl.textContent = `Total: ₱0.00`;
-      return;
+    // --- 2. DEFINE ALL FUNCTIONS ---
+    
+    function closeAllSidebars() {
+      favouriteSidebar?.classList.add("translate-x-full"); 
+      cartSidebar?.classList.add("translate-x-full");
+      userDropdown?.classList.add("hidden");
+      overlay?.classList.add("hidden");
     }
 
-    let total = 0;
+    function updateCounts() {
+      const favourite = JSON.parse(localStorage.getItem("favourite") || "[]"); 
+      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+      if (favouriteCountEl) { 
+        favouriteCountEl.textContent = favourite.length || ""; 
+        favouriteCountEl.style.display = favourite.length ? "inline" : "none"; 
+      }
+      if (cartCountEl) {
+        cartCountEl.textContent = cart.length || "";
+        cartCountEl.style.display = cart.length ? "inline" : "none";
+      }
+    }
 
-    cart.forEach((item, index) => {
-      total += parseFloat(item.price) * item.quantity;
+    function renderCart() {
+      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+      if (!cartItemsContainer) return; 
+      cartItemsContainer.innerHTML = "";
 
-      const div = document.createElement("div");
-      div.className = "flex gap-3 items-center border-b pb-3 mb-3";
+      if (cart.length === 0) {
+        cartItemsContainer.innerHTML = `<p class="text-gray-500">Your cart is empty.</p>`;
+        if (cartTotalEl) cartTotalEl.textContent = `Total: ₱0.00`; 
+        return;
+      }
 
-      div.innerHTML = `
-        <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded-lg shadow-sm">
-        <div class="flex-1 flex flex-col">
-          <p class="font-semibold text-[#835234]">${item.name}</p>
-          <p class="text-sm text-gray-500">₱${item.price} × <span class="cartQty font-medium">${item.quantity}</span></p>
-        </div>
-        <div class="flex flex-col items-end gap-1">
-          <div class="flex gap-1">
-            <button class="decreaseQty px-2 py-1 text-gray-700 bg-gray-100 rounded hover:bg-gray-200">−</button>
-            <button class="increaseQty px-2 py-1 text-gray-700 bg-gray-100 rounded hover:bg-gray-200">+</button>
+      let total = 0;
+      cart.forEach((item, index) => {
+        total += parseFloat(item.price) * item.quantity;
+        const a = document.createElement("a");
+        a.className = "flex gap-3 items-center border-b pb-3 mb-3 group";
+        a.href = `/products/${item.id}`;
+        a.innerHTML = `
+          <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded-lg shadow-sm shadow-gray-400">
+          <div class="flex-1 flex flex-col">
+            <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
+            <p class="text-sm text-gray-500">₱${item.price} × <span class="cartQty font-medium">${item.quantity}</span></p>
           </div>
-          <button class="removeItem text-red-500 hover:text-red-700 font-bold cursor-pointer">&times;</button>
-        </div>
-      `;
-
-      // Remove item
-      div.querySelector(".removeItem").addEventListener("click", () => {
-        cart.splice(index, 1);
-        localStorage.setItem("cart", JSON.stringify(cart));
-        renderCart();
-        window.updateCartAndWishlistCounts?.();
-      });
-
-      // Decrease qty
-      div.querySelector(".decreaseQty").addEventListener("click", () => {
-        if (item.quantity > 1) {
-          item.quantity--;
+          <div class="flex flex-col items-end gap-2">
+            <button class="removeItem text-red-500 hover:text-red-700 font-bold cursor-pointer"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+            <div class="flex gap-1">
+              <button class="decreaseQty h-7 w-7 flex itemms-center justify-center text-[#835234] bg-[#f3d9d1] rounded hover:bg-[#eac0b0]">−</button>
+              <button class="increaseQty h-7 w-7 flex itemms-center justify-center text-[#835234] bg-[#f3d9d1] rounded hover:bg-[#eac0b0]">+</button>
+            </div>
+          </div>
+        `;
+        
+        a.querySelector(".removeItem").addEventListener("click", (e) => {
+          e.preventDefault(); e.stopPropagation();
+          cart.splice(index, 1);
           localStorage.setItem("cart", JSON.stringify(cart));
           renderCart();
-          window.updateCartAndWishlistCounts?.();
-        }
+          window.updateCartAndFavouriteCounts?.(); 
+        });
+
+        a.querySelector(".decreaseQty").addEventListener("click", (e) => {
+          e.preventDefault(); e.stopPropagation();
+          if (item.quantity > 1) {
+            item.quantity--;
+            localStorage.setItem("cart", JSON.stringify(cart));
+            renderCart();
+            window.updateCartAndFavouriteCounts?.(); 
+          }
+        });
+
+        a.querySelector(".increaseQty").addEventListener("click", (e) => {
+          e.preventDefault(); e.stopPropagation();
+          if (item.quantity < item.stock) {
+            item.quantity++;
+            localStorage.setItem("cart", JSON.stringify(cart));
+            renderCart();
+            window.updateCartAndFavouriteCounts?.(); 
+          } else if (window.showModal) {
+            window.showModal({ type: "warning", title: "Stock Limit Reached", message: `Cannot add more than ${item.stock} of ${item.name}.`, buttons: [{ text: "OK", variant: "cancel" }] });
+          }
+        });
+        cartItemsContainer.appendChild(a);
       });
-
-      // Increase qty
-      div.querySelector(".increaseQty").addEventListener("click", () => {
-        if (item.quantity < item.stock) {
-          item.quantity++;
-          localStorage.setItem("cart", JSON.stringify(cart));
-          renderCart();
-          window.updateCartAndWishlistCounts?.();
-        } else if (window.showModal) {
-          window.showModal({
-            type: "warning",
-            title: "Stock Limit Reached",
-            message: `Cannot add more than ${item.stock} of ${item.name}.`,
-            buttons: [{ text: "OK", variant: "cancel" }]
-          });
-        }
-      });
-
-      cartItemsContainer.appendChild(div);
-    });
-
-    cartTotalEl.textContent = `Total: ₱${total.toFixed(2)}`;
-  }
-
-  function renderWishlist() {
-    const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
-    wishlistItemsContainer.innerHTML = "";
-
-    if (wishlist.length === 0) {
-      wishlistItemsContainer.innerHTML = `<p class="text-gray-500">No favourites yet.</p>`;
-      return;
+      if (cartTotalEl) cartTotalEl.textContent = `Total: ₱${total.toFixed(2)}`; 
     }
 
-    wishlist.forEach((item, index) => {
-      const div = document.createElement("div");
-      div.className = "flex items-center gap-3 border-b pb-2 mb-2";
+    function renderFavourite() { 
+      const favourite = JSON.parse(localStorage.getItem("favourite") || "[]"); 
+      if (!favouriteItemsContainer) return; 
+      favouriteItemsContainer.innerHTML = ""; 
 
-      div.innerHTML = `
-        <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-cover rounded-lg">
-        <div class="flex-1">
-          <p class="font-semibold text-[#835234]">${item.name}</p>
-          <p class="text-sm text-gray-500">₱${item.price}</p>
-        </div>
-        <button class="text-red-500 hover:text-red-700 font-bold cursor-pointer">&times;</button>
-      `;
+      if (favourite.length === 0) { 
+        favouriteItemsContainer.innerHTML = `<p class="text-gray-500">No favourites yet.</p>`; 
+        return;
+      }
 
-      div.querySelector("button").addEventListener("click", () => {
-        wishlist.splice(index, 1);
-        localStorage.setItem("wishlist", JSON.stringify(wishlist));
-        renderWishlist();
-        window.updateCartAndWishlistCounts?.();
+      favourite.forEach((item, index) => { 
+        const a = document.createElement("a");
+        a.href = `/products/${item.id}`; 
+        a.className = "flex items-center gap-3 border-b pb-2 mb-2 group";
+        a.innerHTML = `
+          <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-cover shadow-sm shadow-gray-400 rounded-lg">
+          <div class="flex-1">
+            <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
+            <p class="text-sm text-gray-500">₱${item.price}</p>
+          </div>
+          <button class="text-red-500 hover:text-red-700 font-bold cursor-pointer relative z-10"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+        `;
+
+        a.querySelector("button").addEventListener("click", (e) => {
+          e.preventDefault(); e.stopPropagation();
+          favourite.splice(index, 1); 
+          localStorage.setItem("favourite", JSON.stringify(favourite)); 
+          renderFavourite(); 
+          window.updateCartAndFavouriteCounts?.(); 
+          window.dispatchEvent(new Event("favouritesChanged"));
+        });
+        favouriteItemsContainer.appendChild(a); 
       });
+    }
 
-      wishlistItemsContainer.appendChild(div);
+
+    // --- 3. ASSIGN GLOBALS (for other scripts) ---
+    window.updateCartAndFavouriteCounts = updateCounts;
+    window.renderCart = renderCart;
+    window.renderFavourite = renderFavourite;
+
+    // --- 4. BIND EVENT LISTENERS ---
+    
+    // Helper to toggle a single sidebar
+    function toggleSidebar(btn, sidebar, e) {
+        e.stopPropagation();
+        const isOpen = !sidebar.classList.contains("translate-x-full");
+        closeAllSidebars();
+        if (!isOpen) {
+            sidebar?.classList.remove("translate-x-full");
+            overlay?.classList.remove("hidden");
+        }
+    }
+    
+    // Helper to toggle a dropdown
+    function toggleDropdown(btn, dropdown, e) {
+        e.stopPropagation();
+        const isOpen = !dropdown.classList.contains("hidden");
+        closeAllSidebars(); // This also closes other dropdowns
+        if (!isOpen) {
+            dropdown?.classList.remove("hidden");
+        }
+    }
+
+    favouriteBtn?.addEventListener("click", (e) => toggleSidebar(favouriteBtn, favouriteSidebar, e));
+    cartBtn?.addEventListener("click", (e) => toggleSidebar(cartBtn, cartSidebar, e));
+    userMenuBtn?.addEventListener("click", (e) => toggleDropdown(userMenuBtn, userDropdown, e));
+    overlay?.addEventListener("click", closeAllSidebars);
+
+    // Close dropdown when clicking outside
+    window.addEventListener("click", (e) => {
+      if (userDropdown && !userDropdown.classList.contains("hidden")) {
+        if (!userMenuBtn.contains(e.target) && !userDropdown.contains(e.target)) {
+          userDropdown.classList.add("hidden");
+        }
+      }
     });
-  }
 
-  window.renderCart = renderCart;
-  window.renderWishlist = renderWishlist;
+    // --- 5. RUN ON INITIAL PAGE LOAD ---
+    updateCounts();
+    renderCart();
+    renderFavourite();
 
-  renderCart();
-  renderWishlist();
-});
+    // --- 6. SET UP NAVIGATION LISTENER ---
+    function handleNavigation() {
+      updateCounts();
+      renderCart();
+      renderFavourite();
+      closeAllSidebars(); 
+    }
+
+    window.addEventListener('popstate', handleNavigation);
+    window.addEventListener('pushstate', handleNavigation);
+    window.addEventListener('replacestate', handleNavigation);
+  });
 </script>
-
-
-
-
 </body>
 </html>

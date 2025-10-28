@@ -1,7 +1,9 @@
 <header class="bg-white shadow flex items-center justify-between p-4">
   <h2 class="text-xl font-semibold text-[#835234]">{{ title|default('Dashboard') }}</h2>
   <div class="flex items-center gap-3">
-    <span class="text-gray-600">Admin User</span>
-    <button class="text-red-500 hover:text-red-700">Logout</button>
+    {# Use the user object from the session #}
+    <span class="text-gray-600">{{ user.name | default('Admin') }}</span>
+    {# Make the logout button a real link #}
+    <a href="/logout" class="text-red-500 hover:text-red-700">Logout</a>
   </div>
 </header>

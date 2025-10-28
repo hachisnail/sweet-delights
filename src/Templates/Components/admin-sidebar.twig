@@ -1,9 +1,22 @@
 <aside class="w-64 bg-[#835234] text-white h-screen p-4 space-y-4 sticky top-0">
   <h1 class="text-2xl font-bold mb-6">FlourEver Admin</h1>
   <nav class="space-y-2">
-    <a href="/admin/dashboard" class="block p-2 rounded hover:bg-[#a07445]">Dashboard</a>
-    <a href="/admin/products" class="block p-2 rounded hover:bg-[#a07445]">Products</a>
-    <a href="/admin/orders" class="block p-2 rounded hover:bg-[#a07445]">Orders</a>
-    <a href="/admin/users" class="block p-2 rounded hover:bg-[#a07445]">Users</a>
+    {# These links are visible to both admin and superadmin #}
+    {% if user.role in ['admin', 'superadmin'] %}
+      <a href="/app/dashboard" class="block p-2 rounded hover:bg-[#a07445]">Dashboard</a>
+      <a href="/app/products" class="block p-2 rounded hover:bg-[#a07445]">Products</a>
+      <a href="/app/orders" class="block p-2 rounded hover:bg-[#a07445]">Orders</a>
+    {% endif %}
+
+    {# This link is ONLY for 'admin' (to show the split) #}
+    {% if user.role == 'admin' %}
+       <a href="/app/users" class="block p-2 rounded hover:bg-[#a07445]">Users (Admin)</a>
+    {% endif %}
+
+    {# These links are ONLY for 'superadmin' #}
+    {% if user.role == 'superadmin' %}
+      <a href="/system/users" class="block p-2 rounded hover:bg-[#a0744D] border-t border-white/20 mt-2 pt-2">Manage Users</a>
+      <a href="/system/logs" class="block p-2 rounded hover:bg-[#a0744D]">System Logs</a>
+    {% endif %}
   </nav>
 </aside>

@@ -1,4 +1,7 @@
 <?php
+
+// expand this to include more products, descriptions, categories, sizes, etc.
+
 return [
     [
         'id' => '1',
