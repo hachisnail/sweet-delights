@@ -76,15 +76,22 @@
     }
 
     function updateCounts() {
-      const favourite = JSON.parse(localStorage.getItem("favourite") || "[]"); 
+      const favourite = JSON.parse(localStorage.getItem("favourite") || "[]");
       const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-      if (favouriteCountEl) { 
-        favouriteCountEl.textContent = favourite.length || ""; 
-        favouriteCountEl.style.display = favourite.length ? "inline" : "none"; 
+
+      const faded = "bg-[#f59b62]";
+      const active = "bg-[#835234]";
+
+      if (favouriteCountEl) {
+        favouriteCountEl.textContent = favourite.length;
+        favouriteCountEl.classList.remove(faded, active);
+        favouriteCountEl.classList.add(favourite.length ? active : faded);
       }
+
       if (cartCountEl) {
-        cartCountEl.textContent = cart.length || "";
-        cartCountEl.style.display = cart.length ? "inline" : "none";
+        cartCountEl.textContent = cart.length;
+        cartCountEl.classList.remove(faded, active);
+        cartCountEl.classList.add(cart.length ? active : faded);
       }
     }
 
