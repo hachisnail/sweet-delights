@@ -11,3 +11,8 @@
   if they manipulate classes.
 */
 @source "./src/**/*.js";
+
+@theme {
+  --font-zen-antique: "Zen Antique", serif;
+}
+
