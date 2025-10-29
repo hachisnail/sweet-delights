@@ -3,58 +3,59 @@
 
 {% block content %}
 {# <div class="h-auto overflow-y-scroll snap-y snap-mandatory"></div> #}
-<section class="min-h-screen bg-cover bg-center bg-no-repeat px-6 sm:px-30 py-6 flex items-center justify-center snap-start "  style="background-image: url('/Assets/Background1.png');">
+<section class="min-h-screen bg-cover bg-center bg-no-repeat px-6 sm:px-30 pt-20 sm:pt-15 flex items-center justify-center snap-start "  style="background-image: url('/Assets/Background1.png');">
     <div class="flex flex-col xl:flex-row w-full" >
         <div class="flex flex-col justify-center gap-y-2">
             <p class="font-zen-antique font-400 text-xl sm:text-5xl">Welcome to</p>
-            <h2 class="text-8xl xl:text-[9rem] leading-15 xl:leading-28 text-[#A96B44] font-400  font-zen-antique text-shadow-sm text-shadow-[#8c8989]">FlourEver</h2>
+            <h2 class="text-6xl lg:text-[9rem] leading-10 lg:leading-28 text-[#A96B44] font-400  font-zen-antique text-shadow-sm text-shadow-[#8c8989]">FlourEver</h2>
             <p class="font-zen-antique font-400 text-2xl text-[#A69273]">The sweet spots for cravings</p>
 
             <button onclick="location.href='/products'" class="w-fit bg-[#A96B44] shadow-md shadow-[#8c8989] text-white flex gap-x-4 pr-2 pl-5 py-1 border border-black rounded-full">Order Now  
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right-icon lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </button>    
         </div>
-        <img src="/Assets/PileOfDonuts.png" alt="Delicious baked goods" class="w-160 ml-auto">
+        <img src="/Assets/PileOfDonuts.png" alt="Delicious baked goods" class="w-100 lg:w-160 ml-auto">
     </div>
 </section>
 
-<section class="flex flex-col min-h-screen items-center justify-center snap-start pt-30 px-10">
+<section class="flex flex-col min-h-screen items-center justify-center snap-start pt-30 ">
     <div class="w-fit items-center flex flex-col gap-y-2">
-        <h1 class="font-zen-antique text-6xl font-400 text-shadow-sm text-shadow-[#8c8989]">Explore Our Categories</h1>
+        <h1 class="font-zen-antique text-3xl lg:text-6xl font-400 text-shadow-sm text-shadow-[#8c8989]">Explore Our Categories</h1>
 
         <div class="flex items-center gap-y-5">
             <div class="flex flex-col gap-y-3 justify-center items-end">
-                <div class="w-60 bg-gray-700 h-[0.1rem]  rounded-full"></div>
-                <div class="w-45 bg-gray-700 h-[0.1rem]  rounded-full"></div>
+                <div class="w-30 lg:w-60 bg-gray-700 h-[0.1rem]  rounded-full"></div>
+                <div class="w-20 lg:w-45 bg-gray-700 h-[0.1rem]  rounded-full"></div>
             </div>
 
             <img src="/Assets/BobaTea.svg" alt="Boba Teas" class="w-15">
 
             <div class="flex flex-col h-full gap-y-3 justify-center items-start">
-                <div class="w-60 bg-gray-700 h-[0.1rem] rounded-full"></div>
-                <div class="w-45 bg-gray-700 h-[0.1rem]  rounded-full"></div>
+                <div class="w-30 lg:w-60 bg-gray-700 h-[0.1rem] rounded-full"></div>
+                <div class="w-20 lg:w-45 bg-gray-700 h-[0.1rem]  rounded-full"></div>
             </div>
         </div>
-        <div class="min-h-90 w-fit gap-5 flex flex-wrap justify-center items-center">
-            <div class="w-60 h-90 rounded-4xl border shadow-md shadow-gray-400">
-            {# content 1 #}
-            </div>
-            <div class="w-60 h-90 rounded-4xl border shadow-md shadow-gray-400">
-            {# content 1 #}
-            </div>
-            <div class="w-60 h-90 rounded-4xl border shadow-md shadow-gray-400">
-            {# content 1 #}
-            </div>
-            <div class="w-60 h-90 rounded-4xl border shadow-md shadow-gray-400">
-            {# content 1 #}
-            </div>
-            <div class="w-60 h-90 rounded-4xl border shadow-md shadow-gray-400">
-            {# content 1 #}
-            </div>
-        </div>
+<div class="min-h-90 w-full gap-5 flex flex-wrap justify-center items-center">
+    <div class="w-40 h-60 lg:w-60 lg:h-90 rounded-4xl border shadow-md shadow-gray-400">
+        {# content 1 #}
+    </div>
+    <div class="w-40 h-60 lg:w-60 lg:h-90 rounded-4xl border shadow-md shadow-gray-400">
+        {# content 2 #}
+    </div>
+    <div class="w-40 h-60 lg:w-60 lg:h-90 rounded-4xl border shadow-md shadow-gray-400">
+        {# content 3 #}
+    </div>
+    <div class="w-40 h-60 lg:w-60 lg:h-90 rounded-4xl border shadow-md shadow-gray-400">
+        {# content 4 #}
+    </div>
+    <div class="w-40 h-60 lg:w-60 lg:h-90 rounded-4xl border shadow-md shadow-gray-400">
+        {# content 5 #}
+    </div>
+</div>
+
         <div class="flex flex-col items-center gap-y-3 h-15 justify-center">
-            <div class="w-200 bg-black rounded-full h-[0.1rem]"></div>
-            <div class="w-170 bg-black rounded-full h-[0.1rem]"></div>
+            <div class="w-60 lg:w-200 bg-black rounded-full h-[0.1rem]"></div>
+            <div class="w-30 lg:w-170 bg-black rounded-full h-[0.1rem]"></div>
 
         </div>
     </div>

@@ -1,6 +1,7 @@
-<header class="sticky top-0 w-full px-10 py-1 bg-[#fee7b5] flex shadow-md shadow-[#cbb890] items-center z-30 ">
+<header class="sticky top-0 w-full px-10 py-1 bg-[#fee7b5] flex shadow-md shadow-[#cbb890] items-center z-30 flex-wrap">
   <img src="/Assets/LogoWithName.png" alt="Sweet Delights Logo" class="h-20 w-20 inline-block mr-3">
-  <nav class="flex text-[#835234] font-medium font-zen-antique h-fit gap-x-3 text-2xl">
+
+  <nav class="hidden md:flex text-[#835234] font-medium font-zen-antique h-fit gap-x-3 text-2xl">
     <a href="/" class="hover:text-[#d1a731] cursor-pointer">Home</a>
     <a href="/about" class="hover:text-[#d1a731] cursor-pointer">About Us</a>
     <a href="/products" class="hover:text-[#d1a731] cursor-pointer">Products</a>
@@ -46,19 +47,19 @@
       </button>
 
       <div id="userDropdown" 
-           class="hidden absolute top-full -right-4 mt-2 w-48 bg-white rounded-lg shadow-xl border border-pink-100 z-50 
-                  
-                  before:content-[''] before:absolute before:w-0 before:h-0 
-                  before:border-l-[10px] before:border-l-transparent 
-                  before:border-r-[10px] before:border-r-transparent 
-                  before:border-b-[10px] before:border-b-white 
-                  before:top-[-10px] before:right-[21px] before:z-10 
-                  
-                  after:content-[''] after:absolute after:w-0 after:h-0 
-                  after:border-l-[11px] after:border-l-transparent 
-                  after:border-r-[11px] after:border-r-transparent 
-                  after:border-b-[11px] after:border-b-pink-100 
-                  after:top-[-11px] after:right-5">
+            class="hidden absolute top-full -right-4 mt-2 w-48 bg-white rounded-lg shadow-xl border border-pink-100 z-50 
+                   
+                   before:content-[''] before:absolute before:w-0 before:h-0 
+                   before:border-l-[10px] before:border-l-transparent 
+                   before:border-r-[10px] before:border-r-transparent 
+                   before:border-b-[10px] before:border-b-white 
+                   before:top-[-10px] before:right-[21px] before:z-10 
+                   
+                   after:content-[''] after:absolute after:w-0 after:h-0 
+                   after:border-l-[11px] after:border-l-transparent 
+                   after:border-r-[11px] after:border-r-transparent 
+                   after:border-b-[11px] after:border-b-pink-100 
+                   after:top-[-11px] after:right-5">
         
         {# 'user' variable comes from AuthMiddleware #}
         {% if user %}
@@ -87,5 +88,24 @@
       </div>
     </div>
     
+    <button id="mobileMenuBtn" class="md:hidden">
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+        class="text-[#835234] hover:text-[#d1a731] cursor-pointer">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+
   </div>
+
+  <div id="mobileMenu" class="hidden w-full md:hidden">
+    <nav class="flex flex-col pt-2 pb-4 space-y-1">
+      <a href="/" class="block px-3 py-2 rounded-md text-base font-medium text-[#835234] hover:bg-[#cbb890]">Home</a>
+      <a href="/about" class="block px-3 py-2 rounded-md text-base font-medium text-[#835234] hover:bg-[#cbb890]">About Us</a>
+      <a href="/products" class="block px-3 py-2 rounded-md text-base font-medium text-[#835234] hover:bg-[#cbb890]">Products</a>
+    </nav>
+  </div>
+
 </header>

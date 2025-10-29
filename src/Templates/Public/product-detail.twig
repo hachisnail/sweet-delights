@@ -1,7 +1,8 @@
 {% extends "Layouts/public.twig" %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow-lg border border-pink-100"
+<div class="snap-start pt-20 ">
+<div class="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-lg border border-pink-100 "
      data-product-id="{{ product.id }}"
      data-product-name="{{ product.name }}"
      data-product-price="{{ product.price }}"
@@ -12,7 +13,7 @@
   <div class="flex flex-col md:flex-row gap-8">
     <div class="md:w-1/2 flex justify-center">
       <img src="{{ product.image }}" alt="{{ product.name }}"
-           class="rounded-xl w-full max-w-sm object-cover shadow-md shadow-pink-100">
+           class="rounded-xl w-full max-w-sm object-cover shadow-md shadow-gray-400">
     </div>
 
     <div class="md:w-1/2 flex flex-col justify-between">
@@ -83,6 +84,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <style>
