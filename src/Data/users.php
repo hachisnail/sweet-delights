@@ -1,29 +1,76 @@
 <?php
 
-// note: expand this to use full names, aswell as address, phone, etc.
-// also when logged in save the fdavourites and cart to the user data.
-
-
-return [
-    [
-        'id' => 1,
-        'name' => 'Mayie',
-        'email' => 'mayie@example.com',
-        'password_hash' => password_hash('password123', PASSWORD_DEFAULT),
-        'role' => 'admin' 
-    ],
-    [
+return array (
+  0 => 
+  array (
+    'id' => 1,
+    'name' => 'Mayie',
+    'email' => 'mayie@example.com',
+    'password_hash' => '$2y$10$qbDw3KQZQz3b7EgetOqonuudMfxYnd7ZabYiABQDLEkor5XBl7zC2',
+    'role' => 'admin',
+    'cart' => 
+    array (
+      0 => 
+      array (
         'id' => 2,
-        'name' => 'Jeffe',
-        'email' => 'jeffe@example.com',
-        'password_hash' => password_hash('admin', PASSWORD_DEFAULT),
-        'role' => 'customer'
-    ],
-    [
+        'name' => 'Chocolate Donut',
+        'image' => '/Assets/Products/Chocolate Donut.png',
+        'price' => 180,
+        'selectedSize' => 'Large',
+        'stock' => 12,
+        'quantity' => 2,
+      ),
+      1 => 
+      array (
+        'id' => 4,
+        'name' => 'Vanilla Donut',
+        'image' => '/Assets/Products/Vanilla Donut.png',
+        'price' => 520,
+        'selectedSize' => 'Mini',
+        'stock' => 8,
+        'quantity' => 3,
+      ),
+      2 => 
+      array (
         'id' => 3,
-        'name' => 'SysAdmin',
-        'email' => 'super@example.com',
-        'password_hash' => password_hash('superpass', PASSWORD_DEFAULT),
-        'role' => 'superadmin' 
-    ]
-];
+        'name' => 'Strawberry Chocolate Cupcake',
+        'image' => '/Assets/Products/Strawberry Chocolate Cupcake.png',
+        'price' => 520,
+        'selectedSize' => 'Box of 6',
+        'stock' => 3,
+        'quantity' => 2,
+      ),
+    ),
+    'favourites' => 
+    array (
+    ),
+  ),
+  1 => 
+  array (
+    'id' => 2,
+    'name' => 'Jeffe',
+    'email' => 'jeffe@example.com',
+    'password_hash' => '$2y$10$zdU0.LHJHyrGUg4mvqlgEuMmBIMcUiIbT/9Xj8XMBPKPKr7VaIlUi',
+    'role' => 'customer',
+    'cart' => 
+    array (
+    ),
+    'favourites' => 
+    array (
+    ),
+  ),
+  2 => 
+  array (
+    'id' => 3,
+    'name' => 'SysAdmin',
+    'email' => 'super@example.com',
+    'password_hash' => '$2y$10$CrEKRg/JKZG.uEQYvNtli.k1bXbbNGicTDv54cTqh.TY.yX19TKZq',
+    'role' => 'superadmin',
+    'cart' => 
+    array (
+    ),
+    'favourites' => 
+    array (
+    ),
+  ),
+);

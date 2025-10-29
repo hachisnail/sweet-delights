@@ -10,7 +10,6 @@ class AuthController {
 
     /**
      * Show the login page.
-     * (Line 14 is below)
      */
     public function showLogin(Request $request, Response $response): Response {
         $view = Twig::fromRequest($request);
@@ -19,7 +18,7 @@ class AuthController {
         return $view->render($response, 'Public/login.twig', [
              'title'      => 'Login',
              'error'      => isset($params['error']),
-             'hideHeader' => true // <-- ADD THIS LINE
+             'hideHeader' => true 
         ]);
     }
 
@@ -43,12 +42,19 @@ class AuthController {
 
         if ($foundUser && password_verify($password, $foundUser['password_hash'])) {
             // SUCCESS: Store user data in session
+            
+            // ✅ --- START FIX ---
+            // Load all user data into the session, including cart and favourites
             $_SESSION['user'] = [
                 'id' => $foundUser['id'],
                 'name' => $foundUser['name'], 
                 'email' => $foundUser['email'],
-                'role' => $foundUser['role']
+                'role' => $foundUser['role'],
+                // These lines load the persistent data from users.php
+                'cart' => $foundUser['cart'] ?? [],
+                'favourites' => $foundUser['favourites'] ?? []
             ];
+            // ✅ --- END FIX ---
 
 
             // --- THIS IS THE NEW REDIRECT LOGIC ---

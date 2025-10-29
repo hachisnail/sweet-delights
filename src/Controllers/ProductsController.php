@@ -34,7 +34,7 @@ class ProductsController
             }
 
             return $view->render($response, 'Public/products.twig', [
-                'title' => 'Our Products - Sweet Delights',
+                'title' => 'Our Products - FlourEver',
                 'products' => $products,
                 'app_url' => $_ENV['APP_URL'],
                 'selected_category' => $category,

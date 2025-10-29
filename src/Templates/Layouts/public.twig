@@ -4,12 +4,21 @@
   <meta charset="UTF-8">
   <title>{{ title|default('FlourEver') }}</title>
   <link rel="icon" type="image/png" href="/Assets/favicon.png">
-  {# <link rel="stylesheet" href="/css/globals.css"> #}
   <link href="/css/output.css" rel="stylesheet">
+
+  <script src="/js/modal.js"></script>
+  <script>
+    window.AUTH_STATE = {
+      isLoggedIn: {{ user ? 'true' : 'false' }},
+      initialCart: {{ (user.cart ?? [])|json_encode|raw }},
+      initialFavs: {{ (user.favourites ?? [])|json_encode|raw }}
+    };
+  </script>
+  <script src="/js/CartService.js"></script>
+  <script src="/js/FavouriteService.js"></script>
 
 </head>
 <body class="bg-pink-50 text-gray-900 relative ">
-
 
   {% if not hideHeader %}
     {% include 'Components/header.twig' %}
@@ -20,284 +29,118 @@
   </main>
 
   {% include 'Components/footer.twig' %}
-  {% include 'Components/sidebar-favourite.twig' %} {% include 'Components/sidebar-cart.twig' %}
+  {% include 'Components/sidebar-favourite.twig' %}
+  {% include 'Components/sidebar-cart.twig' %}
   {% include 'Components/modal.twig' %}
 
   <div id="overlay" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity z-40"></div>
 
-<script src="/js/modal.js"></script>
+  <script>
+    // --- History API patch ---
+    (function(history) {
+      const pushState = history.pushState;
+      history.pushState = function() {
+        const result = pushState.apply(this, arguments);
+        window.dispatchEvent(new Event('pushstate')); 
+        return result;
+      };
+      const replaceState = history.replaceState;
+      history.replaceState = function() {
+        const result = replaceState.apply(this, arguments);
+        window.dispatchEvent(new Event('replacestate'));
+        return result;
+      };
+    })(window.history);
+  </script>
 
-<script>
-  // --- History API patch ---
-  (function(history) {
-    const pushState = history.pushState;
-    history.pushState = function() {
-      const result = pushState.apply(this, arguments);
-      window.dispatchEvent(new Event('pushstate')); 
-      return result;
-    };
-    const replaceState = history.replaceState;
-    history.replaceState = function() {
-      const result = replaceState.apply(this, arguments);
-      window.dispatchEvent(new Event('replacestate'));
-      return result;
-    };
-  })(window.history);
-</script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // --- Elements (for layout only) ---
+      const favouriteBtn = document.getElementById("favouriteBtn"); 
+      const cartBtn = document.getElementById("cartBtn");
+      const favouriteSidebar = document.getElementById("favouriteSidebar"); 
+      const cartSidebar = document.getElementById("cartSidebar");
+      const overlay = document.getElementById("overlay");
+      const userMenuBtn = document.getElementById("userMenuBtn");
+      const userDropdown = document.getElementById("userDropdown");
 
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-
-    // --- Elements ---
-    const favouriteBtn = document.getElementById("favouriteBtn"); 
-    const cartBtn = document.getElementById("cartBtn");
-    const favouriteSidebar = document.getElementById("favouriteSidebar"); 
-    const cartSidebar = document.getElementById("cartSidebar");
-    const overlay = document.getElementById("overlay");
-    const favouriteCountEl = document.getElementById("favouriteCount"); 
-    const cartCountEl = document.getElementById("cartCount");
-    const cartItemsContainer = document.getElementById("cartItems");
-    const favouriteItemsContainer = document.getElementById("favouriteItems"); 
-    const cartTotalEl = document.getElementById("cartTotal");
-    const userMenuBtn = document.getElementById("userMenuBtn");
-    const userDropdown = document.getElementById("userDropdown");
-
-    // --- Helpers ---
-    function closeAllSidebars() {
-      favouriteSidebar?.classList.add("translate-x-full"); 
-      cartSidebar?.classList.add("translate-x-full");
-      userDropdown?.classList.add("hidden");
-      overlay?.classList.add("hidden");
-    }
-
-    function updateCounts() {
-      const favourite = JSON.parse(localStorage.getItem("favourite") || "[]");
-      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-
-      const faded = "bg-[#f59b62]";
-      const active = "bg-[#835234]";
-
-      if (favouriteCountEl) {
-        favouriteCountEl.textContent = favourite.length;
-        favouriteCountEl.classList.toggle(active, favourite.length > 0);
-        favouriteCountEl.classList.toggle(faded, favourite.length === 0);
+      // --- Helpers (for layout only) ---
+      function closeAllSidebars() {
+        favouriteSidebar?.classList.add("translate-x-full"); 
+        cartSidebar?.classList.add("translate-x-full");
+        userDropdown?.classList.add("hidden");
+        overlay?.classList.add("hidden");
       }
 
-      if (cartCountEl) {
-        cartCountEl.textContent = cart.length;
-        cartCountEl.classList.toggle(active, cart.length > 0);
-        cartCountEl.classList.toggle(faded, cart.length === 0);
-      }
-    }
+      // --- 3. INITIALIZE SERVICES ---
+      window.cartService = new CartService();
+      window.favouriteService = new FavouriteService();
+      
+      window.cartService.init();
+      window.favouriteService.init();
 
-    function renderCart() {
-      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-      if (!cartItemsContainer) return;
-      cartItemsContainer.innerHTML = "";
+      // --- ✅ 2. DISPATCH "SERVICES READY" EVENT ---
+      // This tells page-specific scripts that it's safe to run.
+      window.dispatchEvent(new Event('servicesReady'));
 
-      if (cart.length === 0) {
-        cartItemsContainer.innerHTML = `<p class="text-gray-500">Your cart is empty.</p>`;
-        if (cartTotalEl) cartTotalEl.textContent = `Total: ₱0.00`;
-        return;
-      }
-
-      let total = 0;
-      cart.filter(Boolean).forEach((item, index) => {
-        total += parseFloat(item.price) * item.quantity;
-        const a = document.createElement("div");
-        a.className = "flex flex-col border-b pb-3 mb-3";
-
-        a.innerHTML = `
-          <div class="flex gap-3 items-center">
-            <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded-lg shadow-sm shadow-pink-200">
-            <div class="flex-1">
-              <p class="font-semibold text-[#835234]">${item.name}</p>
-              ${item.selectedSize ? `<p class="text-xs text-gray-500">Size: ${item.selectedSize}</p>` : ""}
-              <p class="text-sm text-gray-500">₱${item.price}</p>
-            </div>
-            <button class="removeItem text-red-500 hover:text-red-700 font-bold cursor-pointer">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-              </svg>
-            </button>
-          </div>
-
-          <div class="flex items-center justify-between mt-2">
-            <div class="flex items-center border rounded-lg overflow-hidden">
-              <button class="decreaseQty px-3 py-1 bg-pink-100 hover:bg-pink-200">−</button>
-              <input type="number" class="cartQty w-16 text-center border-l border-r outline-none" value="${item.quantity}" min="1" max="${item.stock}">
-              <button class="increaseQty px-3 py-1 bg-pink-100 hover:bg-pink-200">+</button>
-            </div>
-          </div>
-        `;
-
-        // --- Remove ---
-        a.querySelector(".removeItem").addEventListener("click", (e) => {
-          e.preventDefault(); e.stopPropagation();
-          window.showModal({
-            type: "error",
-            title: "Remove from Cart",
-            message: `Remove ${item.name}${item.selectedSize ? " (" + item.selectedSize + ")" : ""} from your cart?`,
-            buttons: [
-              { text: "Cancel", variant: "cancel" },
-              {
-                text: "Remove", variant: "danger", action: () => {
-                  cart.splice(index, 1);
-                  localStorage.setItem("cart", JSON.stringify(cart));
-                  renderCart(); updateCounts();
-                  window.dispatchEvent(new Event("cartChanged"));
-                }
-              }
-            ]
-          });
-        });
-
-        // --- Decrease Qty ---
-        a.querySelector(".decreaseQty").addEventListener("click", (e) => {
-          e.preventDefault(); e.stopPropagation();
-          if (item.quantity > 1) {
-            item.quantity--;
-            localStorage.setItem("cart", JSON.stringify(cart));
-            renderCart(); updateCounts();
-            window.dispatchEvent(new Event("cartChanged"));
-          }
-        });
-
-        // --- Increase Qty ---
-        a.querySelector(".increaseQty").addEventListener("click", (e) => {
-          e.preventDefault(); e.stopPropagation();
-          if (item.quantity < item.stock) {
-            item.quantity++;
-            localStorage.setItem("cart", JSON.stringify(cart));
-            renderCart(); updateCounts();
-            window.dispatchEvent(new Event("cartChanged"));
-          } else {
-            window.showModal({
-              type: "warning",
-              title: "Stock Limit",
-              message: `You’ve reached the stock limit for ${item.name}${item.selectedSize ? " (" + item.selectedSize + ")" : ""}.`,
-              buttons: [{ text: "OK", variant: "cancel" }]
-            });
-          }
-        });
-
-        cartItemsContainer.appendChild(a);
-      });
-
-      if (cartTotalEl) cartTotalEl.textContent = `Total: ₱${total.toFixed(2)}`;
-    }
-
-
-    function renderFavourite() { 
-      const favourite = JSON.parse(localStorage.getItem("favourite") || "[]"); 
-      if (!favouriteItemsContainer) return; 
-      favouriteItemsContainer.innerHTML = ""; 
-
-      if (favourite.length === 0) { 
-        favouriteItemsContainer.innerHTML = `<p class="text-gray-500">No favourites yet.</p>`; 
-        return;
-      }
-
-      favourite.forEach((item, index) => { 
-        const a = document.createElement("a");
-        a.href = `/products/${item.id}`; 
-        a.className = "flex items-center gap-3 border-b pb-2 mb-2 group";
-        a.innerHTML = `
-          <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-cover rounded-lg shadow-sm shadow-gray-400">
-          <div class="flex-1">
-            <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
-            <p class="text-sm text-gray-500">₱${item.price}</p>
-          </div>
-          <button class="text-red-500 hover:text-red-700">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-          </button>
-        `;
-
-        a.querySelector("button").addEventListener("click", (e) => {
-          e.preventDefault(); e.stopPropagation();
-          favourite.splice(index, 1);
-          localStorage.setItem("favourite", JSON.stringify(favourite));
-          renderFavourite(); updateCounts();
-          window.dispatchEvent(new Event("favouritesChanged"));
-        });
-
-        favouriteItemsContainer.appendChild(a); 
-      });
-    }
-
-    // --- Assign global helpers ---
-    window.updateCartAndFavouriteCounts = updateCounts;
-    window.renderCart = renderCart;
-    window.renderFavourite = renderFavourite;
-
-    // --- Listen to cart changes globally ---
-    window.addEventListener("cartChanged", () => {
-      updateCounts(); renderCart();
-    });
-
-    // --- Listen to favourite changes globally ---
-    window.addEventListener("favouritesChanged", () => {
-      updateCounts(); renderFavourite();
-    });
-
-    // --- Sidebar toggles ---
-    function toggleSidebar(btn, sidebar, e) {
-      e.stopPropagation();
-      const isOpen = !sidebar.classList.contains("translate-x-full");
-      closeAllSidebars();
-      if (!isOpen) {
-        sidebar?.classList.remove("translate-x-full");
-        overlay?.classList.remove("hidden");
-      }
-    }
-
-    function toggleDropdown(btn, dropdown, e) {
-      e.stopPropagation();
-      const isOpen = !dropdown.classList.contains("hidden");
-      closeAllSidebars();
-      if (!isOpen) dropdown?.classList.remove("hidden");
-    }
-
-    favouriteBtn?.addEventListener("click", (e) => toggleSidebar(favouriteBtn, favouriteSidebar, e));
-    cartBtn?.addEventListener("click", (e) => toggleSidebar(cartBtn, cartSidebar, e));
-    userMenuBtn?.addEventListener("click", (e) => toggleDropdown(userMenuBtn, userDropdown, e));
-    overlay?.addEventListener("click", closeAllSidebars);
-
-    window.addEventListener("click", (e) => {
-      if (userDropdown && !userDropdown.classList.contains("hidden")) {
-        if (!userMenuBtn.contains(e.target) && !userDropdown.contains(e.target)) {
-          userDropdown.classList.add("hidden");
+      // --- Sidebar toggles (Keep this) ---
+      function toggleSidebar(btn, sidebar, e) {
+        e.stopPropagation();
+        const isOpen = !sidebar.classList.contains("translate-x-full");
+        closeAllSidebars();
+        if (!isOpen) {
+          sidebar?.classList.remove("translate-x-full");
+          overlay?.classList.remove("hidden");
         }
       }
-    });
-
-    // --- Initial Load ---
-    updateCounts();
-    renderCart();
-    renderFavourite();
-
-    // --- Navigation Changes ---
-    function handleNavigation() {
-      updateCounts();
-      renderCart();
-      renderFavourite();
-      closeAllSidebars(); 
-    }
-
-    window.addEventListener('popstate', handleNavigation);
-    window.addEventListener('pushstate', handleNavigation);
-    window.addEventListener('replacestate', handleNavigation);
-
-    // --- 🔥 Listen for external cart updates (no refresh needed) ---
-    window.addEventListener("storage", (e) => {
-      if (e.key === "cart" || e.key === "favourite") {
-        updateCounts(); renderCart(); renderFavourite();
+      function toggleDropdown(btn, dropdown, e) {
+        e.stopPropagation();
+        const isOpen = !dropdown.classList.contains("hidden");
+        closeAllSidebars();
+        if (!isOpen) dropdown?.classList.remove("hidden");
       }
+
+      favouriteBtn?.addEventListener("click", (e) => toggleSidebar(favouriteBtn, favouriteSidebar, e));
+      cartBtn?.addEventListener("click", (e) => toggleSidebar(cartBtn, cartSidebar, e));
+      userMenuBtn?.addEventListener("click", (e) => toggleDropdown(userMenuBtn, userDropdown, e));
+      overlay?.addEventListener("click", closeAllSidebars);
+
+      window.addEventListener("click", (e) => {
+        if (userDropdown && !userDropdown.classList.contains("hidden")) {
+          if (!userMenuBtn.contains(e.target) && !userDropdown.contains(e.target)) {
+            userDropdown.classList.add("hidden");
+          }
+        }
+      });
+
+      // --- LOGOUT BUTTON LOGIC ---
+      const logoutBtn = document.querySelector('a[href="/logout"]');
+      if (logoutBtn) {
+          logoutBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              localStorage.removeItem('cart');
+              localStorage.removeItem('favourite');
+              window.location.href = '/logout';
+          });
+      }
+
+      // --- Navigation Changes (Keep this) ---
+      function handleNavigation() {
+        closeAllSidebars(); 
+      }
+      window.addEventListener('popstate', handleNavigation);
+      window.addEventListener('pushstate', handleNavigation);
+      window.addEventListener('replacestate', handleNavigation);
+
+      // --- Cross-tab sync (Keep this) ---
+      window.addEventListener("storage", (e) => {
+        if (e.key === "cart" || e.key === "favourite") {
+          window.cartService.init();
+          window.favouriteService.init();
+        }
+      });
     });
-  });
-</script>
+  </script>
 
 </body>
 </html>

@@ -1,7 +1,6 @@
 {% extends "Layouts/public.twig" %}
 
 {% block content %}
-<!-- ✅ PRODUCT DETAIL PAGE -->
 <div class="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow-lg border border-pink-100"
      data-product-id="{{ product.id }}"
      data-product-name="{{ product.name }}"
@@ -11,13 +10,11 @@
      data-product-sizes='{{ product.sizes|json_encode|raw }}'>
 
   <div class="flex flex-col md:flex-row gap-8">
-    <!-- Product Image -->
     <div class="md:w-1/2 flex justify-center">
       <img src="{{ product.image }}" alt="{{ product.name }}"
            class="rounded-xl w-full max-w-sm object-cover shadow-md shadow-pink-100">
     </div>
 
-    <!-- Product Info -->
     <div class="md:w-1/2 flex flex-col justify-between">
       <div>
         <h1 class="text-3xl font-bold text-[#835234] mb-2">{{ product.name }}</h1>
@@ -41,9 +38,9 @@
             </div>
             <div id="sizeWarning" class="hidden flex items-center gap-2 mt-1 text-red-500 text-xs">
               <svg xmlns="http://www.w3.org/2000/svg" 
-                  width="16" height="16" viewBox="0 0 24 24" fill="none" 
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                  class="lucide lucide-triangle-alert flex-shrink-0">
+                   width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
+                   class="lucide lucide-triangle-alert flex-shrink-0">
                 <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
                 <path d="M12 9v4"/>
                 <path d="M12 17h.01"/>
@@ -57,7 +54,6 @@
         <p class="text-sm text-gray-500 mt-4">Total Stock: {{ product.stock }}</p>
       </div>
 
-      <!-- Quantity + Buttons -->
       <div class="mt-6 flex flex-col gap-3">
         <div class="flex items-center gap-3">
           <label class="text-[#835234] font-semibold">Quantity:</label>
@@ -102,10 +98,12 @@
 </style>
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
+// ✅ LISTEN FOR THE NEW "servicesReady" EVENT
+window.addEventListener("servicesReady", () => {
   const container = document.querySelector("[data-product-id]");
   if (!container) return;
 
+  // --- Get all elements (no change) ---
   const qtyInput = document.getElementById("quantityInput");
   const decBtn = document.getElementById("decreaseQty");
   const incBtn = document.getElementById("increaseQty");
@@ -116,35 +114,23 @@ document.addEventListener("DOMContentLoaded", () => {
   const addToFavouriteBtn = document.getElementById("addToFavouriteBtn");
   const heartIcon = document.getElementById("heartIcon");
 
+  // --- Product data (no change) ---
   const product = {
     id: Number(container.dataset.productId),
     name: container.dataset.productName,
     price: Number(container.dataset.productPrice),
     image: container.dataset.productImage,
-    stock: Number(container.dataset.productStock || "1"),
+    stock: Number(container.dataset.productStock || "1"), // Used for products WITHOUT sizes
     sizes: JSON.parse(container.dataset.productSizes || "[]"),
   };
 
   let selectedSize = null;
   let selectedStock = 0;
 
-  // --- Storage helpers ---
-  const readCart = () => JSON.parse(localStorage.getItem("cart") || "[]");
-  const writeCart = (cart) => {
-    localStorage.setItem("cart", JSON.stringify(cart));
-    window.dispatchEvent(new Event("cartChanged"));
-  };
-
-  const readFav = () => JSON.parse(localStorage.getItem("favourite") || "[]");
-  const writeFav = (fav) => {
-    localStorage.setItem("favourite", JSON.stringify(fav));
-    window.dispatchEvent(new Event("favouritesChanged"));
-  };
-
-  // --- Heart UI ---
+  // --- Heart UI (Refactored) ---
   const updateHeartUI = () => {
-    const fav = readFav();
-    const inFav = fav.some(p => p.id === product.id);
+    // ✅ This will now work
+    const inFav = window.favouriteService.isFavourite(product.id); 
     if (inFav) {
       heartIcon.classList.add("fill-current", "text-pink-600");
     } else {
@@ -152,66 +138,87 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // --- Helpers ---
+  // --- Helpers (Refactored) ---
   const getAvailableStockForSelectedSize = () => {
-    if (!selectedSize) return 0;
-    const sizeData = product.sizes.find(s => s.name === selectedSize);
-    const baseStock = sizeData ? Number(sizeData.stock) : 0;
-    const cart = readCart();
+    if (product.sizes.length > 0 && !selectedSize) return 0; // No size selected
+
+    // Determine base stock (either from selected size or whole product)
+    const baseStock = (selectedSize)
+        ? selectedStock // This was set when clicking the size
+        : product.stock; // Stock for products with no sizes
+    
+    // ✅ Use the service
+    const cart = window.cartService.getCart(); 
+    
     const existing = cart.find(
       p => Number(p.id) === product.id && (p.selectedSize ?? null) === (selectedSize ?? null)
     );
     const existingQty = existing ? Number(existing.quantity || 0) : 0;
+    
     return Math.max(0, baseStock - existingQty);
   };
 
   const refreshQuantityUI = () => {
-    const available = getAvailableStockForSelectedSize();
-
-    if (product.sizes.length > 0 && !selectedSize) {
-      addToCartBtn.classList.add("opacity-60", "cursor-not-allowed");
-      addToCartBtn.dataset.disabled = "true";
-      return;
+    // Logic for products with sizes
+    if (product.sizes.length > 0) {
+        if (!selectedSize) {
+            addToCartBtn.classList.add("opacity-60", "cursor-not-allowed");
+            addToCartBtn.dataset.disabled = "true";
+            qtyInput.value = 1;
+            decBtn.disabled = true;
+            incBtn.disabled = true;
+            return;
+        }
     }
+    
+    // This logic now works for BOTH products with/without sizes
+    const available = getAvailableStockForSelectedSize();
 
     addToCartBtn.classList.remove("opacity-60", "cursor-not-allowed");
     addToCartBtn.dataset.disabled = "false";
-
+    
     if (available <= 0) {
       addToCartBtn.classList.add("opacity-60", "cursor-not-allowed");
       addToCartBtn.dataset.disabled = "true";
+      addToCartBtn.textContent = "Out of Stock";
+    } else {
+      addToCartBtn.classList.remove("opacity-60", "cursor-not-allowed");
+      addToCartBtn.dataset.disabled = "false";
+      addToCartBtn.textContent = "Add to Cart";
     }
 
     decBtn.disabled = Number(qtyInput.value) <= 1;
     incBtn.disabled = Number(qtyInput.value) >= available;
+    qtyInput.max = available; // Set max on input
   };
 
-
-
-  // --- Size selection ---
+  // --- Size selection (Refactored) ---
   sizeButtons.forEach(btn => {
     btn.addEventListener("click", () => {
+      // (Deselect logic)
       sizeButtons.forEach(b => b.classList.remove("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]"));
       sizeButtons.forEach(b => b.classList.add("bg-pink-100", "text-pink-700"));
 
+      // (Select logic)
       btn.classList.remove("bg-pink-100", "text-pink-700");
       btn.classList.add("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]");
 
       selectedSize = btn.dataset.size;
-      selectedStock = Number(btn.dataset.stock);
+      selectedStock = Number(btn.dataset.stock); // This is the TOTAL stock for this size
+      
       sizeWarning.classList.add("hidden");
-      qtyInput.value = 1;
+      qtyInput.value = 1; // Reset qty on size change
       refreshQuantityUI();
     });
   });
 
-  // --- Auto-select single size ---
+  // --- Auto-select single size (no change) ---
   if (product.sizes.length === 1) {
     const onlySizeBtn = sizeButtons[0];
     onlySizeBtn.click();
   }
-
-  // --- Quantity buttons ---
+  
+  // --- Quantity buttons (Refactored) ---
   decBtn.addEventListener("click", () => {
     qtyInput.value = Math.max(1, Number(qtyInput.value) - 1);
     refreshQuantityUI();
@@ -223,9 +230,18 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshQuantityUI();
   });
 
-  qtyInput.addEventListener("input", refreshQuantityUI);
+  qtyInput.addEventListener("input", (e) => {
+    const available = getAvailableStockForSelectedSize();
+    if (Number(e.target.value) > available) {
+        e.target.value = available;
+    }
+    if (Number(e.target.value) < 1) {
+        e.target.value = 1;
+    }
+    refreshQuantityUI();
+  });
 
-  // --- Add to Cart ---
+  // --- Add to Cart (Refactored) ---
   addToCartBtn.addEventListener("click", () => {
     if (product.sizes.length > 0 && !selectedSize) {
       sizeWarning.classList.remove("hidden");
@@ -234,130 +250,86 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const cart = readCart();
-    const existingItem = cart.find(
-      (p) => p.id === product.id && p.selectedSize === selectedSize
-    );
-
     const availableStock = getAvailableStockForSelectedSize();
-
-    if (existingItem && existingItem.quantity >= selectedStock) {
-      window.showModal({
-        type: "warning",
-        title: "Maximum Reached",
-        message: `You’ve already added the maximum available stock for ${product.name}${selectedSize ? " (" + selectedSize + ")" : ""}.`,
-        buttons: [{ text: "OK", variant: "cancel" }],
-      });
-      return;
-    }
-
     if (availableStock <= 0) {
       window.showModal({
         type: "warning",
         title: "Out of Stock",
-        message: `No more stock for ${product.name}${selectedSize ? " (" + selectedSize + ")" : ""}.`,
+        message: `Sorry, ${product.name}${selectedSize ? " (" + selectedSize + ")" : ""} is out of stock.`,
         buttons: [{ text: "OK", variant: "cancel" }],
       });
       return;
     }
-
+    
     const requested = Math.min(Number(qtyInput.value) || 1, availableStock);
 
-    if (existingItem) {
-      const newQty = Math.min(existingItem.quantity + requested, selectedStock);
-      if (newQty === existingItem.quantity) {
-        window.showModal({
-          type: "warning",
-          title: "Maximum Reached",
-          message: `You already have the maximum number of ${product.name}${selectedSize ? " (" + selectedSize + ")" : ""} in your cart.`,
-          buttons: [{ text: "OK", variant: "cancel" }],
-        });
-        return;
-      }
-
-      existingItem.quantity = newQty;
-
-      window.showModal({
-        type: "success",
-        title: "Cart Updated",
-        message: `${product.name}${selectedSize ? " (" + selectedSize + ")" : ""} quantity updated to ${newQty}.`,
-        buttons: [{ text: "OK", variant: "confirm" }],
-      });
-    } else {
-      cart.push({
+    // ✅ Use the service
+    window.cartService.addItem({
         id: product.id,
         name: product.name,
         image: product.image,
         price: product.price,
         selectedSize,
-        quantity: requested,
-        stock: selectedStock,
-      });
+        stock: selectedSize ? selectedStock : product.stock, // Pass the relevant TOTAL stock
+    }, requested);
 
-      window.showModal({
+    window.showModal({
         type: "success",
         title: "Added to Cart",
         message: `${product.name}${selectedSize ? " (" + selectedSize + ")" : ""} × ${requested} added successfully.`,
         buttons: [{ text: "OK", variant: "confirm" }],
-      });
-    }
-
-    writeCart(cart);
-
-    qtyInput.value = 1;
-    selectedSize = null;
-    selectedStock = 0;
-
-    sizeButtons.forEach(b => {
-      b.classList.remove("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]");
-      b.classList.add("bg-pink-100", "text-pink-700");
     });
 
+    // Reset UI
+    qtyInput.value = 1;
+    if (product.sizes.length > 0) {
+        selectedSize = null;
+        selectedStock = 0;
+        sizeButtons.forEach(b => {
+          b.classList.remove("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]");
+          b.classList.add("bg-pink-100", "text-pink-700");
+        });
+    }
     refreshQuantityUI();
   });
 
 
-
-  // --- Favourites toggle ---
+  // --- Favourites toggle (Refactored) ---
   addToFavouriteBtn.addEventListener("click", () => {
-    const fav = readFav();
-    const index = fav.findIndex(p => p.id === product.id);
-
-    if (index === -1) {
-      fav.push({
-        id: product.id,
-        name: product.name,
-        image: product.image,
-        price: product.price,
-      });
-      writeFav(fav);
-      window.showModal({
-        type: "success",
-        title: "Added to Favourites",
-        message: `${product.name} has been added to your favourites.`,
-        buttons: [{ text: "OK", variant: "confirm" }],
-      });
+    // ✅ Use the service
+    const wasAdded = window.favouriteService.toggle(product);
+    
+    // The service already updated the UI, but we can show a modal
+    if (wasAdded) {
+        window.showModal({
+          type: "success",
+          title: "Added to Favourites",
+          message: `${product.name} has been added to your favourites.`,
+          buttons: [{ text: "OK", variant: "confirm" }],
+        });
     } else {
-      fav.splice(index, 1);
-      writeFav(fav);
-      window.showModal({
-        type: "info",
-        title: "Removed from Favourites",
-        message: `${product.name} has been removed from your favourites.`,
-        buttons: [{ text: "OK", variant: "cancel" }],
-      });
+        window.showModal({
+          type: "info",
+          title: "Removed from Favourites",
+          message: `${product.name} has been removed from your favourites.`,
+          buttons: [{ text: "OK", variant: "cancel" }],
+        });
     }
-    updateHeartUI();
+    // updateHeartUI(); // The service's event will trigger this
   });
 
-  // --- Sync UI ---
+  // --- Sync UI (Keep these listeners) ---
+  // When the services fire events, update this page's UI
   window.addEventListener("favouritesChanged", updateHeartUI);
   window.addEventListener("cartChanged", refreshQuantityUI);
+  
+  // Also listen for storage events (other tabs)
   window.addEventListener("storage", () => {
     refreshQuantityUI();
     updateHeartUI();
   });
 
+  // --- Initial Load ---
   refreshQuantityUI();
   updateHeartUI();
 });

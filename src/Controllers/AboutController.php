@@ -10,7 +10,7 @@ class AboutController {
         $view = Twig::fromRequest($request);
 
         return $view->render($response, 'Public/about.twig', [
-            'title' => 'About Us - Sweet Delights',
+            'title' => 'About Us - FlourEver',
             'description' => 'Learn about our story and passion for baking.',
             'team' => [
                 ['name' => 'Mayie', 'role' => 'Founder & Head Baker'],

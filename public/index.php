@@ -18,6 +18,13 @@ $dotenv->load();
 
 $app = AppFactory::create();
 
+// ✅ --- ADD THIS LINE ---
+// This middleware will parse JSON, url-encoded, and XML request bodies
+// and make them available in $request->getParsedBody()
+$app->addBodyParsingMiddleware();
+// ✅ --------------------
+
+
 $twig = Twig::create(__DIR__ . '/../src/Templates', [
     'cache' => false,
 ]);
@@ -29,7 +36,6 @@ $twig->getEnvironment()->addGlobal('env', $_ENV);
 $app->add(TwigMiddleware::create($app, $twig));
 
 $app->add(new AuthMiddleware($twig)); 
-
 
 $app->addRoutingMiddleware();
 
