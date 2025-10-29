@@ -57,10 +57,12 @@ document.addEventListener("DOMContentLoaded", () => {
       buttonEl.className = `px-5 py-2 rounded-xl font-semibold transition ${variants[btn.variant] || variants.primary}`;
       buttonEl.textContent = btn.text;
 
-      buttonEl.addEventListener("click", () => {
-        modal.classList.add("hidden");
-        btn.action?.();
-      });
+    buttonEl.addEventListener("click", () => {
+    modal.classList.add("hidden");
+    btn.callback?.();
+    btn.action?.();
+    });
+
 
       buttonsContainer.appendChild(buttonEl);
     });

@@ -28,7 +28,7 @@
 <script src="/js/modal.js"></script>
 
 <script>
-  // This patches pushState to fire a custom event we can listen for
+  // --- History API patch ---
   (function(history) {
     const pushState = history.pushState;
     history.pushState = function() {
@@ -36,7 +36,6 @@
       window.dispatchEvent(new Event('pushstate')); 
       return result;
     };
-
     const replaceState = history.replaceState;
     history.replaceState = function() {
       const result = replaceState.apply(this, arguments);
@@ -48,26 +47,22 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-  
-    // --- 1. GET ALL ELEMENTS ---
+
+    // --- Elements ---
     const favouriteBtn = document.getElementById("favouriteBtn"); 
     const cartBtn = document.getElementById("cartBtn");
     const favouriteSidebar = document.getElementById("favouriteSidebar"); 
     const cartSidebar = document.getElementById("cartSidebar");
     const overlay = document.getElementById("overlay");
-    
     const favouriteCountEl = document.getElementById("favouriteCount"); 
     const cartCountEl = document.getElementById("cartCount");
-    
     const cartItemsContainer = document.getElementById("cartItems");
     const favouriteItemsContainer = document.getElementById("favouriteItems"); 
     const cartTotalEl = document.getElementById("cartTotal");
-
     const userMenuBtn = document.getElementById("userMenuBtn");
     const userDropdown = document.getElementById("userDropdown");
 
-    // --- 2. DEFINE ALL FUNCTIONS ---
-    
+    // --- Helpers ---
     function closeAllSidebars() {
       favouriteSidebar?.classList.add("translate-x-full"); 
       cartSidebar?.classList.add("translate-x-full");
@@ -84,82 +79,114 @@
 
       if (favouriteCountEl) {
         favouriteCountEl.textContent = favourite.length;
-        favouriteCountEl.classList.remove(faded, active);
-        favouriteCountEl.classList.add(favourite.length ? active : faded);
+        favouriteCountEl.classList.toggle(active, favourite.length > 0);
+        favouriteCountEl.classList.toggle(faded, favourite.length === 0);
       }
 
       if (cartCountEl) {
         cartCountEl.textContent = cart.length;
-        cartCountEl.classList.remove(faded, active);
-        cartCountEl.classList.add(cart.length ? active : faded);
+        cartCountEl.classList.toggle(active, cart.length > 0);
+        cartCountEl.classList.toggle(faded, cart.length === 0);
       }
     }
 
     function renderCart() {
       const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-      if (!cartItemsContainer) return; 
+      if (!cartItemsContainer) return;
       cartItemsContainer.innerHTML = "";
 
       if (cart.length === 0) {
         cartItemsContainer.innerHTML = `<p class="text-gray-500">Your cart is empty.</p>`;
-        if (cartTotalEl) cartTotalEl.textContent = `Total: ₱0.00`; 
+        if (cartTotalEl) cartTotalEl.textContent = `Total: ₱0.00`;
         return;
       }
 
       let total = 0;
-      cart.forEach((item, index) => {
+      cart.filter(Boolean).forEach((item, index) => {
         total += parseFloat(item.price) * item.quantity;
-        const a = document.createElement("a");
-        a.className = "flex gap-3 items-center border-b pb-3 mb-3 group";
-        a.href = `/products/${item.id}`;
+        const a = document.createElement("div");
+        a.className = "flex flex-col border-b pb-3 mb-3";
+
         a.innerHTML = `
-          <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded-lg shadow-sm shadow-gray-400">
-          <div class="flex-1 flex flex-col">
-            <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
-            <p class="text-sm text-gray-500">₱${item.price} × <span class="cartQty font-medium">${item.quantity}</span></p>
+          <div class="flex gap-3 items-center">
+            <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded-lg shadow-sm shadow-pink-200">
+            <div class="flex-1">
+              <p class="font-semibold text-[#835234]">${item.name}</p>
+              ${item.selectedSize ? `<p class="text-xs text-gray-500">Size: ${item.selectedSize}</p>` : ""}
+              <p class="text-sm text-gray-500">₱${item.price}</p>
+            </div>
+            <button class="removeItem text-red-500 hover:text-red-700 font-bold cursor-pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>
           </div>
-          <div class="flex flex-col items-end gap-2">
-            <button class="removeItem text-red-500 hover:text-red-700 font-bold cursor-pointer"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
-            <div class="flex gap-1">
-              <button class="decreaseQty h-7 w-7 flex itemms-center justify-center text-[#835234] bg-[#f3d9d1] rounded hover:bg-[#eac0b0]">−</button>
-              <button class="increaseQty h-7 w-7 flex itemms-center justify-center text-[#835234] bg-[#f3d9d1] rounded hover:bg-[#eac0b0]">+</button>
+
+          <div class="flex items-center justify-between mt-2">
+            <div class="flex items-center border rounded-lg overflow-hidden">
+              <button class="decreaseQty px-3 py-1 bg-pink-100 hover:bg-pink-200">−</button>
+              <input type="number" class="cartQty w-16 text-center border-l border-r outline-none" value="${item.quantity}" min="1" max="${item.stock}">
+              <button class="increaseQty px-3 py-1 bg-pink-100 hover:bg-pink-200">+</button>
             </div>
           </div>
         `;
-        
+
+        // --- Remove ---
         a.querySelector(".removeItem").addEventListener("click", (e) => {
           e.preventDefault(); e.stopPropagation();
-          cart.splice(index, 1);
-          localStorage.setItem("cart", JSON.stringify(cart));
-          renderCart();
-          window.updateCartAndFavouriteCounts?.(); 
+          window.showModal({
+            type: "error",
+            title: "Remove from Cart",
+            message: `Remove ${item.name}${item.selectedSize ? " (" + item.selectedSize + ")" : ""} from your cart?`,
+            buttons: [
+              { text: "Cancel", variant: "cancel" },
+              {
+                text: "Remove", variant: "danger", action: () => {
+                  cart.splice(index, 1);
+                  localStorage.setItem("cart", JSON.stringify(cart));
+                  renderCart(); updateCounts();
+                  window.dispatchEvent(new Event("cartChanged"));
+                }
+              }
+            ]
+          });
         });
 
+        // --- Decrease Qty ---
         a.querySelector(".decreaseQty").addEventListener("click", (e) => {
           e.preventDefault(); e.stopPropagation();
           if (item.quantity > 1) {
             item.quantity--;
             localStorage.setItem("cart", JSON.stringify(cart));
-            renderCart();
-            window.updateCartAndFavouriteCounts?.(); 
+            renderCart(); updateCounts();
+            window.dispatchEvent(new Event("cartChanged"));
           }
         });
 
+        // --- Increase Qty ---
         a.querySelector(".increaseQty").addEventListener("click", (e) => {
           e.preventDefault(); e.stopPropagation();
           if (item.quantity < item.stock) {
             item.quantity++;
             localStorage.setItem("cart", JSON.stringify(cart));
-            renderCart();
-            window.updateCartAndFavouriteCounts?.(); 
-          } else if (window.showModal) {
-            window.showModal({ type: "warning", title: "Stock Limit Reached", message: `Cannot add more than ${item.stock} of ${item.name}.`, buttons: [{ text: "OK", variant: "cancel" }] });
+            renderCart(); updateCounts();
+            window.dispatchEvent(new Event("cartChanged"));
+          } else {
+            window.showModal({
+              type: "warning",
+              title: "Stock Limit",
+              message: `You’ve reached the stock limit for ${item.name}${item.selectedSize ? " (" + item.selectedSize + ")" : ""}.`,
+              buttons: [{ text: "OK", variant: "cancel" }]
+            });
           }
         });
+
         cartItemsContainer.appendChild(a);
       });
-      if (cartTotalEl) cartTotalEl.textContent = `Total: ₱${total.toFixed(2)}`; 
+
+      if (cartTotalEl) cartTotalEl.textContent = `Total: ₱${total.toFixed(2)}`;
     }
+
 
     function renderFavourite() { 
       const favourite = JSON.parse(localStorage.getItem("favourite") || "[]"); 
@@ -176,53 +203,61 @@
         a.href = `/products/${item.id}`; 
         a.className = "flex items-center gap-3 border-b pb-2 mb-2 group";
         a.innerHTML = `
-          <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-cover shadow-sm shadow-gray-400 rounded-lg">
+          <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-cover rounded-lg shadow-sm shadow-gray-400">
           <div class="flex-1">
             <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
             <p class="text-sm text-gray-500">₱${item.price}</p>
           </div>
-          <button class="text-red-500 hover:text-red-700 font-bold cursor-pointer relative z-10"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+          <button class="text-red-500 hover:text-red-700">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+          </button>
         `;
 
         a.querySelector("button").addEventListener("click", (e) => {
           e.preventDefault(); e.stopPropagation();
-          favourite.splice(index, 1); 
-          localStorage.setItem("favourite", JSON.stringify(favourite)); 
-          renderFavourite(); 
-          window.updateCartAndFavouriteCounts?.(); 
+          favourite.splice(index, 1);
+          localStorage.setItem("favourite", JSON.stringify(favourite));
+          renderFavourite(); updateCounts();
           window.dispatchEvent(new Event("favouritesChanged"));
         });
+
         favouriteItemsContainer.appendChild(a); 
       });
     }
 
-
-    // --- 3. ASSIGN GLOBALS (for other scripts) ---
+    // --- Assign global helpers ---
     window.updateCartAndFavouriteCounts = updateCounts;
     window.renderCart = renderCart;
     window.renderFavourite = renderFavourite;
 
-    // --- 4. BIND EVENT LISTENERS ---
-    
-    // Helper to toggle a single sidebar
+    // --- Listen to cart changes globally ---
+    window.addEventListener("cartChanged", () => {
+      updateCounts(); renderCart();
+    });
+
+    // --- Listen to favourite changes globally ---
+    window.addEventListener("favouritesChanged", () => {
+      updateCounts(); renderFavourite();
+    });
+
+    // --- Sidebar toggles ---
     function toggleSidebar(btn, sidebar, e) {
-        e.stopPropagation();
-        const isOpen = !sidebar.classList.contains("translate-x-full");
-        closeAllSidebars();
-        if (!isOpen) {
-            sidebar?.classList.remove("translate-x-full");
-            overlay?.classList.remove("hidden");
-        }
+      e.stopPropagation();
+      const isOpen = !sidebar.classList.contains("translate-x-full");
+      closeAllSidebars();
+      if (!isOpen) {
+        sidebar?.classList.remove("translate-x-full");
+        overlay?.classList.remove("hidden");
+      }
     }
-    
-    // Helper to toggle a dropdown
+
     function toggleDropdown(btn, dropdown, e) {
-        e.stopPropagation();
-        const isOpen = !dropdown.classList.contains("hidden");
-        closeAllSidebars(); // This also closes other dropdowns
-        if (!isOpen) {
-            dropdown?.classList.remove("hidden");
-        }
+      e.stopPropagation();
+      const isOpen = !dropdown.classList.contains("hidden");
+      closeAllSidebars();
+      if (!isOpen) dropdown?.classList.remove("hidden");
     }
 
     favouriteBtn?.addEventListener("click", (e) => toggleSidebar(favouriteBtn, favouriteSidebar, e));
@@ -230,7 +265,6 @@
     userMenuBtn?.addEventListener("click", (e) => toggleDropdown(userMenuBtn, userDropdown, e));
     overlay?.addEventListener("click", closeAllSidebars);
 
-    // Close dropdown when clicking outside
     window.addEventListener("click", (e) => {
       if (userDropdown && !userDropdown.classList.contains("hidden")) {
         if (!userMenuBtn.contains(e.target) && !userDropdown.contains(e.target)) {
@@ -239,12 +273,12 @@
       }
     });
 
-    // --- 5. RUN ON INITIAL PAGE LOAD ---
+    // --- Initial Load ---
     updateCounts();
     renderCart();
     renderFavourite();
 
-    // --- 6. SET UP NAVIGATION LISTENER ---
+    // --- Navigation Changes ---
     function handleNavigation() {
       updateCounts();
       renderCart();
@@ -255,7 +289,15 @@
     window.addEventListener('popstate', handleNavigation);
     window.addEventListener('pushstate', handleNavigation);
     window.addEventListener('replacestate', handleNavigation);
+
+    // --- 🔥 Listen for external cart updates (no refresh needed) ---
+    window.addEventListener("storage", (e) => {
+      if (e.key === "cart" || e.key === "favourite") {
+        updateCounts(); renderCart(); renderFavourite();
+      }
+    });
   });
 </script>
+
 </body>
 </html>

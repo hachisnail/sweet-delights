@@ -1,203 +1,365 @@
 {% extends "Layouts/public.twig" %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow-lg border border-pink-100">
+<!-- ✅ PRODUCT DETAIL PAGE -->
+<div class="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow-lg border border-pink-100"
+     data-product-id="{{ product.id }}"
+     data-product-name="{{ product.name }}"
+     data-product-price="{{ product.price }}"
+     data-product-image="{{ product.image }}"
+     data-product-stock="{{ product.stock }}"
+     data-product-sizes='{{ product.sizes|json_encode|raw }}'>
+
   <div class="flex flex-col md:flex-row gap-8">
+    <!-- Product Image -->
     <div class="md:w-1/2 flex justify-center">
-      <img src="{{ product.image }}" alt="{{ product.name }}" class="rounded-xl w-full max-w-md shadow-md">
+      <img src="{{ product.image }}" alt="{{ product.name }}"
+           class="rounded-xl w-full max-w-sm object-cover shadow-md shadow-pink-100">
     </div>
 
-    <div class="md:w-1/2 flex flex-col justify-center">
-      <h1 class="text-3xl font-bold text-[#835234] mb-2">{{ product.name }}</h1>
-      <p class="text-gray-600 mb-4 text-lg">₱{{ product.price }}</p>
-      <p class="text-gray-700 mb-6 leading-relaxed">
-        A delicious {{ product.name }} baked with love — perfect for every sweet tooth!
-      </p>
+    <!-- Product Info -->
+    <div class="md:w-1/2 flex flex-col justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-[#835234] mb-2">{{ product.name }}</h1>
+        <p class="text-sm text-pink-600 font-semibold mb-2">{{ product.category }}</p>
+        <p class="text-gray-600 mb-4 text-lg">₱{{ product.price }}</p>
+        <p class="text-gray-700 mb-6 leading-relaxed">{{ product.description }}</p>
 
-      <p class="text-sm text-gray-500 mb-4">Available stock: {{ product.stock }}</p>
+        {% if product.sizes is defined and product.sizes|length > 0 %}
+          <div class="mb-4">
+            <p class="font-semibold text-[#835234] mb-1">Available Sizes:</p>
+            <div id="sizeSelector" class="flex gap-2 flex-wrap">
+              {% for size in product.sizes %}
+                <button 
+                  type="button"
+                  data-size="{{ size.name }}"
+                  data-stock="{{ size.stock }}"
+                  class="size-btn px-3 py-1 bg-pink-100 text-pink-700 rounded-lg text-sm hover:bg-pink-200 focus:outline-none transition">
+                  {{ size.name }} ({{ size.stock }})
+                </button>
+              {% endfor %}
+            </div>
+            <div id="sizeWarning" class="hidden flex items-center gap-2 mt-1 text-red-500 text-xs">
+              <svg xmlns="http://www.w3.org/2000/svg" 
+                  width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
+                  class="lucide lucide-triangle-alert flex-shrink-0">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
+                <path d="M12 9v4"/>
+                <path d="M12 17h.01"/>
+              </svg>
+              <p>Please select a size before adding to cart.</p>
+            </div>
 
-      <div class="flex items-center gap-3 mb-6">
-        <button id="decreaseQty"
-          class="w-8 h-8 rounded-lg bg-[#f3d9d1] text-[#835234] font-bold hover:bg-[#eac0b0] transition">−</button>
+          </div>
+        {% endif %}
 
-        <input id="quantityInput" type="number" min="1" max="{{ product.stock }}" value="1"
-          class="w-16 border border-gray-300 rounded-lg text-center font-semibold text-[#835234]">
-
-        <button id="increaseQty"
-          class="w-8 h-8 rounded-lg bg-[#f3d9d1] text-[#835234] font-bold hover:bg-[#eac0b0] transition">+</button>
+        <p class="text-sm text-gray-500 mt-4">Total Stock: {{ product.stock }}</p>
       </div>
 
-      <div class="flex gap-2">
-        <button id="addToFavouriteBtn"
-          class=" text-white font-semibold transition">
-          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-pink-500 hover:text-pink-600 lucide lucide-heart-icon lucide-heart"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/></svg>
-        </button>
+      <!-- Quantity + Buttons -->
+      <div class="mt-6 flex flex-col gap-3">
+        <div class="flex items-center gap-3">
+          <label class="text-[#835234] font-semibold">Quantity:</label>
+          <div class="flex items-center border rounded-lg overflow-hidden">
+            <button id="decreaseQty" class="px-3 py-1 bg-pink-100 hover:bg-pink-200">−</button>
+            <input id="quantityInput" type="number" value="1" min="1" max="{{ product.stock }}"
+                   class="w-16 text-center border-l border-r outline-none">
+            <button id="increaseQty" class="px-3 py-1 bg-pink-100 hover:bg-pink-200">+</button>
+          </div>
+        </div>
 
-        <button id="addToCartBtn"
-          class="px-6 py-2 bg-[#b06f52] hover:bg-[#a26046] text-white font-semibold rounded-xl transition">
-          Add to Cart
-        </button>
+        <div class="flex gap-3">
+          <button id="addToCartBtn" 
+                  class="flex-1 bg-[#835234] hover:bg-[#6d412a] text-white py-2 rounded-xl transition">
+            Add to Cart
+          </button>
+          <button id="addToFavouriteBtn" 
+                  class="bg-pink-100 hover:bg-pink-200 text-[#835234] p-2 rounded-xl transition relative">
+            <svg id="heartIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" 
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" 
+                 stroke-linecap="round" stroke-linejoin="round" 
+                 class="lucide lucide-heart transition-all duration-300">
+              <path d="M19.5 12.571 12 20l-7.5-7.429A5 5 0 0 1 12 6a5 5 0 0 1 7.5 6.571Z"/>
+            </svg>
+          </button>
+        </div>
       </div>
-
-      <a href="/products"
-        class="mt-6 inline-block px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded-xl hover:bg-gray-300 transition">
-        Back to Products
-      </a>
     </div>
   </div>
 </div>
 
+<style>
+/* Simple shake animation for size warning */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.shake {
+  animation: shake 0.3s ease-in-out;
+}
+</style>
+
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const product = {
-      id: "{{ product.id }}",
-      name: "{{ product.name }}",
-      price: {{ product.price }},
-      image: "{{ product.image }}",
-      stock: {{ product.stock }}
-    };
+document.addEventListener("DOMContentLoaded", () => {
+  const container = document.querySelector("[data-product-id]");
+  if (!container) return;
 
-    const quantityInput = document.getElementById("quantityInput");
-    const decreaseBtn = document.getElementById("decreaseQty");
-    const increaseBtn = document.getElementById("increaseQty");
-    const addToCartBtn = document.getElementById("addToCartBtn");
-    const addToFavouriteBtn = document.getElementById("addToFavouriteBtn");
+  const qtyInput = document.getElementById("quantityInput");
+  const decBtn = document.getElementById("decreaseQty");
+  const incBtn = document.getElementById("increaseQty");
+  const sizeButtons = Array.from(document.querySelectorAll("[data-size]"));
+  const sizeWarning = document.getElementById("sizeWarning");
+  const sizeSelector = document.getElementById("sizeSelector");
+  const addToCartBtn = document.getElementById("addToCartBtn");
+  const addToFavouriteBtn = document.getElementById("addToFavouriteBtn");
+  const heartIcon = document.getElementById("heartIcon");
 
-    // --- Get the heart icon element ---
-    const favouriteIcon = document.querySelector("#addToFavouriteBtn svg");
+  const product = {
+    id: Number(container.dataset.productId),
+    name: container.dataset.productName,
+    price: Number(container.dataset.productPrice),
+    image: container.dataset.productImage,
+    stock: Number(container.dataset.productStock || "1"),
+    sizes: JSON.parse(container.dataset.productSizes || "[]"),
+  };
 
-    // --- Cart/Quantity Logic ---
-    const getAvailableStock = () => {
-      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-      const existing = cart.find(item => item.id === product.id);
-      return product.stock - (existing?.quantity || 0);
-    };
+  let selectedSize = null;
+  let selectedStock = 0;
 
-    const updateQuantityInput = (value) => {
-      const max = getAvailableStock();
-      // Ensure value is at least 1 and not more than max stock
-      const validValue = Math.min(Math.max(1, value), max);
-      
-      // Handle case where max stock is 0
-      if (max <= 0) {
-        quantityInput.value = 0;
-      } else {
-        quantityInput.value = validValue;
-      }
-    };
+  // --- Storage helpers ---
+  const readCart = () => JSON.parse(localStorage.getItem("cart") || "[]");
+  const writeCart = (cart) => {
+    localStorage.setItem("cart", JSON.stringify(cart));
+    window.dispatchEvent(new Event("cartChanged"));
+  };
 
-    // Initialize quantity input based on existing cart
-    updateQuantityInput(parseInt(quantityInput.value) || 1);
+  const readFav = () => JSON.parse(localStorage.getItem("favourite") || "[]");
+  const writeFav = (fav) => {
+    localStorage.setItem("favourite", JSON.stringify(fav));
+    window.dispatchEvent(new Event("favouritesChanged"));
+  };
 
-    // Quantity controls
-    decreaseBtn.addEventListener("click", () => {
-      updateQuantityInput(parseInt(quantityInput.value) - 1);
+  // --- Heart UI ---
+  const updateHeartUI = () => {
+    const fav = readFav();
+    const inFav = fav.some(p => p.id === product.id);
+    if (inFav) {
+      heartIcon.classList.add("fill-current", "text-pink-600");
+    } else {
+      heartIcon.classList.remove("fill-current", "text-pink-600");
+    }
+  };
+
+  // --- Helpers ---
+  const getAvailableStockForSelectedSize = () => {
+    if (!selectedSize) return 0;
+    const sizeData = product.sizes.find(s => s.name === selectedSize);
+    const baseStock = sizeData ? Number(sizeData.stock) : 0;
+    const cart = readCart();
+    const existing = cart.find(
+      p => Number(p.id) === product.id && (p.selectedSize ?? null) === (selectedSize ?? null)
+    );
+    const existingQty = existing ? Number(existing.quantity || 0) : 0;
+    return Math.max(0, baseStock - existingQty);
+  };
+
+  const refreshQuantityUI = () => {
+    const available = getAvailableStockForSelectedSize();
+
+    if (product.sizes.length > 0 && !selectedSize) {
+      addToCartBtn.classList.add("opacity-60", "cursor-not-allowed");
+      addToCartBtn.dataset.disabled = "true";
+      return;
+    }
+
+    addToCartBtn.classList.remove("opacity-60", "cursor-not-allowed");
+    addToCartBtn.dataset.disabled = "false";
+
+    if (available <= 0) {
+      addToCartBtn.classList.add("opacity-60", "cursor-not-allowed");
+      addToCartBtn.dataset.disabled = "true";
+    }
+
+    decBtn.disabled = Number(qtyInput.value) <= 1;
+    incBtn.disabled = Number(qtyInput.value) >= available;
+  };
+
+
+
+  // --- Size selection ---
+  sizeButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      sizeButtons.forEach(b => b.classList.remove("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]"));
+      sizeButtons.forEach(b => b.classList.add("bg-pink-100", "text-pink-700"));
+
+      btn.classList.remove("bg-pink-100", "text-pink-700");
+      btn.classList.add("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]");
+
+      selectedSize = btn.dataset.size;
+      selectedStock = Number(btn.dataset.stock);
+      sizeWarning.classList.add("hidden");
+      qtyInput.value = 1;
+      refreshQuantityUI();
     });
+  });
 
-    increaseBtn.addEventListener("click", () => {
-      updateQuantityInput(parseInt(quantityInput.value) + 1);
-    });
+  // --- Auto-select single size ---
+  if (product.sizes.length === 1) {
+    const onlySizeBtn = sizeButtons[0];
+    onlySizeBtn.click();
+  }
 
-    quantityInput.addEventListener("input", () => {
-      updateQuantityInput(parseInt(quantityInput.value) || 1);
-    });
+  // --- Quantity buttons ---
+  decBtn.addEventListener("click", () => {
+    qtyInput.value = Math.max(1, Number(qtyInput.value) - 1);
+    refreshQuantityUI();
+  });
 
-    // --- Add to Cart Logic ---
-    addToCartBtn.addEventListener("click", () => {
-      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-      const availableStock = getAvailableStock();
-      let quantity = Math.min(parseInt(quantityInput.value) || 1, availableStock);
+  incBtn.addEventListener("click", () => {
+    const available = getAvailableStockForSelectedSize();
+    qtyInput.value = Math.min(Number(qtyInput.value) + 1, available);
+    refreshQuantityUI();
+  });
 
-      if (quantity <= 0) {
-        showModal({
+  qtyInput.addEventListener("input", refreshQuantityUI);
+
+  // --- Add to Cart ---
+  addToCartBtn.addEventListener("click", () => {
+    if (product.sizes.length > 0 && !selectedSize) {
+      sizeWarning.classList.remove("hidden");
+      sizeSelector.classList.add("shake");
+      setTimeout(() => sizeSelector.classList.remove("shake"), 300);
+      return;
+    }
+
+    const cart = readCart();
+    const existingItem = cart.find(
+      (p) => p.id === product.id && p.selectedSize === selectedSize
+    );
+
+    const availableStock = getAvailableStockForSelectedSize();
+
+    if (existingItem && existingItem.quantity >= selectedStock) {
+      window.showModal({
+        type: "warning",
+        title: "Maximum Reached",
+        message: `You’ve already added the maximum available stock for ${product.name}${selectedSize ? " (" + selectedSize + ")" : ""}.`,
+        buttons: [{ text: "OK", variant: "cancel" }],
+      });
+      return;
+    }
+
+    if (availableStock <= 0) {
+      window.showModal({
+        type: "warning",
+        title: "Out of Stock",
+        message: `No more stock for ${product.name}${selectedSize ? " (" + selectedSize + ")" : ""}.`,
+        buttons: [{ text: "OK", variant: "cancel" }],
+      });
+      return;
+    }
+
+    const requested = Math.min(Number(qtyInput.value) || 1, availableStock);
+
+    if (existingItem) {
+      const newQty = Math.min(existingItem.quantity + requested, selectedStock);
+      if (newQty === existingItem.quantity) {
+        window.showModal({
           type: "warning",
-          title: "No Stock Available",
-          message: `No more stock available for ${product.name}.`,
-          buttons: [{ text: "OK", variant: "cancel" }]
+          title: "Maximum Reached",
+          message: `You already have the maximum number of ${product.name}${selectedSize ? " (" + selectedSize + ")" : ""} in your cart.`,
+          buttons: [{ text: "OK", variant: "cancel" }],
         });
         return;
       }
 
-      let existing = cart.find(item => item.id === product.id);
-      if (existing) {
-        existing.quantity += quantity;
-      } else {
-        cart.push({ ...product, quantity });
-      }
+      existingItem.quantity = newQty;
 
-      localStorage.setItem("cart", JSON.stringify(cart));
-      window.renderCart?.(); // Update cart sidebar
-      window.updateCartAndFavouriteCounts?.(); // Update header count
-
-      showModal({
+      window.showModal({
         type: "success",
-        title: "Added to Cart",
-        message: `${quantity} × ${product.name} added to your cart!`,
-        buttons: [{ text: "OK", variant: "primary" }]
+        title: "Cart Updated",
+        message: `${product.name}${selectedSize ? " (" + selectedSize + ")" : ""} quantity updated to ${newQty}.`,
+        buttons: [{ text: "OK", variant: "confirm" }],
+      });
+    } else {
+      cart.push({
+        id: product.id,
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        selectedSize,
+        quantity: requested,
+        stock: selectedStock,
       });
 
-      // Reset quantity input
-      updateQuantityInput(1);
-    });
-    
-    // --- Favourites Logic ---
-    
-    // Function to check and set heart fill state
-    const checkFavouriteStatus = () => {
-      const favourite = JSON.parse(localStorage.getItem("favourite") || "[]");
-      if (favourite.find(item => item.id === product.id)) {
-        // Item IS in favourites, so fill the heart.
-        favouriteIcon.setAttribute("fill", "currentColor");
-      } else {
-        // Item is NOT in favourites, so make it an outline.
-        favouriteIcon.setAttribute("fill", "none");
-      }
-    };
+      window.showModal({
+        type: "success",
+        title: "Added to Cart",
+        message: `${product.name}${selectedSize ? " (" + selectedSize + ")" : ""} × ${requested} added successfully.`,
+        buttons: [{ text: "OK", variant: "confirm" }],
+      });
+    }
 
-    // Set initial heart state on page load
-    checkFavouriteStatus();
+    writeCart(cart);
 
-    // Favourites button now toggles (adds/removes)
-    addToFavouriteBtn.addEventListener("click", () => {
-      let favourite = JSON.parse(localStorage.getItem("favourite") || "[]");
-      const existingIndex = favourite.findIndex(item => item.id === product.id);
+    qtyInput.value = 1;
+    selectedSize = null;
+    selectedStock = 0;
 
-      if (existingIndex === -1) {
-        // Item not found, so ADD it
-        favourite.push(product);
-        localStorage.setItem("favourite", JSON.stringify(favourite));
-
-        showModal({
-          type: "success",
-          title: "Added to Favourites",
-          message: `${product.name} has been added to your favourites!`,
-          buttons: [{ text: "OK", variant: "primary" }]
-        });
-      } else {
-        // Item found, so REMOVE it
-        favourite.splice(existingIndex, 1);
-        localStorage.setItem("favourite", JSON.stringify(favourite));
-
-        showModal({
-          type: "info",
-          title: "Removed from Favourites",
-          message: `${product.name} has been removed from your favourites.`,
-          buttons: [{ text: "Close", variant: "cancel" }]
-        });
-      }
-      
-      // Update global UI
-      window.renderFavourite?.(); // Update favourite sidebar
-      window.updateCartAndFavouriteCounts?.(); // Update header count
-
-      // Notify the whole page (including this script) that favourites changed
-      window.dispatchEvent(new Event("favouritesChanged"));
+    sizeButtons.forEach(b => {
+      b.classList.remove("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]");
+      b.classList.add("bg-pink-100", "text-pink-700");
     });
 
-    // Listen for the event from anywhere (sidebar, this page, etc.)
-    // and update this page's heart icon.
-    window.addEventListener("favouritesChanged", checkFavouriteStatus);
+    refreshQuantityUI();
   });
-</script>
 
+
+
+  // --- Favourites toggle ---
+  addToFavouriteBtn.addEventListener("click", () => {
+    const fav = readFav();
+    const index = fav.findIndex(p => p.id === product.id);
+
+    if (index === -1) {
+      fav.push({
+        id: product.id,
+        name: product.name,
+        image: product.image,
+        price: product.price,
+      });
+      writeFav(fav);
+      window.showModal({
+        type: "success",
+        title: "Added to Favourites",
+        message: `${product.name} has been added to your favourites.`,
+        buttons: [{ text: "OK", variant: "confirm" }],
+      });
+    } else {
+      fav.splice(index, 1);
+      writeFav(fav);
+      window.showModal({
+        type: "info",
+        title: "Removed from Favourites",
+        message: `${product.name} has been removed from your favourites.`,
+        buttons: [{ text: "OK", variant: "cancel" }],
+      });
+    }
+    updateHeartUI();
+  });
+
+  // --- Sync UI ---
+  window.addEventListener("favouritesChanged", updateHeartUI);
+  window.addEventListener("cartChanged", refreshQuantityUI);
+  window.addEventListener("storage", () => {
+    refreshQuantityUI();
+    updateHeartUI();
+  });
+
+  refreshQuantityUI();
+  updateHeartUI();
+});
+</script>
 {% endblock %}
