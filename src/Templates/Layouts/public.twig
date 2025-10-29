@@ -62,12 +62,12 @@
     const favouriteBtn = document.getElementById("favouriteBtn"); 
     const cartBtn = document.getElementById("cartBtn");
     const userMenuBtn = document.getElementById("userMenuBtn");
-    const mobileMenuBtn = document.getElementById("mobileMenuBtn"); // <-- ADDED
+    const mobileMenuBtn = document.getElementById("mobileMenuBtn");
 
     const favouriteSidebar = document.getElementById("favouriteSidebar"); 
     const cartSidebar = document.getElementById("cartSidebar");
     const userDropdown = document.getElementById("userDropdown");
-    const mobileMenu = document.getElementById("mobileMenu"); // <-- ADDED
+    const mobileMenu = document.getElementById("mobileMenu");
     
     const overlay = document.getElementById("overlay");
     
@@ -76,11 +76,24 @@
       favouriteSidebar?.classList.add("translate-x-full"); 
       cartSidebar?.classList.add("translate-x-full");
       userDropdown?.classList.add("hidden");
-      mobileMenu?.classList.add("hidden"); // <-- ADDED
+      mobileMenu?.classList.add("hidden");
       overlay?.classList.add("hidden");
     }
 
     // --- 3. INITIALIZE SERVICES ---
+
+    // --- ⬇️ HERE IS THE FIX ⬇️ ---
+    // Instantiate the Modal and attach its 'show' method to the window
+    try {
+      const modal = new Modal();
+      window.showModal = (options) => modal.show(options);
+    } catch (e) {
+      console.error("Failed to initialize Modal:", e);
+      // Create a fallback alert in case Modal.js fails to load
+      window.showModal = (options) => alert(options.message); 
+    }
+    // --- ⬆️ END OF FIX ⬆️ ---
+
     window.cartService = new CartService();
     window.favouriteService = new FavouriteService();
     
@@ -119,7 +132,7 @@
     
     // Use the *same* function for both dropdown-style menus
     userMenuBtn?.addEventListener("click", (e) => toggleDropdown(userMenuBtn, userDropdown, e));
-    mobileMenuBtn?.addEventListener("click", (e) => toggleDropdown(mobileMenuBtn, mobileMenu, e)); // <-- ADDED
+    mobileMenuBtn?.addEventListener("click", (e) => toggleDropdown(mobileMenuBtn, mobileMenu, e));
     
     overlay?.addEventListener("click", closeAllSidebars);
 
@@ -168,7 +181,6 @@
     });
   });
 </script>
-
 
 
 </body>
