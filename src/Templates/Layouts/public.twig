@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="/Assets/favicon.png">
   <link href="/css/output.css" rel="stylesheet">
 
-  <script src="/js/modal.js"></script>
+  <script src="/js/Modal.js"></script>
   <script>
     window.AUTH_STATE = {
       isLoggedIn: {{ user ? 'true' : 'false' }},
@@ -55,7 +55,7 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      // --- Elements (for layout only) ---
+      // --- Elements  ---
       const favouriteBtn = document.getElementById("favouriteBtn"); 
       const cartBtn = document.getElementById("cartBtn");
       const favouriteSidebar = document.getElementById("favouriteSidebar"); 
@@ -64,7 +64,6 @@
       const userMenuBtn = document.getElementById("userMenuBtn");
       const userDropdown = document.getElementById("userDropdown");
 
-      // --- Helpers (for layout only) ---
       function closeAllSidebars() {
         favouriteSidebar?.classList.add("translate-x-full"); 
         cartSidebar?.classList.add("translate-x-full");
@@ -79,7 +78,6 @@
       window.cartService.init();
       window.favouriteService.init();
 
-      // --- ✅ 2. DISPATCH "SERVICES READY" EVENT ---
       // This tells page-specific scripts that it's safe to run.
       window.dispatchEvent(new Event('servicesReady'));
 
@@ -124,7 +122,7 @@
           });
       }
 
-      // --- Navigation Changes (Keep this) ---
+      // --- Navigation Changes  ---
       function handleNavigation() {
         closeAllSidebars(); 
       }
@@ -132,7 +130,7 @@
       window.addEventListener('pushstate', handleNavigation);
       window.addEventListener('replacestate', handleNavigation);
 
-      // --- Cross-tab sync (Keep this) ---
+      // --- Cross-tab sync  ---
       window.addEventListener("storage", (e) => {
         if (e.key === "cart" || e.key === "favourite") {
           window.cartService.init();

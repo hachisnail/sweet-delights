@@ -7,6 +7,7 @@ return array (
     'name' => 'Mayie',
     'email' => 'mayie@example.com',
     'password_hash' => '$2y$10$qbDw3KQZQz3b7EgetOqonuudMfxYnd7ZabYiABQDLEkor5XBl7zC2',
+    // password123
     'role' => 'admin',
     'cart' => 
     array (
@@ -51,6 +52,7 @@ return array (
     'name' => 'Jeffe',
     'email' => 'jeffe@example.com',
     'password_hash' => '$2y$10$zdU0.LHJHyrGUg4mvqlgEuMmBIMcUiIbT/9Xj8XMBPKPKr7VaIlUi',
+    // admin
     'role' => 'customer',
     'cart' => 
     array (
@@ -65,6 +67,7 @@ return array (
     'name' => 'SysAdmin',
     'email' => 'super@example.com',
     'password_hash' => '$2y$10$CrEKRg/JKZG.uEQYvNtli.k1bXbbNGicTDv54cTqh.TY.yX19TKZq',
+    // superpass
     'role' => 'superadmin',
     'cart' => 
     array (

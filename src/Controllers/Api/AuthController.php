@@ -30,7 +30,7 @@ class AuthController {
         $email = $data['email'] ?? '';
         $password = $data['password'] ?? '';
 
-        $users = require __DIR__ . '/../Data/users.php';
+        $users = require __DIR__ . '/../../Data/users.php';
 
         $foundUser = null;
         foreach ($users as $user) {

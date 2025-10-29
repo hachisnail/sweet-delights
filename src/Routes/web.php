@@ -14,16 +14,11 @@ use SweetDelights\Mayie\Controllers\AccountController;
 use SweetDelights\Mayie\Controllers\UnderConstructionController;
 
 use SweetDelights\Mayie\Controllers\Api\AuthController; 
-
-
-// --- ⬇️ IMPORT NEW API CONTROLLERS AND MIDDLEWARE ⬇️ ---
 use SweetDelights\Mayie\Controllers\Api\CartController;
 use SweetDelights\Mayie\Controllers\Api\FavouritesController;
 use SweetDelights\Mayie\Middleware\ApiAuthMiddleware;
-// --- ⬆️ IMPORT NEW API CONTROLLERS AND MIDDLEWARE ⬆️ ---
 
 
-// --- IMPORT YOUR UNIFIED MIDDLEWARE ---
 use SweetDelights\Mayie\Middleware\RoleAuthMiddleware;
 
 return function (App $app) {
@@ -38,7 +33,6 @@ return function (App $app) {
     $app->get('/logout', [AuthController::class, 'logout']);
 
 
-    // --- ⬇️ NEW API ROUTES ⬇️ ---
     // Protected by our new JSON-returning middleware
     $app->group('/api', function (RouteCollectorProxy $group) {
         
@@ -46,7 +40,6 @@ return function (App $app) {
         $group->post('/favourites/sync', [FavouritesController::class, 'sync']);
 
     })->add(new ApiAuthMiddleware()); // <-- Use the new middleware!
-    // --- ⬆️ NEW API ROUTES ⬆️ ---
 
 
     // --- Account Routes ---
