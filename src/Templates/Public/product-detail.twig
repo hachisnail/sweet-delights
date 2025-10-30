@@ -5,7 +5,7 @@
 <div class="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-lg border border-pink-100 "
      data-product-id="{{ product.id }}"
      data-product-name="{{ product.name }}"
-     data-product-price="{{ product.price }}"
+     data-product-price="{{ product.price }}" {# This is now the base/starting price #}
      data-product-image="{{ product.image }}"
      data-product-stock="{{ product.stock }}"
      data-product-sizes='{{ product.sizes|json_encode|raw }}'>
@@ -13,14 +13,26 @@
   <div class="flex flex-col md:flex-row gap-8">
     <div class="md:w-1/2 flex justify-center">
       <img src="{{ product.image }}" alt="{{ product.name }}"
-           class="rounded-xl w-full max-w-sm object-cover shadow-md shadow-gray-400">
+           class="rounded-xl w-full max-w-sm object-cover shadow-md shadow-gray-400"
+           onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
     </div>
 
-    <div class="md:w-1/2 flex flex-col justify-between">
+    <div class="md:w-1/2 flex flex-col ">
       <div>
         <h1 class="text-3xl font-bold text-[#835234] mb-2">{{ product.name }}</h1>
-        <p class="text-sm text-pink-600 font-semibold mb-2">{{ product.category }}</p>
-        <p class="text-gray-600 mb-4 text-lg">₱{{ product.price }}</p>
+        <p class="text-sm text-pink-600 font-semibold mb-2">{{ product.category_name }}</p>
+        
+        {# ✅ --- START PRICE REFACTOR --- #}
+        <p id="productPriceDisplay" class="text-gray-600 mb-4 text-lg">
+            {% if product.sizes is defined and product.sizes|length > 0 %}
+                {# Show base price on load #}
+                Starts at ₱{{ product.price|number_format(2, '.', ',') }}
+            {% else %}
+                {# Show regular price if no sizes #}
+                ₱{{ product.price|number_format(2, '.', ',') }}
+            {% endif %}
+        </p>
+        
         <p class="text-gray-700 mb-6 leading-relaxed">{{ product.description }}</p>
 
         {% if product.sizes is defined and product.sizes|length > 0 %}
@@ -32,27 +44,23 @@
                   type="button"
                   data-size="{{ size.name }}"
                   data-stock="{{ size.stock }}"
+                  data-price="{{ size.price }}"
                   class="size-btn px-3 py-1 bg-pink-100 text-pink-700 rounded-lg text-sm hover:bg-pink-200 focus:outline-none transition">
-                  {{ size.name }} ({{ size.stock }})
+                  {{ size.name }} (₱{{ size.price|number_format(2) }}) - {{ size.stock }} left
                 </button>
               {% endfor %}
             </div>
             <div id="sizeWarning" class="hidden flex items-center gap-2 mt-1 text-red-500 text-xs">
-              <svg xmlns="http://www.w3.org/2000/svg" 
-                   width="16" height="16" viewBox="0 0 24 24" fill="none" 
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                   class="lucide lucide-triangle-alert flex-shrink-0">
-                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
-                <path d="M12 9v4"/>
-                <path d="M12 17h.01"/>
-              </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert flex-shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
               <p>Please select a size before adding to cart.</p>
             </div>
-
           </div>
         {% endif %}
-
-        <p class="text-sm text-gray-500 mt-4">Total Stock: {{ product.stock }}</p>
+        
+        {# This is hidden if sizes exist, but good for fallback #}
+        {% if product.sizes is empty %}
+            <p class="text-sm text-gray-500 mt-4">Total Stock: {{ product.stock }}</p>
+        {% endif %}
       </div>
 
       <div class="mt-6 flex flex-col gap-3">
@@ -73,12 +81,7 @@
           </button>
           <button id="addToFavouriteBtn" 
                   class="bg-pink-100 hover:bg-pink-200 text-[#835234] p-2 rounded-xl transition relative">
-            <svg id="heartIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" 
-                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" 
-                 stroke-linecap="round" stroke-linejoin="round" 
-                 class="lucide lucide-heart transition-all duration-300">
-              <path d="M19.5 12.571 12 20l-7.5-7.429A5 5 0 0 1 12 6a5 5 0 0 1 7.5 6.571Z"/>
-            </svg>
+            <svg id="heartIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart transition-all duration-300"><path d="M19.5 12.571 12 20l-7.5-7.429A5 5 0 0 1 12 6a5 5 0 0 1 7.5 6.571Z"/></svg>
           </button>
         </div>
       </div>
@@ -88,7 +91,6 @@
 </div>
 
 <style>
-/* Simple shake animation for size warning */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-4px); }
@@ -100,12 +102,10 @@
 </style>
 
 <script>
-// ✅ LISTEN FOR THE NEW "servicesReady" EVENT
 window.addEventListener("servicesReady", () => {
   const container = document.querySelector("[data-product-id]");
   if (!container) return;
 
-  // --- Get all elements (no change) ---
   const qtyInput = document.getElementById("quantityInput");
   const decBtn = document.getElementById("decreaseQty");
   const incBtn = document.getElementById("increaseQty");
@@ -115,23 +115,23 @@ window.addEventListener("servicesReady", () => {
   const addToCartBtn = document.getElementById("addToCartBtn");
   const addToFavouriteBtn = document.getElementById("addToFavouriteBtn");
   const heartIcon = document.getElementById("heartIcon");
+  
+  const priceDisplay = document.getElementById("productPriceDisplay");
 
-  // --- Product data (no change) ---
   const product = {
     id: Number(container.dataset.productId),
     name: container.dataset.productName,
-    price: Number(container.dataset.productPrice),
+    price: Number(container.dataset.productPrice), // This is the base/starting price
     image: container.dataset.productImage,
-    stock: Number(container.dataset.productStock || "1"), // Used for products WITHOUT sizes
+    stock: Number(container.dataset.productStock || "1"),
     sizes: JSON.parse(container.dataset.productSizes || "[]"),
   };
 
   let selectedSize = null;
   let selectedStock = 0;
+  let selectedPrice = product.price; // Default to base price
 
-  // --- Heart UI (Refactored) ---
   const updateHeartUI = () => {
-    // ✅ This will now work
     const inFav = window.favouriteService.isFavourite(product.id); 
     if (inFav) {
       heartIcon.classList.add("fill-current", "text-pink-600");
@@ -140,16 +140,13 @@ window.addEventListener("servicesReady", () => {
     }
   };
 
-  // --- Helpers (Refactored) ---
   const getAvailableStockForSelectedSize = () => {
-    if (product.sizes.length > 0 && !selectedSize) return 0; // No size selected
+    if (product.sizes.length > 0 && !selectedSize) return 0;
 
-    // Determine base stock (either from selected size or whole product)
     const baseStock = (selectedSize)
-        ? selectedStock // This was set when clicking the size
+        ? selectedStock
         : product.stock; // Stock for products with no sizes
     
-    // ✅ Use the service
     const cart = window.cartService.getCart(); 
     
     const existing = cart.find(
@@ -161,19 +158,22 @@ window.addEventListener("servicesReady", () => {
   };
 
   const refreshQuantityUI = () => {
-    // Logic for products with sizes
     if (product.sizes.length > 0) {
         if (!selectedSize) {
-            addToCartBtn.classList.add("opacity-60", "cursor-not-allowed");
-            addToCartBtn.dataset.disabled = "true";
-            qtyInput.value = 1;
-            decBtn.disabled = true;
-            incBtn.disabled = true;
-            return;
+          addToCartBtn.classList.add("opacity-60", "cursor-not-allowed");
+          addToCartBtn.dataset.disabled = "true";
+          qtyInput.value = 1;
+          decBtn.disabled = true;
+          incBtn.disabled = true;
+          
+          // Reset price display when no size is selected
+          if (priceDisplay) {
+              priceDisplay.textContent = `Starts at ₱${product.price.toFixed(2)}`;
+          }
+          return;
         }
     }
     
-    // This logic now works for BOTH products with/without sizes
     const available = getAvailableStockForSelectedSize();
 
     addToCartBtn.classList.remove("opacity-60", "cursor-not-allowed");
@@ -191,36 +191,38 @@ window.addEventListener("servicesReady", () => {
 
     decBtn.disabled = Number(qtyInput.value) <= 1;
     incBtn.disabled = Number(qtyInput.value) >= available;
-    qtyInput.max = available; // Set max on input
+    qtyInput.max = available;
   };
 
-  // --- Size selection (Refactored) ---
+  // --- Size selection ---
   sizeButtons.forEach(btn => {
     btn.addEventListener("click", () => {
-      // (Deselect logic)
       sizeButtons.forEach(b => b.classList.remove("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]"));
       sizeButtons.forEach(b => b.classList.add("bg-pink-100", "text-pink-700"));
 
-      // (Select logic)
       btn.classList.remove("bg-pink-100", "text-pink-700");
       btn.classList.add("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]");
 
       selectedSize = btn.dataset.size;
-      selectedStock = Number(btn.dataset.stock); // This is the TOTAL stock for this size
+      selectedStock = Number(btn.dataset.stock);
+      
+      selectedPrice = Number(btn.dataset.price); // Get price from button
+      if (priceDisplay) {
+        priceDisplay.textContent = `₱${selectedPrice.toFixed(2)}`; // Update UI
+      }
+
       
       sizeWarning.classList.add("hidden");
-      qtyInput.value = 1; // Reset qty on size change
+      qtyInput.value = 1;
       refreshQuantityUI();
     });
   });
 
-  // --- Auto-select single size (no change) ---
   if (product.sizes.length === 1) {
-    const onlySizeBtn = sizeButtons[0];
-    onlySizeBtn.click();
+    sizeButtons[0].click();
   }
   
-  // --- Quantity buttons (Refactored) ---
+  // --- Quantity buttons ---
   decBtn.addEventListener("click", () => {
     qtyInput.value = Math.max(1, Number(qtyInput.value) - 1);
     refreshQuantityUI();
@@ -234,16 +236,12 @@ window.addEventListener("servicesReady", () => {
 
   qtyInput.addEventListener("input", (e) => {
     const available = getAvailableStockForSelectedSize();
-    if (Number(e.target.value) > available) {
-        e.target.value = available;
-    }
-    if (Number(e.target.value) < 1) {
-        e.target.value = 1;
-    }
+    if (Number(e.target.value) > available) e.target.value = available;
+    if (Number(e.target.value) < 1) e.target.value = 1;
     refreshQuantityUI();
   });
 
-  // --- Add to Cart (Refactored) ---
+  // --- Add to Cart ---
   addToCartBtn.addEventListener("click", () => {
     if (product.sizes.length > 0 && !selectedSize) {
       sizeWarning.classList.remove("hidden");
@@ -265,14 +263,13 @@ window.addEventListener("servicesReady", () => {
     
     const requested = Math.min(Number(qtyInput.value) || 1, availableStock);
 
-    // ✅ Use the service
     window.cartService.addItem({
         id: product.id,
         name: product.name,
         image: product.image,
-        price: product.price,
+        price: selectedPrice, // Use the dynamic selectedPrice
         selectedSize,
-        stock: selectedSize ? selectedStock : product.stock, // Pass the relevant TOTAL stock
+        stock: selectedSize ? selectedStock : product.stock,
     }, requested);
 
     window.showModal({
@@ -287,6 +284,7 @@ window.addEventListener("servicesReady", () => {
     if (product.sizes.length > 0) {
         selectedSize = null;
         selectedStock = 0;
+        selectedPrice = product.price; // Reset price to base
         sizeButtons.forEach(b => {
           b.classList.remove("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]");
           b.classList.add("bg-pink-100", "text-pink-700");
@@ -296,12 +294,9 @@ window.addEventListener("servicesReady", () => {
   });
 
 
-  // --- Favourites toggle (Refactored) ---
   addToFavouriteBtn.addEventListener("click", () => {
-    // ✅ Use the service
     const wasAdded = window.favouriteService.toggle(product);
     
-    // The service already updated the UI, but we can show a modal
     if (wasAdded) {
         window.showModal({
           type: "success",
@@ -317,15 +312,10 @@ window.addEventListener("servicesReady", () => {
           buttons: [{ text: "OK", variant: "cancel" }],
         });
     }
-    // updateHeartUI(); // The service's event will trigger this
   });
 
-  // --- Sync UI (Keep these listeners) ---
-  // When the services fire events, update this page's UI
   window.addEventListener("favouritesChanged", updateHeartUI);
   window.addEventListener("cartChanged", refreshQuantityUI);
-  
-  // Also listen for storage events (other tabs)
   window.addEventListener("storage", () => {
     refreshQuantityUI();
     updateHeartUI();

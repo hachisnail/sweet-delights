@@ -128,9 +128,8 @@ class FavouriteService {
             a.href = `/products/${item.id}`;
             a.className = "flex items-center gap-3 border-b pb-2 mb-2 group";
             
-            // (Copied from public.twig)
             a.innerHTML = `
-                <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-cover rounded-lg shadow-sm shadow-gray-400">
+                <img src="${item.image || "/Assets/placeholder-item.png"}" onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';" alt="${item.name}" class="w-12 h-12 object-cover rounded-lg shadow-sm shadow-gray-400">
                 <div class="flex-1">
                   <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
                   <p class="text-sm text-gray-500">₱${item.price}</p>

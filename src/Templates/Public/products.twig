@@ -4,52 +4,81 @@
 <div class="p-6 flex flex-col snap-start pt-30">
   <h1 class="text-3xl font-bold text-pink-700 mb-6 text-center">Our Treats</h1>
 
-  <!-- Category Filter -->
-  {% set categories = [] %}
-  {% for p in products %}
-    {% if p.category not in categories %}
-      {% set categories = categories|merge([p.category]) %}
+  {% set selected_slug = selected_category.slug | default(null) %}
+  {% set parent_id_to_find = null %}
+  {% if selected_category %}
+    {% if selected_category.parent_id %}
+      {% set parent_id_to_find = selected_category.parent_id %}
+    {% else %}
+      {% set parent_id_to_find = selected_category.id %}
     {% endif %}
-  {% endfor %}
-
-  <div class="flex flex-wrap justify-center gap-3 mb-6">
-    {% for cat in categories %}
-      <a href="?category={{ cat | url_encode }}" 
+  {% endif %}
+  {% set parent_category = null %}
+  {% if parent_id_to_find %}
+    {% for cat in all_categories %}
+      {% if cat.id == parent_id_to_find %}
+        {% set parent_category = cat %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+  {% set parent_slug = parent_category.slug | default(null) %}
+  <div class="flex flex-wrap justify-center gap-3 mb-2">
+    {% for cat in all_categories %}
+      <a href="?category={{ cat.slug | url_encode }}" 
          class="px-4 py-2 rounded-xl border font-medium transition 
-                {{ selected_category == cat 
+                {{ parent_slug == cat.slug 
                    ? 'bg-pink-500 text-white border-pink-500' 
                    : 'bg-white text-[#835234] hover:bg-pink-100 border-pink-300' }}">
-        {{ cat }}
+        {{ cat.name }}
       </a>
     {% endfor %}
-
-    {% if selected_category %}
-      <a href="/products" class="text-sm text-gray-500 underline ml-2 self-center hover:text-pink-600">
-        Clear filter
-      </a>
-    {% endif %}
   </div>
-
-  <!-- Products Grid -->
+  {% if parent_category and parent_category.children is defined and parent_category.children|length > 0 %}
+    <div class="flex flex-wrap justify-center gap-2 mb-6 p-3 bg-pink-100/50 rounded-lg">
+      {% for subcat in parent_category.children %}
+        <a href="?category={{ subcat.slug | url_encode }}" 
+           class="px-3 py-1 rounded-lg text-sm font-medium transition
+                  {{ selected_slug == subcat.slug 
+                     ? 'bg-[#835234] text-white' 
+                     : 'bg-white text-pink-700 hover:bg-pink-200' }}">
+          {{ subcat.name }}
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% if selected_slug %}
+    <a href="/products" class="text-sm text-gray-500 underline text-center mb-6 hover:text-pink-600">
+      Clear filter
+    </a>
+  {% endif %}
+  
   <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
     {% if products is empty %}
       <p class="text-center text-gray-500 col-span-full">No products found.</p>
     {% else %}
       {% for product in products %}
-        <a href="{{ app.url }}/products/{{ product.id }}" 
+        <a href="{{ app_url }}/products/{{ product.id }}" 
            class="block bg-white p-4 rounded-2xl shadow hover:shadow-lg transition transform hover:-translate-y-1">
           <img src="{{ product.image }}" alt="{{ product.name }}" 
-               class="rounded-xl mb-3 w-full h-48 object-cover">
+               class="rounded-xl mb-3 w-full h-48 object-cover"
+               onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';"
+               >
           <h2 class="font-semibold text-lg text-[#835234] truncate">{{ product.name }}</h2>
-          <p class="text-gray-500 mb-2">₱{{ product.price|number_format(2, '.', ',') }}</p>
+          
+          <p class="text-gray-500 mb-2">
+            {% if product.sizes is defined and product.sizes|length > 0 %}
+                Starts at ₱{{ product.price|number_format(2, '.', ',') }}
+            {% else %}
+                ₱{{ product.price|number_format(2, '.', ',') }}
+            {% endif %}
+          </p>
+          
           <span class="inline-block px-3 py-1 text-xs bg-pink-100 text-pink-600 rounded-full">
-            {{ product.category }}
+            {{ product.category_name }}
           </span>
         </a>
       {% endfor %}
     {% endif %}
   </div>
 </div>
-
-
 {% endblock %}

@@ -15,8 +15,36 @@ class CartService {
     }
 
     // 1. INITIALIZATION
-    async init() {
-        const localCart = JSON.parse(localStorage.getItem(this.storageKey) || "[]");
+async init() {
+        let localCart;
+
+        try {
+            // Get the raw string from localStorage
+            const rawCartData = localStorage.getItem(this.storageKey);
+            
+            // Try to parse it. If rawCartData is null, "[]" will be used.
+            localCart = JSON.parse(rawCartData || "[]");
+
+            // --- 💡 EXTRA SAFETY CHECK ---
+            // What if it's valid JSON, but not an array? (e.g., "123" or "{}")
+            // The rest of your code expects an array.
+            if (!Array.isArray(localCart)) {
+                console.warn("Local cart was not an array, resetting.");
+                localCart = [];
+            }
+
+        } catch (error) {
+            // If parsing fails, log the error and reset the cart
+            console.error("Failed to parse local cart data:", error);
+            console.warn("Local storage 'cart' was corrupted. Resetting cart.");
+            
+            localCart = []; // Default to an empty array
+            
+            // Self-heal: Remove the bad data so this doesn't happen again
+            localStorage.removeItem(this.storageKey);
+        }
+
+        // --- The rest of your function continues from here ---
         
         if (this.isLoggedIn) {
             const serverCart = window.AUTH_STATE.initialCart || [];
@@ -185,10 +213,9 @@ class CartService {
             a.href = `/products/${item.id}`;
             a.className = "flex flex-col border-b pb-3 mb-3 group no-underline";
 
-            // (This innerHTML is copied directly from your public.twig)
             a.innerHTML = `
               <div class="flex gap-3 items-center">
-                <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded-lg shadow-sm shadow-pink-200">
+                <img src="${item.image }" alt="${item.name}" onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';" class="w-16 h-16 object-cover rounded-lg shadow-sm shadow-pink-200">
                 <div class="flex-1">
                   <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
                   ${item.selectedSize ? `<p class="text-xs text-gray-500">Size: ${item.selectedSize}</p>` : ""}

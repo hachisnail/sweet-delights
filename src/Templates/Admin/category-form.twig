@@ -1,0 +1,138 @@
+{% extends "Layouts/admin.twig" %} {# Change as needed. #}
+
+{% block content %}
+{# ✅ UPDATED container to match products.twig #}
+<div class="max-w-7xl mx-auto">
+  
+  {# ✅ UPDATED header to match products.twig #}
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-2xl font-bold text-[#835234]">{{ title }}</h2>
+  </div>
+
+  {# ✅ ADDED ID and UPDATED classes to match products.twig #}
+  <form id="category-form" action="{{ form_action }}" method="POST" class="bg-white p-6 rounded-lg shadow-md border border-gray-200 space-y-5">
+    
+    <div>
+      <label for="name" class="block text-sm font-medium text-[#835234] mb-1">Category Name</label>
+      <input type="text" id="name" name="name" value="{{ category.name | default('') }}" required
+             class="w-full px-4 py-2 border border-pink-300 rounded-lg focus:ring-pink-500 focus:border-pink-500">
+    </div>
+
+    <div>
+      <label for="parent_id" class="block text-sm font-medium text-[#835234] mb-1">Parent Category</label>
+      <select id="parent_id" name="parent_id"
+             class="w-full px-4 py-2 border border-pink-300 rounded-lg focus:ring-pink-500 focus:border-pink-500 bg-white">
+        <option value="">-- None (Top Level Category) --</option>
+        {% for cat in all_categories %}
+          {# Prevent selecting itself as a parent #}
+          {% if category.id is not defined or cat.id != category.id %} 
+            <option value="{{ cat.id }}" {{ (category.parent_id | default(0)) == cat.id ? 'selected' : '' }}>
+              {{ cat.name }}
+            </option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex justify-end gap-3 pt-4">
+      {# ✅ CONVERTED TO BUTTON #}
+      <button type="button" id="cancel-btn"
+         class="px-5 py-2 bg-gray-200 text-gray-800 rounded-xl font-semibold hover:bg-gray-300 transition">
+         Cancel
+      </button>
+      {# ✅ CONVERTED TO BUTTON #}
+      <button type="button" id="save-btn"
+              class="px-5 py-2 bg-pink-500 text-white rounded-xl font-semibold hover:bg-pink-600 transition">
+              Save Category
+      </button>
+    </div>
+
+  </form>
+</div>
+
+{# ✅ ADDED MODAL SCRIPT #}
+<script>
+// This function will attach all our event listeners
+function setupFormListeners() {
+  // --- 1. Get all elements ---
+  const form = document.getElementById("category-form");
+  const cancelBtn = document.getElementById("cancel-btn");
+  const saveBtn = document.getElementById("save-btn");
+
+  // --- 2. NEW Modal Listeners ---
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.showModal({
+        type: "warning",
+        title: "Confirm Cancel",
+        message: "Are you sure you want to cancel? Any unsaved changes will be lost.",
+        buttons: [
+          { text: "Stay", variant: "cancel" },
+          { 
+            text: "Leave", 
+            variant: "danger", 
+            action: () => {
+              // Redirect back to the main categories list
+              window.location.href = "{{ app_url }}/app/categories";
+            }
+          }
+        ]
+      });
+    });
+  }
+
+  if (saveBtn && form) {
+    saveBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      
+      if (!form.checkValidity()) {
+          window.showModal({
+            type: "error",
+            title: "Missing Information",
+            message: "Please fill out all required fields (like Category Name) before saving.",
+            buttons: [{ text: "OK", variant: "cancel" }]
+          });
+          form.reportValidity();
+          return;
+      }
+
+      window.showModal({
+        type: "info",
+        title: "Confirm Save",
+        message: "Are you sure you want to save this category?",
+        buttons: [
+          { text: "Cancel", variant: "cancel" },
+          { 
+            text: "Save", 
+            variant: "primary",
+            action: () => {
+              form.submit();
+            }
+          }
+        ]
+      });
+    });
+  }
+}
+
+// --- This function will check if the modal service is ready. ---
+function waitForModalService() {
+  if (typeof window.showModal === 'function') {
+    // The service is ready! Run our setup.
+    setupFormListeners();
+  } else {
+    // The service is not ready. Check again in 100ms.
+    console.warn("ModalService not ready, retrying in 100ms...");
+    setTimeout(waitForModalService, 100);
+  }
+}
+
+// We still wait for DOMContentLoaded to make sure the *buttons* we want
+// to attach listeners to are present.
+document.addEventListener("DOMContentLoaded", () => {
+  // Start checking for the modal service.
+  waitForModalService();
+});
+</script> 
+{% endblock %}

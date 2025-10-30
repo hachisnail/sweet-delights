@@ -1,11 +1,12 @@
 <?php
-namespace SweetDelights\Mayie\Controllers;
+namespace SweetDelights\Mayie\Controllers\Admin;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 
-class UserController {
+//  INHERIT from BaseAdminController
+class UserAdminController extends BaseAdminController {
 
     /**
      * Show the customer users list.
@@ -13,10 +14,11 @@ class UserController {
      * It only displays users with the 'customer' role.
      */
     public function index(Request $request, Response $response): Response {
-        $view = Twig::fromRequest($request);
+        //  USE helper from base class
+        $view = $this->viewFromRequest($request);
 
         // Load all users from the mock data file
-        $allUsers = require __DIR__ . '/../Data/users.php';
+        $allUsers = require __DIR__ . '/../../Data/users.php';
 
         // Filter the users to only include 'customer' roles
         $customerUsers = array_filter($allUsers, function($user) {
@@ -29,9 +31,17 @@ class UserController {
             return $user;
         }, $customerUsers);
 
+        //  USE the breadcrumbs helper
+        $breadcrumbs = $this->breadcrumbs($request, [
+            ['name' => 'Customer Accounts', 'url' => null]
+        ]);
+
         return $view->render($response, 'Admin/users.twig', [
             'title' => 'Customer Accounts',
-            'users' => $safeUsers
+            'users' => $safeUsers,
+            'breadcrumbs' => $breadcrumbs, //  ADDED
+            'active_page' => 'users_admin', //  ADDED
         ]);
     }
 }
+
