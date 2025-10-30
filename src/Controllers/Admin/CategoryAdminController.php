@@ -12,7 +12,7 @@ class CategoryAdminController extends BaseAdminController
 
     public function __construct()
     {
-        $this->dataPath = __DIR__ . '/../../data/categories.php'; 
+        $this->dataPath = __DIR__ . '/../../Data/categories.php'; 
     }
 
     // --- Data Helper Functions (No changes) ---

@@ -17,8 +17,8 @@ class ProductAdminController extends BaseAdminController
 
     public function __construct()
     {
-        $this->productsPath = __DIR__ . '/../../data/products.php';
-        $this->categoriesPath = __DIR__ . '/../../data/categories.php';
+        $this->productsPath = __DIR__ . '/../../Data/products.php';
+        $this->categoriesPath = __DIR__ . '/../../Data/categories.php';
         $this->uploadDir = __DIR__ . '/../../../public/Assets/Products/';
         $this->publicUploadPath = '/Assets/Products/';
     }
