@@ -131,4 +131,36 @@ return array (
     'shipping_fee' => 50.0,
     'total' => 610.0,
   ),
+  3 => 
+  array (
+    'id' => 4,
+    'user_id' => 3,
+    'customer_name' => 'Jefferson Talagtag',
+    'address' => 
+    array (
+      'street' => '1 Server Rack',
+      'city' => 'Pasig',
+      'state' => 'Metro Manila',
+      'postal_code' => '1600',
+    ),
+    'date' => '2025-11-04 19:56:39',
+    'status' => 'Processing',
+    'items' => 
+    array (
+      0 => 
+      array (
+        'sku' => 'swe-don-cd-2',
+        'name' => 'Chocolate Donut',
+        'image' => '/Assets/Products/Chocolate Donut.png',
+        'price' => 220,
+        'stock' => 5,
+        'selectedSize' => 'Large',
+        'quantity' => 3,
+      ),
+    ),
+    'subtotal' => 660,
+    'tax' => 79.2,
+    'shipping_fee' => 60.0,
+    'total' => 799.2,
+  ),
 );

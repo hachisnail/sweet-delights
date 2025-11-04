@@ -1,4 +1,5 @@
 <?php
+
 return array (
   0 => 
   array (
@@ -42,7 +43,7 @@ return array (
     'name' => 'Chocolate Donut',
     'price' => 180.0,
     'image' => '/Assets/Products/Chocolate Donut.png',
-    'stock' => 5,
+    'stock' => 2,
     'category_id' => 8,
     'sizes' => 
     array (
@@ -56,7 +57,7 @@ return array (
       1 => 
       array (
         'name' => 'Large',
-        'stock' => 5,
+        'stock' => 2,
         'price' => 220.0,
         'image' => '',
       ),

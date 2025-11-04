@@ -174,22 +174,24 @@ class AccountController extends BaseDataController {
         if (!$foundOrder || $foundOrder['user_id'] !== $user['id']) {
             return $response->withHeader('Location', $routeParser->urlFor('account.orders'))->withStatus(302);
         }
-
-        // --- NEW LOGIC: INJECT SKU ---
+        // --- NEW LOGIC: INJECT 'id' (using 'sku') ---
         $allProducts = $this->getProducts();
-        // Create a simple lookup map for efficiency [id => sku]
-        $skuMap = [];
+        
+        // Create a simple lookup map for efficiency [sku => id]
+        $idMap = [];
         foreach ($allProducts as $product) {
-            $skuMap[$product['id']] = $product['sku'];
+            // Use sku as the key
+            $idMap[$product['sku']] = $product['id']; 
         }
 
-        // Loop through order items and add the sku
+        // Loop through order items and add the id
         if (isset($foundOrder['items']) && is_array($foundOrder['items'])) {
             foreach ($foundOrder['items'] as &$item) {
-                if (isset($skuMap[$item['id']])) {
-                    $item['sku'] = $skuMap[$item['id']];
+                // Use the item's sku (which exists) to find its id
+                if (isset($item['sku']) && isset($idMap[$item['sku']])) {
+                    $item['id'] = $idMap[$item['sku']]; // Add the 'id' field
                 } else {
-                    $item['sku'] = null; // Product might have been deleted
+                    $item['id'] = null; // Product might have been deleted
                 }
             }
             unset($item); // Unset the reference

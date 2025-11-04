@@ -94,16 +94,6 @@ return array (
     'is_active' => true,
     'cart' => 
     array (
-      0 => 
-      array (
-        'sku' => 'swe-don-cd-2',
-        'name' => 'Chocolate Donut',
-        'image' => '/Assets/Products/Chocolate Donut.png',
-        'price' => 220,
-        'stock' => 5,
-        'selectedSize' => 'Large',
-        'quantity' => 3,
-      ),
     ),
     'favourites' => 
     array (
