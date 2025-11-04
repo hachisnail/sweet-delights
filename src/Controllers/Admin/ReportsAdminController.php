@@ -6,18 +6,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 class ReportsAdminController extends BaseAdminController
 {
-    private $ordersPath;
-    private $productsPath;
-
-    public function __construct()
-    {
-        $this->ordersPath = __DIR__ . '/../../Data/orders.php';
-        $this->productsPath = __DIR__ . '/../../Data/products.php';
-    }
-
-    private function getOrders(): array { return file_exists($this->ordersPath) ? require $this->ordersPath : []; }
-    private function getProducts(): array { return file_exists($this->productsPath) ? require $this->productsPath : []; }
-
+    // --- All data helpers and __construct are now in BaseAdminController ---
 
     /**
      * This is the helper function that does the actual work.
@@ -25,7 +14,7 @@ class ReportsAdminController extends BaseAdminController
      */
     private function generateReportData(string $dateStart, string $dateEnd): array
     {
-        $allOrders = $this->getOrders();
+        $allOrders = $this->getOrders(); // Inherited
         
         $filteredOrders = array_filter($allOrders, function($order) use ($dateStart, $dateEnd) {
             $orderDate = date('Y-m-d', strtotime($order['date']));
@@ -38,24 +27,30 @@ class ReportsAdminController extends BaseAdminController
         $totalOrders = count($filteredOrders);
         $itemsSold = [];
 
+        // --- THIS BLOCK IS NOW FIXED ---
         foreach ($filteredOrders as $order) {
             $totalSales += $order['total'];
             foreach ($order['items'] as $item) {
-                $id = $item['id'];
+                $sku = $item['sku']; // <-- FIX: Use 'sku'
                 $qty = $item['quantity'];
-                if (!isset($itemsSold[$id])) {
-                    $itemsSold[$id] = 0;
+                if (!isset($itemsSold[$sku])) {
+                    $itemsSold[$sku] = 0;
                 }
-                $itemsSold[$id] += $qty;
+                $itemsSold[$sku] += $qty;
             }
         }
+        // --- END FIX ---
 
-        $productMap = array_column($this->getProducts(), 'name', 'id');
+        // Build maps using SKU as the key
+        $productNameMap = array_column($this->getProducts(), 'name', 'sku');
+        $productIdMap = array_column($this->getProducts(), 'id', 'sku');
+        
         $bestSellers = [];
-        foreach ($itemsSold as $id => $quantity) {
+        // This loop was already correct
+        foreach ($itemsSold as $sku => $quantity) {
             $bestSellers[] = [
-                'id' => $id,
-                'name' => $productMap[$id] ?? 'Unknown Product',
+                'id' => $productIdMap[$sku] ?? null, // Get the ID from the sku
+                'name' => $productNameMap[$sku] ?? 'Unknown Product', // Get the name from the sku
                 'quantity' => $quantity
             ];
         }
@@ -110,7 +105,7 @@ class ReportsAdminController extends BaseAdminController
     /**
      * Generates and downloads a CSV report.
      */
-public function export(Request $request, Response $response): Response
+    public function export(Request $request, Response $response): Response
     {
         $params = $request->getQueryParams();
 

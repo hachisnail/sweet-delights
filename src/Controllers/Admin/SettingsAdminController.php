@@ -9,16 +9,10 @@ use Slim\Routing\RouteContext;
 
 class SettingsAdminController extends BaseAdminController
 {
-    private $configPath;
-
     public function __construct()
     {
-        $this->configPath = __DIR__ . '/../../Data/config.php';
-    }
-
-    private function getConfig(): array
-    {
-        return file_exists($this->configPath) ? require $this->configPath : [];
+        // Call parent to set up $this->configPath
+        parent::__construct(); 
     }
 
     /**
@@ -32,7 +26,7 @@ class SettingsAdminController extends BaseAdminController
 
         return $view->render($response, 'Admin/settings.twig', [
             'title' => 'Site Settings',
-            'config' => $this->getConfig(),
+            'config' => $this->getConfig(), // Uses inherited method
             'form_action' => $routeParser->urlFor('app.settings.update'),
             'breadcrumbs' => $this->breadcrumbs($request, [
                 ['name' => 'Settings', 'url' => null]
@@ -52,12 +46,11 @@ class SettingsAdminController extends BaseAdminController
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         
         $newConfig = [
-            // Cast to float to ensure they are stored as numbers, not strings
             'tax_rate' => (float)($data['tax_rate'] ?? 0.12),
             'shipping_fee' => (float)($data['shipping_fee'] ?? 50.00),
         ];
 
-        // Use the NEW config-safe save method
+        // Use the inherited config-safe save method
         $this->saveConfigData($this->configPath, $newConfig); 
 
         $url = $routeParser->urlFor('app.settings') . '?success=true';

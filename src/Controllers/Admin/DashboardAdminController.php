@@ -7,36 +7,24 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 // Make sure it extends your BaseAdminController
 class DashboardAdminController extends BaseAdminController
 {
-    private $ordersPath;
-    private $usersPath;
-    private $productsPath;
+    // --- Removed local path properties ---
 
     public function __construct()
     {
-        // parent::__construct(); // No constructor in BaseAdminController
-        
-        // --- FIX: Corrected $this. to $this-> ---
-        $this->ordersPath = __DIR__ . '/../../Data/orders.php';
-        $this->usersPath = __DIR__ . '/../../Data/users.php';
-        $this->productsPath = __DIR__ . '/../../Data/products.php';
+        // --- Call parent to set up all data paths ---
+        parent::__construct();
     }
 
-    // --- Data Helpers ---
-    // --- FIX: Corrected $this. to $this-> ---
-    private function getOrders(): array { return file_exists($this->ordersPath) ? require $this->ordersPath : []; }
-    private function getUsers(): array { return file_exists($this->usersPath) ? require $this->usersPath : []; }
-    private function getProducts(): array { return file_exists($this->productsPath) ? require $this->productsPath : []; }
+    // --- Data Helpers (getOrders, getUsers, getProducts) are now inherited ---
 
     /**
      * Gathers all data and renders the main admin dashboard.
      */
-    // --- FIX: Removed stray 'M' from 'publicM' ---
     public function dashboard(Request $request, Response $response): Response
     {
-        // --- FIX: Corrected $this. to $this-> ---
         $view = $this->viewFromRequest($request);
 
-        // --- 1. Load All Data ---
+        // --- 1. Load All Data (using inherited methods) ---
         $allOrders = $this->getOrders();
         $allUsers = $this->getUsers();
         $allProducts = $this->getProducts();
@@ -101,15 +89,19 @@ class DashboardAdminController extends BaseAdminController
         $recentPendingOrders = array_slice($processingOrders, 0, 5); // Get top 5
 
         // --- 3. Find Low Stock Items ---
-        $lowStockItems = array_filter($allProducts, function($product) {
+        $lowStockItems = array_filter($allProducts, function ($product) {
             // Show items that are not out of stock, but running low (e.g., 5 or less)
-            return $product['stock'] > 0 && $product['stock'] <= 5;
+            return isset($product['stock']) && $product['stock'] > 0 && $product['stock'] <= 5;
         });
 
+
         // Sort by stock, lowest first
-        usort($lowStockItems, function($a, $b) {
-            return $a['stock'] <=> $b['stock'];
+        usort($lowStockItems, function ($a, $b) {
+            $stockA = $a['stock'] ?? 0;
+            $stockB = $b['stock'] ?? 0;
+            return $stockA <=> $stockB;
         });
+
         $fiveLowStock = array_slice($lowStockItems, 0, 5); // Get top 5
 
         

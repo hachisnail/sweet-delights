@@ -7,32 +7,23 @@ use Slim\Routing\RouteContext;
 
 class SystemAdminController extends BaseAdminController {
 
-    private $usersPath;
-
+    // --- FIX: Call the parent constructor ---
     public function __construct()
     {
-        // Define the path to the users data file
-        $this->usersPath = __DIR__ . '/../../Data/users.php';
+        parent::__construct();
     }
 
-    // --- Data Helpers ---
-    private function getUsers(): array
-    {
-        return file_exists($this->usersPath) ? require $this->usersPath : [];
-    }
+    // --- Data Helpers (getUsers/saveUsers) are now inherited ---
 
-    private function saveUsers(array $users)
-    {
-        $this->saveData($this->usersPath, $users);
-    }
 
     /**
      * Show the system logs page.
-     * (This is your existing method, unchanged)
      */
     public function viewLogs(Request $request, Response $response): Response {
         $view = $this->viewFromRequest($request);
-        $mockLogs = file_exists(__DIR__ . '/../../Data/logs.php') ? require __DIR__ . '/../../Data/logs.php' : [];
+        
+        // --- FIX: Use inherited helper method ---
+        $mockLogs = $this->getLogs(); 
 
         $breadcrumbs = $this->breadcrumbs($request, [
             ['name' => 'System Logs', 'url' => null]
@@ -51,7 +42,7 @@ class SystemAdminController extends BaseAdminController {
      */
     public function manageUsers(Request $request, Response $response): Response {
         $view = $this->viewFromRequest($request);
-        $allUsers = $this->getUsers();
+        $allUsers = $this->getUsers(); // <-- Inherited
         
         $safeUsers = array_map(function($user) {
             unset($user['password_hash']);
@@ -98,7 +89,7 @@ class SystemAdminController extends BaseAdminController {
     public function storeUser(Request $request, Response $response): Response
     {
         $data = $request->getParsedBody();
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Inherited
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
         // Check for duplicate email
@@ -117,7 +108,7 @@ class SystemAdminController extends BaseAdminController {
             'email' => $data['email'],
             'contact_number' => $data['contact_number'] ?? '',
             'address' => [
-              'street' => '', 'city' => '', 'state' => '', 'postal_code' => '',
+                'street' => '', 'city' => '', 'state' => '', 'postal_code' => '',
             ],
             'password_hash' => password_hash($data['password'], PASSWORD_DEFAULT),
             'role' => $data['role'], // No security check, superadmin can set any role
@@ -131,7 +122,7 @@ class SystemAdminController extends BaseAdminController {
         ];
 
         $users[] = $newUser;
-        $this->saveUsers($users);
+        $this->saveUsers($users); // <-- Inherited
 
         return $response->withHeader('Location', $routeParser->urlFor('system.users.index'))->withStatus(302);
     }
@@ -143,7 +134,7 @@ class SystemAdminController extends BaseAdminController {
     {
         $view = $this->viewFromRequest($request);
         $id = (int)$args['id'];
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Inherited
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $foundUser = null;
 
@@ -180,7 +171,7 @@ class SystemAdminController extends BaseAdminController {
     {
         $id = (int)$args['id'];
         $data = $request->getParsedBody();
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Inherited
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $userUpdated = false;
 
@@ -206,7 +197,7 @@ class SystemAdminController extends BaseAdminController {
         unset($user);
 
         if ($userUpdated) {
-            $this->saveUsers($users);
+            $this->saveUsers($users); // <-- Inherited
         }
 
         return $response->withHeader('Location', $routeParser->urlFor('system.users.index'))->withStatus(302);

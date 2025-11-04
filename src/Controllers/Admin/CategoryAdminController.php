@@ -8,45 +8,20 @@ use Slim\Routing\RouteContext;
 
 class CategoryAdminController extends BaseAdminController
 {
-    private $dataPath;
-    private $productsPath;
-    private $uploadDir; 
+    // private $dataPath; <-- Removed
+    // private $productsPath; <-- Removed
+    private $uploadDir; // <-- This is specific to categories, so it stays
 
     public function __construct()
     {
-        $this->dataPath = __DIR__ . '/../../Data/categories.php'; 
-        $this->productsPath = __DIR__ . '/../../Data/products.php';
+        // Call parent to set $this->categoriesPath, $this->productsPath, etc.
+        parent::__construct(); 
+        
+        // Set the path specific to this controller
         $this->uploadDir = __DIR__ . '/../../../public/Assets/Categories/'; 
     }
 
-    // --- Data Helper Functions ---
-    private function getCategories(): array
-    {
-        if (!file_exists($this->dataPath)) {
-            return [];
-        }
-        return require $this->dataPath;
-    }
-    
-    private function getProducts(): array
-    {
-        if (!file_exists($this->productsPath)) {
-            return [];
-        }
-        return require $this->productsPath;
-    }
-
-    private function saveCategories(array $categories)
-    {
-        // ✅ Uses inherited saveData method
-        $this->saveData($this->dataPath, $categories);
-    }
-    
-    private function saveProducts(array $products)
-    {
-        // ✅ Uses inherited saveData method
-        $this->saveData($this->productsPath, $products);
-    }
+    // --- Data Helper Functions (getCategories, getProducts, saveCategories, saveProducts) are now inherited ---
     
     // 3. ✅ NEW: File Upload Helper (specific to this controller)
     private function uploadCategoryPicture(int $categoryId, Request $request): ?string
@@ -86,7 +61,7 @@ class CategoryAdminController extends BaseAdminController
 
     private function findCategory(int $id): ?array
     {
-        foreach ($this->getCategories() as $category) {
+        foreach ($this->getCategories() as $category) { // <-- Uses inherited method
             if ($category['id'] === $id) {
                 return $category;
             }
@@ -141,7 +116,7 @@ class CategoryAdminController extends BaseAdminController
     public function index(Request $request, Response $response): Response
     {
         $view = $this->viewFromRequest($request);
-        $categories = $this->getCategories();
+        $categories = $this->getCategories(); // <-- Uses inherited method
         $nested = $this->buildTree($categories);
 
         $params = $request->getQueryParams();
@@ -178,7 +153,7 @@ class CategoryAdminController extends BaseAdminController
         
         $template = 'Admin/category-form.twig'; 
 
-        $allCategories = $this->getCategories();
+        $allCategories = $this->getCategories(); // <-- Uses inherited method
         // Filter for top-level categories only (for the dropdown)
         $topLevelCategories = array_filter($allCategories, fn($cat) => $cat['parent_id'] === null);
 
@@ -202,7 +177,7 @@ class CategoryAdminController extends BaseAdminController
     public function store(Request $request, Response $response): Response
     {
         $data = $request->getParsedBody();
-        $categories = $this->getCategories();
+        $categories = $this->getCategories(); // <-- Uses inherited method
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
         $newParentId = $data['parent_id'] ? (int)$data['parent_id'] : null;
@@ -258,7 +233,7 @@ class CategoryAdminController extends BaseAdminController
 
         // --- END ADVANCED LOGIC ---
 
-        $this->saveCategories($categories);
+        $this->saveCategories($categories); // <-- Uses inherited method
 
         return $response->withHeader('Location', $routeParser->urlFor('app.categories.index'))->withStatus(302);
     }
@@ -276,7 +251,7 @@ class CategoryAdminController extends BaseAdminController
         
         $template = 'Admin/category-form.twig';
         
-        $allCategories = $this->getCategories();
+        $allCategories = $this->getCategories(); // <-- Uses inherited method
         
         // Filter for top-level categories
         $topLevelCategories = array_filter($allCategories, fn($cat) => $cat['parent_id'] === null);
@@ -304,7 +279,7 @@ class CategoryAdminController extends BaseAdminController
     {
         $id = (int)$args['id'];
         $data = $request->getParsedBody();
-        $categories = $this->getCategories();
+        $categories = $this->getCategories(); // <-- Uses inherited method
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         
         $newParentId = $data['parent_id'] ? (int)$data['parent_id'] : null;
@@ -354,12 +329,12 @@ class CategoryAdminController extends BaseAdminController
         unset($category); 
 
         // Save the updated categories list FIRST
-        $this->saveCategories($categories);
+        $this->saveCategories($categories); // <-- Uses inherited method
         
         // --- START: REGENERATE PRODUCT SKUS ---
         
         $allCategoryIdsToUpdate = array_merge([$id], $this->getDescendantIds($categories, $id));
-        $allProducts = $this->getProducts();
+        $allProducts = $this->getProducts(); // <-- Uses inherited method
         $productsWereUpdated = false;
         
         foreach ($allProducts as &$product) {
@@ -382,7 +357,7 @@ class CategoryAdminController extends BaseAdminController
         unset($product);
         
         if ($productsWereUpdated) {
-            $this->saveProducts($allProducts);
+            $this->saveProducts($allProducts); // <-- Uses inherited method
         }
         
         // --- END: REGENERATE PRODUCT SKUS ---
@@ -393,13 +368,13 @@ class CategoryAdminController extends BaseAdminController
     public function delete(Request $request, Response $response, array $args): Response
     {
         $id = (int)$args['id'];
-        $categories = $this->getCategories();
+        $categories = $this->getCategories(); // <-- Uses inherited method
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $categoryToDelete = $this->findCategory($id); // Find the category before deletion
 
         // --- CHECK IF CATEGORY IS IN USE ---
         $isCategoryInUse = false;
-        foreach ($this->getProducts() as $product) {
+        foreach ($this->getProducts() as $product) { // <-- Uses inherited method
             if (isset($product['category_id']) && $product['category_id'] == $id) {
                 $isCategoryInUse = true;
                 break;
@@ -421,7 +396,7 @@ class CategoryAdminController extends BaseAdminController
         }
         unset($cat);
 
-        $this->saveCategories($newCategories);
+        $this->saveCategories($newCategories); // <-- Uses inherited method
         
         // ✅ Delete image file from filesystem after successful deletion
         if ($categoryToDelete && isset($categoryToDelete['image']) && $categoryToDelete['image']) {

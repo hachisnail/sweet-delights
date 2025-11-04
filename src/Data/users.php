@@ -94,9 +94,26 @@ return array (
     'is_active' => true,
     'cart' => 
     array (
+      0 => 
+      array (
+        'sku' => 'bre-sb-bro-8',
+        'name' => 'Brownie',
+        'image' => '/Assets/Products/7dbe45d0c10faaaa.jpg',
+        'price' => 100,
+        'stock' => 2,
+        'selectedSize' => NULL,
+        'quantity' => 1,
+      ),
     ),
     'favourites' => 
     array (
+      0 => 
+      array (
+        'sku' => 'cup-cas-mc-7',
+        'name' => 'Mocha Cupcake',
+        'image' => '/Assets/Products/9047b75e2b5a4a6f.jpg',
+        'price' => 250,
+      ),
     ),
   ),
   3 => 

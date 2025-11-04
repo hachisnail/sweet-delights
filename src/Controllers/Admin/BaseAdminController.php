@@ -7,7 +7,64 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 class BaseAdminController
 {
-    // Note: Removed the __construct() and logging methods as requested.
+    // --- REUSABLE DATA PATHS ---
+    protected $productsPath;
+    protected $categoriesPath;
+    protected $ordersPath;
+    protected $usersPath;
+    protected $configPath;
+    protected $logsPath; 
+
+    public function __construct()
+    {
+        $baseDataPath = __DIR__ . '/../../Data/';
+        $this->productsPath = $baseDataPath . 'products.php';
+        $this->categoriesPath = $baseDataPath . 'categories.php';
+        $this->ordersPath = $baseDataPath . 'orders.php';
+        $this->usersPath = $baseDataPath . 'users.php';
+        $this->configPath = $baseDataPath . 'config.php';
+        $this->logsPath = $baseDataPath . 'logs.php'; 
+    }
+
+    // --- REUSABLE DATA HELPERS ---
+    
+    protected function getProducts(): array {
+        return file_exists($this->productsPath) ? require $this->productsPath : [];
+    }
+    protected function saveProducts(array $data) {
+        $this->saveData($this->productsPath, $data);
+    }
+    
+    protected function getCategories(): array {
+        return file_exists($this->categoriesPath) ? require $this->categoriesPath : [];
+    }
+    protected function saveCategories(array $data) {
+        $this->saveData($this->categoriesPath, $data);
+    }
+
+    protected function getOrders(): array {
+        return file_exists($this->ordersPath) ? require $this->ordersPath : [];
+    }
+    protected function saveOrders(array $data) {
+        $this->saveData($this->ordersPath, $data);
+    }
+
+    protected function getUsers(): array { 
+        return file_exists($this->usersPath) ? require $this->usersPath : [];
+    }
+    protected function saveUsers(array $data) { 
+        $this->saveData($this->usersPath, $data);
+    }
+    
+    protected function getConfig(): array {
+        return file_exists($this->configPath) ? require $this->configPath : [];
+    }
+
+    protected function getLogs(): array {
+        return file_exists($this->logsPath) ? require $this->logsPath : [];
+    }
+
+    // --- (Existing Methods Below) ---
 
     protected function viewFromRequest(Request $request): Twig
     {

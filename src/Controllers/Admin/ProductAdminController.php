@@ -10,42 +10,32 @@ use Slim\Psr7\UploadedFile;
 // INHERIT from BaseAdminController
 class ProductAdminController extends BaseAdminController
 {
-    private $productsPath;
-    private $categoriesPath;
+    // private $productsPath; <-- Removed
+    // private $categoriesPath; <-- Removed
     private $uploadDir; // Physical server path
     private $publicUploadPath; // Public-facing URL path
 
     public function __construct()
     {
-        $this->productsPath = __DIR__ . '/../../Data/products.php';
-        $this->categoriesPath = __DIR__ . '/../../Data/categories.php';
+        // Call parent to set up $productsPath, $categoriesPath, etc.
+        parent::__construct(); 
+        
+        // Define paths specific to this controller
         $this->uploadDir = __DIR__ . '/../../../public/Assets/Products/';
         $this->publicUploadPath = '/Assets/Products/';
     }
 
     // --- ✅ START: DATA HELPERS ---
 
-    private function getProducts(): array
-    {
-        if (!file_exists($this->productsPath)) return [];
-        return require $this->productsPath;
-    }
+    // private function getProducts(): array <-- Removed, now in parent
+    
+    // private function getCategories(): array <-- Removed, now in parent
 
-    private function getCategories(): array
-    {
-        if (!file_exists($this->categoriesPath)) return [];
-        return require $this->categoriesPath;
-    }
-
-    private function saveProducts(array $products)
-    {
-        // ✅ Uses inherited saveData method
-        $this->saveData($this->productsPath, $products);
-    }
+    // private function saveProducts(array $products) <-- Removed, now in parent
 
     private function findProduct(string $id): ?array
     {
-        foreach ($this->getProducts() as $product) {
+        foreach ($this->getProducts() as $product) { // <-- Uses inherited method
             if ($product['id'] === $id) {
                 return $product;
             }
@@ -137,12 +127,6 @@ class ProductAdminController extends BaseAdminController
                     
                     // --- START: IMAGE LOGIC ---
                     $existingImagePath = $data['sizes_existing_image'][$index] ?? null;
-                    // The file is an array of data, convert it back to an UploadedFile object/data structure
-                    // This is complex, but for this exercise, we treat the files array as already parsed/structured 
-                    // where $sizeImageFiles[$index] is a valid UploadedFile object or null/error array.
-                    
-                    // For the purpose of this isolated function, assume $sizeImageFiles is an array of UploadedFile objects or null.
-                    // The original product controller had this simplified, let's keep the simplified intention.
                     
                     $newImageFile = $sizeImageFiles[$index] ?? null;
                     
@@ -195,8 +179,8 @@ class ProductAdminController extends BaseAdminController
         $searchTerm = $params['search'] ?? null;
         $categoryFilter = $params['category'] ?? null;
 
-        $products = $this->getProducts(); 
-        $categories = $this->getCategories();
+        $products = $this->getProducts(); // <-- Uses inherited method
+        $categories = $this->getCategories(); // <-- Uses inherited method
         
         if ($searchTerm) {
             $products = array_filter($products, function($product) use ($searchTerm) {
@@ -244,7 +228,7 @@ class ProductAdminController extends BaseAdminController
         $view = $this->viewFromRequest($request);
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         
-        $rawCategories = $this->getCategories();
+        $rawCategories = $this->getCategories(); // <-- Uses inherited method
         $indentedCategories = $this->getIndentedCategories($rawCategories);
 
         $breadcrumbs = $this->breadcrumbs($request, [
@@ -268,7 +252,7 @@ class ProductAdminController extends BaseAdminController
         $files = $request->getUploadedFiles();
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         
-        $products = $this->getProducts();
+        $products = $this->getProducts(); // <-- Uses inherited method
         
         $sizeImageFiles = $files['sizes_image'] ?? [];
         $data = $this->processProductData($data, $sizeImageFiles); 
@@ -289,7 +273,7 @@ class ProductAdminController extends BaseAdminController
         $newIdStr = (string)$newId;
 
         // --- ✅ GENERATE SKU (Uses inherited method) ---
-        $allCategories = $this->getCategories();
+        $allCategories = $this->getCategories(); // <-- Uses inherited method
         $sku = $this->generateSku($data['name'], $newIdStr, (int)($data['category_id'] ?? 0), $allCategories);
 
         $newProduct = [
@@ -305,7 +289,7 @@ class ProductAdminController extends BaseAdminController
         ];
 
         $products[] = $newProduct;
-        $this->saveProducts($products);
+        $this->saveProducts($products); // <-- Uses inherited method
 
         return $response->withHeader('Location', $routeParser->urlFor('app.products.index'))->withStatus(302);
     }
@@ -326,7 +310,7 @@ class ProductAdminController extends BaseAdminController
              $product['sizes'] = json_decode($product['sizes'], true) ?? [];
         }
 
-        $rawCategories = $this->getCategories();
+        $rawCategories = $this->getCategories(); // <-- Uses inherited method
         $indentedCategories = $this->getIndentedCategories($rawCategories);
         
         $breadcrumbs = $this->breadcrumbs($request, [
@@ -352,7 +336,7 @@ class ProductAdminController extends BaseAdminController
         $files = $request->getUploadedFiles();
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
-        $products = $this->getProducts();
+        $products = $this->getProducts(); // <-- Uses inherited method
         $productIndex = null;
         $oldProduct = null;
 
@@ -383,7 +367,7 @@ class ProductAdminController extends BaseAdminController
         }
 
         // --- ✅ RE-GENERATE SKU (Uses inherited method) ---
-        $allCategories = $this->getCategories();
+        $allCategories = $this->getCategories(); // <-- Uses inherited method
         $newCategoryId = (int)($data['category_id'] ?? $oldProduct['category_id'] ?? 0);
         $newName = $data['name'] ?? $oldProduct['name'];
         $sku = $this->generateSku($newName, $id, $newCategoryId, $allCategories);
@@ -401,7 +385,7 @@ class ProductAdminController extends BaseAdminController
         ];
 
         $products[$productIndex] = $updatedProduct;
-        $this->saveProducts($products);
+        $this->saveProducts($products); // <-- Uses inherited method
 
         return $response->withHeader('Location', $routeParser->urlFor('app.products.index'))->withStatus(302);
     }
@@ -409,14 +393,14 @@ class ProductAdminController extends BaseAdminController
     public function delete(Request $request, Response $response, array $args): Response
     {
         $id = $args['id'];
-        $products = $this->getProducts();
+        $products = $this->getProducts(); // <-- Uses inherited method
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
         $productToDelete = $this->findProduct($id);
 
         if ($productToDelete) {
             $products = array_filter($products, fn($p) => $p['id'] !== $id);
-            $this->saveProducts($products);
+            $this->saveProducts($products); // <-- Uses inherited method
         }
 
         return $response->withHeader('Location', $routeParser->urlFor('app.products.index'))->withStatus(302);

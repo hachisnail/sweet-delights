@@ -7,23 +7,13 @@ use Slim\Routing\RouteContext;
 
 class UserAdminController extends BaseAdminController {
 
-    private $usersPath;
-
+    // --- FIX: Call the parent constructor ---
     public function __construct()
     {
-        $this->usersPath = __DIR__ . '/../../Data/users.php';
+        parent::__construct();
     }
 
-    // --- Data Helpers ---
-    private function getUsers(): array
-    {
-        return file_exists($this->usersPath) ? require $this->usersPath : [];
-    }
-
-    private function saveUsers(array $users)
-    {
-        $this->saveData($this->usersPath, $users);
-    }
+    // --- Data Helpers (getUsers/saveUsers) are now inherited ---
     
     /**
      * Show the user list page.
@@ -32,18 +22,16 @@ class UserAdminController extends BaseAdminController {
         $view = $this->viewFromRequest($request);
 
         // Load all users from the mock data file
-        $allUsers = $this->getUsers();
+        $allUsers = $this->getUsers(); // <-- Inherited
 
         // --- FIX 1: REMOVED THE 'customer' FILTER ---
-        // $customerUsers = array_filter($allUsers, function($user) {
-        //     return $user['role'] === 'customer';
-        // });
+        // (This was already commented out in your file, which is good)
         
         // Remove password hashes before sending to the template
         $safeUsers = array_map(function($user) {
             unset($user['password_hash']);
             return $user;
-        }, $allUsers); // <-- Use $allUsers, not $customerUsers
+        }, $allUsers); // <-- Use $allUsers
 
         $breadcrumbs = $this->breadcrumbs($request, [
             ['name' => 'User Accounts', 'url' => null]
@@ -53,7 +41,7 @@ class UserAdminController extends BaseAdminController {
             'title' => 'User Accounts',
             'users' => $safeUsers,
             'breadcrumbs' => $breadcrumbs,
-            'active_page' => 'users', // <-- FIX 3: Corrected active page
+            'active_page' => 'users',
             'app_url' => $_ENV['APP_URL'] ?? ''
         ]);
     }
@@ -92,7 +80,7 @@ class UserAdminController extends BaseAdminController {
     public function store(Request $request, Response $response): Response
     {
         $data = $request->getParsedBody();
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Inherited
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $loggedInUserRole = $request->getAttribute('user')['role'] ?? 'customer';
 
@@ -115,7 +103,7 @@ class UserAdminController extends BaseAdminController {
             'email' => $data['email'],
             'contact_number' => $data['contact_number'] ?? '',
             'address' => [
-              'street' => '', 'city' => '', 'state' => '', 'postal_code' => '',
+                'street' => '', 'city' => '', 'state' => '', 'postal_code' => '',
             ],
             'password_hash' => password_hash($data['password'], PASSWORD_DEFAULT),
             'role' => $data['role'],
@@ -129,7 +117,7 @@ class UserAdminController extends BaseAdminController {
         ];
 
         $users[] = $newUser;
-        $this->saveUsers($users);
+        $this->saveUsers($users); // <-- Inherited
 
         return $response->withHeader('Location', $routeParser->urlFor('app.users.index'))->withStatus(302);
     }
@@ -141,7 +129,7 @@ class UserAdminController extends BaseAdminController {
     {
         $view = $this->viewFromRequest($request);
         $id = (int)$args['id'];
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Inherited
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         
         $loggedInUserRole = $request->getAttribute('user')['role'] ?? 'customer';
@@ -185,7 +173,7 @@ class UserAdminController extends BaseAdminController {
     {
         $id = (int)$args['id'];
         $data = $request->getParsedBody();
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Inherited
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $loggedInUserRole = $request->getAttribute('user')['role'] ?? 'customer';
         $userUpdated = false;
@@ -222,7 +210,7 @@ class UserAdminController extends BaseAdminController {
         unset($user);
 
         if ($userUpdated) {
-            $this->saveUsers($users);
+            $this->saveUsers($users); // <-- Inherited
         }
 
         return $response->withHeader('Location', $routeParser->urlFor('app.users.index'))->withStatus(302);

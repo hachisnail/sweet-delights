@@ -20,6 +20,7 @@ return array (
       0 => 
       array (
         'id' => 2,
+        'sku' => 'swe-don-cd-2',
         'name' => 'Chocolate Donut',
         'image' => '/Assets/Products/Chocolate Donut.png',
         'price' => 180,
@@ -30,6 +31,7 @@ return array (
       1 => 
       array (
         'id' => 2,
+        'sku' => 'swe-don-cd-2',
         'name' => 'Chocolate Donut',
         'image' => '/Assets/Products/Chocolate Donut.png',
         'price' => 180,
@@ -40,6 +42,7 @@ return array (
       2 => 
       array (
         'id' => 3,
+        'sku' => 'cup-fv-scc-3',
         'name' => 'Strawberry Chocolate Cupcake',
         'image' => '/Assets/Products/Strawberry Chocolate Cupcake.png',
         'price' => 520,
@@ -50,6 +53,7 @@ return array (
       3 => 
       array (
         'id' => 8,
+        'sku' => 'bre-sb-bro-8',
         'name' => 'Brownie',
         'image' => '/Assets/Products/7dbe45d0c10faaaa.jpg',
         'price' => 100,
@@ -60,6 +64,7 @@ return array (
       4 => 
       array (
         'id' => 7,
+        'sku' => 'cup-cas-mc-7',
         'name' => 'Mocha Cupcake',
         'image' => '/Assets/Products/9047b75e2b5a4a6f.jpg',
         'price' => 500,
@@ -89,6 +94,7 @@ return array (
       0 => 
       array (
         'id' => 7,
+        'sku' => 'cup-cas-mc-7',
         'name' => 'Mocha Cupcake',
         'image' => '/Assets/Products/9047b75e2b5a4a6f.jpg',
         'price' => 250,
@@ -118,6 +124,7 @@ return array (
       0 => 
       array (
         'id' => 7,
+        'sku' => 'cup-cas-mc-7',
         'name' => 'Mocha Cupcake',
         'image' => '/Assets/Products/9047b75e2b5a4a6f.jpg',
         'price' => 250,
@@ -144,7 +151,7 @@ return array (
       'postal_code' => '1600',
     ),
     'date' => '2025-11-04 19:56:39',
-    'status' => 'Processing',
+    'status' => 'Delivered',
     'items' => 
     array (
       0 => 

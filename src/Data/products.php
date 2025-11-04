@@ -1,5 +1,4 @@
 <?php
-
 return array (
   0 => 
   array (
@@ -183,7 +182,7 @@ return array (
     'name' => 'Brownie',
     'price' => 100.0,
     'image' => '/Assets/Products/7dbe45d0c10faaaa.jpg',
-    'stock' => 0,
+    'stock' => 2,
     'category_id' => 9,
     'sizes' => 
     array (
