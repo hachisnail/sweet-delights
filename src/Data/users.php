@@ -89,8 +89,8 @@ return array (
     'role' => 'superadmin',
     'is_verified' => true,
     'verification_token' => NULL,
-    'password_reset_token' => NULL,
-    'password_reset_expires' => NULL,
+    'password_reset_token' => '140d0b56d1045f605fbbf1c8f7bd6ac8f087884368b203e2a7b429110eba6e55',
+    'password_reset_expires' => 1762285564,
     'is_active' => true,
     'cart' => 
     array (

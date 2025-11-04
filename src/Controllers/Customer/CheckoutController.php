@@ -110,7 +110,7 @@ class CheckoutController extends BaseDataController {
 
         foreach ($cart as $item) {
             foreach ($allProducts as $product) {
-                if ($product['id'] == $item['id']) {
+                 if ($product['sku'] == $item['sku']) {
                     if (!empty($product['sizes'])) {
                         foreach ($product['sizes'] as $size) {
                             if ($size['name'] == $item['selectedSize']) {
@@ -143,7 +143,7 @@ class CheckoutController extends BaseDataController {
         // --- 5. Reduce Stock (Still inside lock) ---
         foreach ($cart as $item) {
             foreach ($allProducts as &$product) {
-                if ($product['id'] == $item['id']) {
+                 if ($product['sku'] == $item['sku']) {
                     if (!empty($product['sizes'])) {
                         $totalStock = 0;
                         foreach ($product['sizes'] as &$size) {

@@ -4,6 +4,9 @@ class CartService {
     this.cartCountEl = document.getElementById("cartCount");
     this.cartItemsContainer = document.getElementById("cartItems");
 
+    this.cartTotalEl = document.getElementById("cartTotal");
+    this.checkoutBtn = document.getElementById("checkoutBtn");
+
     this.inMemoryCart = [];
     this.isLoggedIn = window.AUTH_STATE.isLoggedIn;
     this.apiEndpoint = "/api/cart/sync";
@@ -125,6 +128,24 @@ class CartService {
     window.dispatchEvent(new Event("cartChanged"));
   }
 
+
+  _renderTotal() {
+    const totalPrice = this.inMemoryCart.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
+    if (this.cartTotalEl) {
+      this.cartTotalEl.textContent = `Total: ₱${totalPrice.toFixed(2)}`;
+    }
+    
+    if (this.checkoutBtn) {
+      // Disable the button if the cart is empty
+      this.checkoutBtn.disabled = this.inMemoryCart.length === 0;
+      this.checkoutBtn.classList.toggle("opacity-50", this.inMemoryCart.length === 0);
+      this.checkoutBtn.classList.toggle("cursor-not-allowed", this.inMemoryCart.length === 0);
+    }
+  }
   /**
    * --- FIXED UPDATEQUANTITY LOGIC ---
    * Now updates by index.
@@ -171,6 +192,7 @@ class CartService {
   render() {
     this._renderCounts();
     this._renderSidebar();
+    this._renderTotal();
   }
 
   _renderCounts() {
