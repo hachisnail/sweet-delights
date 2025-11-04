@@ -21,10 +21,8 @@ class BaseAdminController
     {
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
-        // Add the base "Dashboard" link
-        $breadcrumbs = [
-            ['name' => 'Dashboard', 'url' => $routeParser->urlFor('app.dashboard')]
-        ];
+        
+        $breadcrumbs = [];
 
         foreach ($trail as $crumb) {
             if (isset($crumb['url']) && $crumb['url'] && !str_starts_with($crumb['url'], '/')) {
