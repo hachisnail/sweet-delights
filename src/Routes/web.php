@@ -1,16 +1,15 @@
 <?php
 
 use Slim\App;
-use Slim\Routing\RouteCollectorProxy; // <-- Ensures correct type hinting
+use Slim\Routing\RouteCollectorProxy; 
 
-// (Import all your controllers)
-use SweetDelights\Mayie\Controllers\HomeController;
-use SweetDelights\Mayie\Controllers\AboutController;
-use SweetDelights\Mayie\Controllers\ProductsController;
-use SweetDelights\Mayie\Controllers\SearchController;
+use SweetDelights\Mayie\Controllers\Public\HomeController;
+use SweetDelights\Mayie\Controllers\Public\AboutController;
+use SweetDelights\Mayie\Controllers\Public\ProductsController;
+use SweetDelights\Mayie\Controllers\Public\SearchController;
 
-use SweetDelights\Mayie\Controllers\AccountController;
-use SweetDelights\Mayie\Controllers\CheckoutController; // <-- ADD THIS
+use SweetDelights\Mayie\Controllers\Customer\AccountController;
+use SweetDelights\Mayie\Controllers\Customer\CheckoutController; 
 use SweetDelights\Mayie\Controllers\UnderConstructionController;
 
 use SweetDelights\Mayie\Controllers\Api\ApiAuthController; 
@@ -22,7 +21,7 @@ use SweetDelights\Mayie\Middleware\ApiAuthMiddleware;
 use SweetDelights\Mayie\Controllers\Admin\DashboardAdminController;
 use SweetDelights\Mayie\Controllers\Admin\SystemAdminController; 
 use SweetDelights\Mayie\Controllers\Admin\UserAdminController;
-use SweetDelights\Mayie\Controllers\Admin\OrderAdminController;   // <-- ADD THIS
+use SweetDelights\Mayie\Controllers\Admin\OrderAdminController;   
 use SweetDelights\Mayie\Controllers\Admin\ReportsAdminController;
 use SweetDelights\Mayie\Controllers\Admin\SettingsAdminController;
 

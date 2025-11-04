@@ -1,9 +1,10 @@
 <?php
-namespace SweetDelights\Mayie\Controllers;
+namespace SweetDelights\Mayie\Controllers\Customer;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use SweetDelights\Mayie\Controllers\BaseDataController;
 use Slim\Routing\RouteContext;
 class AccountController extends BaseDataController {
 
@@ -18,9 +19,9 @@ class AccountController extends BaseDataController {
      */
     public function __construct()
     {
-        $this->usersPath = __DIR__ . '/../Data/users.php';
-        $this->ordersPath = __DIR__ . '/../Data/orders.php'; 
-        $this->productsPath = __DIR__ . '/../Data/products.php';
+        $this->usersPath = __DIR__ . '/../../Data/users.php';
+        $this->ordersPath = __DIR__ . '/../../Data/orders.php'; 
+        $this->productsPath = __DIR__ . '/../../Data/products.php';
     }
 
     // --- Data Helper Functions ---

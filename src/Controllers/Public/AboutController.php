@@ -1,5 +1,5 @@
 <?php
-namespace SweetDelights\Mayie\Controllers;
+namespace SweetDelights\Mayie\Controllers\Public;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;

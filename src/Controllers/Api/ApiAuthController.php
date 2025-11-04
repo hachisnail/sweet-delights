@@ -5,8 +5,8 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use Slim\Routing\RouteContext;
-use SweetDelights\Mayie\Controllers\BaseDataController; // <-- IMPORT
-use SweetDelights\Mayie\Services\MailService; // <-- IMPORT
+use SweetDelights\Mayie\Controllers\BaseDataController;
+use SweetDelights\Mayie\Services\MailService; 
 
 class ApiAuthController extends BaseDataController { 
 
@@ -214,7 +214,8 @@ class ApiAuthController extends BaseDataController {
     public function verifyEmail(Request $request, Response $response): Response {
         $token = $request->getQueryParams()['token'] ?? '';
         if (empty($token)) {
-            return $response->withStatus(400)->write('Invalid token.');
+            $response->getBody()->write('Invalid token.');
+            return $response->withStatus(400);
         }
 
         $users = $this->getUsers();
@@ -236,7 +237,8 @@ class ApiAuthController extends BaseDataController {
             return $response->withHeader('Location', '/login?error=verified')->withStatus(302);
         }
 
-        return $response->withStatus(400)->write('Invalid or expired token.');
+        $response->getBody()->write('Invalid or expired token.');
+        return $response->withStatus(400);
     }
 
 

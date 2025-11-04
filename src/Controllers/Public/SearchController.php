@@ -1,5 +1,5 @@
 <?php
-namespace SweetDelights\Mayie\Controllers;
+namespace SweetDelights\Mayie\Controllers\Public;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -16,8 +16,8 @@ class SearchController
         $params = $request->getQueryParams();
         $query = trim($params['q'] ?? '');
 
-        $allProducts = require __DIR__ . '/../Data/products.php';
-        $allCategories = require __DIR__ . '/../Data/categories.php';
+        $allProducts = require __DIR__ . '/../../Data/products.php';
+        $allCategories = require __DIR__ . '/../../Data/categories.php';
 
         $foundProducts = [];
         $foundCategories = [];
