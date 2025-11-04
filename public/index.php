@@ -16,7 +16,7 @@ if (file_exists($envPath . '.env')) {
     error_log('.env file not found.');
 }
 
-$appEnv = $_ENV['APP_ENV'] ?? 'production';
+$appEnv = $_ENV['ENV'] ?? 'production';
 
 
 
