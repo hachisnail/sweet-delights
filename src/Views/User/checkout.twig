@@ -61,16 +61,34 @@
                     <div class="space-y-4">
                         <div>
                             <label for="card_number" class="block text-sm font-medium text-gray-700">Card Number</label>
-                            <input type="text" id="card_number" name="card_number" value="4242 4242 4242 4242" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]">
+                            {# --- MODIFIED INPUT --- #}
+                            <input type="text" id="card_number" name="card_number" 
+                                   placeholder="4242-4242-4242-4242" 
+                                   required 
+                                   maxlength="19"
+                                   inputmode="numeric"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]">
                         </div>
                         <div class="grid grid-cols-3 gap-4">
                             <div>
                                 <label for="card_expiry" class="block text-sm font-medium text-gray-700">MM / YY</label>
-                                <input type="text" id="card_expiry" name="card_expiry" value="12 / 28" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]">
+                                {# --- MODIFIED INPUT --- #}
+                                <input type="text" id="card_expiry" name="card_expiry" 
+                                       placeholder="12 / 28" 
+                                       required 
+                                       maxlength="7"
+                                       inputmode="numeric"
+                                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]">
                             </div>
                             <div class="col-span-2">
                                 <label for="card_cvc" class="block text-sm font-medium text-gray-700">CVC</label>
-                                <input type="text" id="card_cvc" name="card_cvc" value="123" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]">
+                                {# --- MODIFIED INPUT --- #}
+                                <input type="text" id="card_cvc" name="card_cvc" 
+                                       placeholder="123" 
+                                       required 
+                                       maxlength="4"
+                                       inputmode="numeric"
+                                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]">
                             </div>
                         </div>
                     </div>
@@ -103,7 +121,6 @@
                         <span class="font-medium">₱{{ totals.subtotal|number_format(2) }}</span>
                     </div>
                     
-                    {# --- MODIFICATION START --- #}
                     <div class="flex justify-between text-gray-700">
                         <span>Tax ({{ (config.tax_rate * 100)|default(12) }}%)</span>
                         <span class="font-medium">₱{{ totals.tax|number_format(2) }}</span>
@@ -112,7 +129,6 @@
                         <span>Shipping</span>
                         <span class="font-medium">₱{{ totals.shipping|number_format(2) }}</span>
                     </div>
-                    {# --- MODIFICATION END --- #}
                     
                     <div class="flex justify-between text-xl font-bold text-[#835234] mt-2 pt-2 border-t border-pink-300">
                         <span>Total</span>
@@ -120,7 +136,6 @@
                     </div>
                 </div>
 
-                {# --- MODIFIED: Disable button if there is any error --- #}
                 <button 
                     type="submit" 
                     form="checkoutForm" 
@@ -135,4 +150,69 @@
 
     </div>
 </div>
+
+{# --- NEW SCRIPT BLOCK FOR CARD FORMATTING --- #}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const cardNumberInput = document.getElementById('card_number');
+    const cardExpiryInput = document.getElementById('card_expiry');
+    const cardCvcInput = document.getElementById('card_cvc');
+
+    if (cardNumberInput) {
+        cardNumberInput.addEventListener('input', (e) => {
+            // 1. Get raw value, remove all non-digits
+            let rawValue = e.target.value.replace(/\D/g, '');
+
+            // 2. Limit to 16 digits
+            if (rawValue.length > 16) {
+                rawValue = rawValue.substring(0, 16);
+            }
+
+            // 3. Add dashes every 4 characters
+            const formattedValue = rawValue.match(/.{1,4}/g)?.join('-') || '';
+            
+            // 4. Set the new value
+            e.target.value = formattedValue;
+        });
+    }
+
+    if (cardExpiryInput) {
+        cardExpiryInput.addEventListener('input', (e) => {
+            // 1. Get raw value, remove all non-digits
+            let rawValue = e.target.value.replace(/\D/g, '');
+
+            // 2. Limit to 4 digits (MMYY)
+            if (rawValue.length > 4) {
+                rawValue = rawValue.substring(0, 4);
+            }
+
+            // 3. Add " / "
+            let formattedValue = rawValue;
+            if (rawValue.length > 2) {
+                formattedValue = `${rawValue.substring(0, 2)} / ${rawValue.substring(2)}`;
+            }
+            
+            // 4. Set the new value
+            e.target.value = formattedValue;
+        });
+    }
+
+    if (cardCvcInput) {
+        cardCvcInput.addEventListener('input', (e) => {
+            // 1. Get raw value, remove all non-digits
+            let rawValue = e.target.value.replace(/\D/g, '');
+            
+            // 2. Limit to 4 digits (Amex)
+            if (rawValue.length > 4) {
+                rawValue = rawValue.substring(0, 4);
+            }
+            
+            // 3. Set the new value (no formatting)
+            e.target.value = rawValue;
+        });
+    }
+});
+</script>
+{# --- END NEW SCRIPT BLOCK --- #}
+
 {% endblock %}

@@ -96,13 +96,13 @@ return array (
     array (
       0 => 
       array (
-        'id' => 2,
+        'sku' => 'swe-don-cd-2',
         'name' => 'Chocolate Donut',
         'image' => '/Assets/Products/Chocolate Donut.png',
         'price' => 220,
-        'selectedSize' => 'Large',
         'stock' => 5,
-        'quantity' => 2,
+        'selectedSize' => 'Large',
+        'quantity' => 3,
       ),
     ),
     'favourites' => 

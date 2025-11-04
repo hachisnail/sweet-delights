@@ -134,7 +134,7 @@ class ProductsController
         return $view->render($response, 'Public/products.twig', [
             'title' => 'Our Products - FlourEver',
             'products' => $productsToDisplay,
-            'app_url' => $_ENV['APP_URL'],
+            'app_url' => $_ENV['APP_URL'] ?? '', // <--- THIS IS THE FIX
             'all_categories' => $nestedCategories,
             'selected_category' => $selectedCategory,
             'current_category' => $currentCategory,

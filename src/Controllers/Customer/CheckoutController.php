@@ -69,6 +69,7 @@ class CheckoutController extends BaseDataController {
                 'shipping' => $shipping, // <-- PASS SHIPPING
                 'total' => $total
             ],
+            'config' => $config, // <--- THIS IS THE FIX
             'error' => $request->getQueryParams()['error'] ?? null
         ]);
     }
@@ -184,8 +185,8 @@ class CheckoutController extends BaseDataController {
             'date' => date('Y-m-d H:i:s'),
             'status' => 'Processing',
             'items' => $cart,
-            'subtotal' => $subtotal,       // <-- SAVE THIS
-            'tax' => $tax,                 // <-- SAVE THIS
+            'subtotal' => $subtotal,      // <-- SAVE THIS
+            'tax' => $tax,              // <-- SAVE THIS
             'shipping_fee' => $shipping,
             'total' => $total
         ];

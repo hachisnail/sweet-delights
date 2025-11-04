@@ -40,6 +40,7 @@
     {# This is all your existing code for a found product #}
     <div class="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-lg border border-pink-100 "
          data-product-id="{{ product.id }}"
+         data-product-sku="{{ product.sku }}"
          data-product-name="{{ product.name }}"
          data-product-price="{{ product.price }}" {# This is now the base/starting price #}
          data-product-image="{{ product.image }}"
@@ -172,14 +173,15 @@ window.addEventListener("servicesReady", () => {
   const priceDisplay = document.getElementById("productPriceDisplay");
   const mainProductImage = document.getElementById("mainProductImage");
 
-  const product = {
-    id: Number(container.dataset.productId),
-    name: container.dataset.productName,
-    price: Number(container.dataset.productPrice), // This is the base/starting price
-    image: container.dataset.productImage,
-    stock: Number(container.dataset.productStock || "1"),
-    sizes: JSON.parse(container.dataset.productSizes || "[]"),
-  };
+const product = {
+  sku: container.dataset.productSku,
+  name: container.dataset.productName,
+  price: Number(container.dataset.productPrice),
+  image: container.dataset.productImage,
+  stock: Number(container.dataset.productStock || "1"),
+  sizes: JSON.parse(container.dataset.productSizes || "[]"),
+};
+
 
   let selectedSize = null;
   let selectedStock = 0;
@@ -188,7 +190,7 @@ window.addEventListener("servicesReady", () => {
 
   // --- START: ADDED FAVOURITE LOGIC (1 of 2) ---
   const updateHeartUI = () => {
-    if (window.favouriteService && window.favouriteService.isFavourite(product.id)) {
+    if (window.favouriteService && window.favouriteService.isFavourite(product.sku)) {
         // Apply classes to show it's favourited
         heartIcon.classList.add("fill-red-500", "stroke-red-500");
     } else {
@@ -340,7 +342,7 @@ window.addEventListener("servicesReady", () => {
     const requested = Math.min(Number(qtyInput.value) || 1, availableStock);
 
     window.cartService.addItem({
-        id: product.id,
+        sku: product.sku,
         name: product.name,
         image: selectedImage, 
         price: selectedPrice,

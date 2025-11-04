@@ -1,79 +1,77 @@
-// /js/FavouriteService.js
 class FavouriteService {
     constructor() {
-        // --- UI Elements ---
         this.favSidebar = document.getElementById("favouriteSidebar");
         this.favCountEl = document.getElementById("favouriteCount");
         this.favItemsContainer = document.getElementById("favouriteItems");
-        
-        // --- State ---
+
         this.inMemoryFavs = [];
         this.isLoggedIn = window.AUTH_STATE.isLoggedIn;
         this.apiEndpoint = '/api/favourites/sync';
         this.storageKey = 'favourite';
     }
 
-    // 1. INITIALIZATION
     async init() {
-        const localFavs = JSON.parse(localStorage.getItem(this.storageKey) || "[]");
-        
+        let localFavs;
+
+        try {
+            const raw = localStorage.getItem(this.storageKey);
+            localFavs = JSON.parse(raw || "[]");
+            if (!Array.isArray(localFavs)) localFavs = [];
+        } catch (error) {
+            console.error("Failed to parse local favourites:", error);
+            localFavs = [];
+            localStorage.removeItem(this.storageKey);
+        }
+
         if (this.isLoggedIn) {
             const serverFavs = window.AUTH_STATE.initialFavs || [];
-            
-            // Merge local (guest) favs with server favs
             const merged = this._mergeFavs(serverFavs, localFavs);
             this.inMemoryFavs = merged;
-            
             await this.syncToServer(merged);
             localStorage.removeItem(this.storageKey);
-            
         } else {
             this.inMemoryFavs = localFavs;
         }
-        
+
         this.render();
     }
 
     _mergeFavs(serverFavs, localFavs) {
         const favMap = new Map();
-        serverFavs.forEach(item => favMap.set(item.id, item));
-        localFavs.forEach(item => favMap.set(item.id, item)); // Local wins duplicates
+        serverFavs.forEach(item => favMap.set(item.sku, item));
+        localFavs.forEach(item => favMap.set(item.sku, item));
         return Array.from(favMap.values());
     }
 
-    // 2. PUBLIC API METHODS
     getFavourites() {
         return [...this.inMemoryFavs];
     }
-    
-    isFavourite(productId) {
-        return this.inMemoryFavs.some(p => p.id === productId);
+
+    isFavourite(sku) {
+        return this.inMemoryFavs.some(p => p.sku === sku);
     }
 
     toggle(product) {
-        const index = this.inMemoryFavs.findIndex(p => p.id === product.id);
-        
+        const index = this.inMemoryFavs.findIndex(p => p.sku === product.sku);
+
         if (index === -1) {
-            // Add
             this.inMemoryFavs.push({
-                id: product.id,
+                sku: product.sku,
                 name: product.name,
                 image: product.image,
                 price: product.price,
             });
         } else {
-            // Remove
             this.inMemoryFavs.splice(index, 1);
         }
-        
+
         this.persist();
         this.render();
         window.dispatchEvent(new Event("favouritesChanged"));
-        
-        return (index === -1); // Return true if added
+
+        return index === -1;
     }
 
-    // 3. PERSISTENCE
     persist() {
         if (this.isLoggedIn) {
             this.syncToServer(this.inMemoryFavs);
@@ -94,12 +92,11 @@ class FavouriteService {
         }
     }
 
-    // 4. UI RENDERING
     render() {
         this._renderCounts();
         this._renderSidebar();
     }
-    
+
     _renderCounts() {
         const favs = this.inMemoryFavs;
         const faded = "bg-[#f59b62]";
@@ -115,7 +112,6 @@ class FavouriteService {
     _renderSidebar() {
         const favs = this.inMemoryFavs;
         if (!this.favItemsContainer) return;
-        
         this.favItemsContainer.innerHTML = "";
 
         if (favs.length === 0) {
@@ -123,28 +119,41 @@ class FavouriteService {
             return;
         }
 
-        favs.forEach((item, index) => {
+        favs.forEach((item) => {
             const a = document.createElement("a");
-            a.href = `/products/${item.id}`;
-            a.className = "flex items-center gap-3 border-b pb-2 mb-2 group";
-            
+            a.href = `/products/${item.sku}`;
+            a.className = "flex flex-col border-b pb-3 mb-3 group no-underline";
+
             a.innerHTML = `
-                <img src="${item.image || "/Assets/placeholder-item.png"}" onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';" alt="${item.name}" class="w-12 h-12 object-cover rounded-lg shadow-sm shadow-gray-400">
-                <div class="flex-1">
-                  <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
-                  <p class="text-sm text-gray-500">₱${item.price}</p>
+                <div class="flex gap-3 items-center">
+                    <img src="${item.image || '/Assets/placeholder-item.png'}" 
+                         alt="${item.name}"
+                         onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';"
+                         class="w-16 h-16 object-cover rounded-lg shadow-sm shadow-pink-200">
+                    <div class="flex-1">
+                        <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
+                        <p class="text-sm text-gray-500">₱${item.price}</p>
+                    </div>
+                    <button class="removeFav text-red-500 hover:text-red-700 font-bold cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
                 </div>
-                <button class="text-red-500 hover:text-red-700">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                  </svg>
-                </button>
             `;
 
-            a.querySelector("button").addEventListener("click", (e) => {
-                e.preventDefault(); e.stopPropagation();
-                // We just re-use the toggle logic
-                this.toggle(item);
+            a.querySelector(".removeFav").addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.showModal({
+                    type: "error",
+                    title: "Remove Favourite",
+                    message: `Remove ${item.name} from your favourites?`,
+                    buttons: [
+                        { text: "Cancel", variant: "cancel" },
+                        { text: "Remove", variant: "danger", action: () => this.toggle(item) }
+                    ]
+                });
             });
 
             this.favItemsContainer.appendChild(a);
