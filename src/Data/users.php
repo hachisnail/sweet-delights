@@ -4,9 +4,9 @@ return array (
   0 => 
   array (
     'id' => 1,
-    'first_name' => 'Mayie',
-    'last_name' => 'Admin',
-    'email' => 'mayie@example.com',
+    'first_name' => 'Mariellyn',
+    'last_name' => 'Ibana',
+    'email' => 'ibanamayie36@gmail.com',
     'contact_number' => '09171234567',
     'address' => 
     array (
@@ -15,7 +15,7 @@ return array (
       'state' => 'Metro Manila',
       'postal_code' => '1000',
     ),
-    'password_hash' => '$2y$10$hd7OejGNyUAgPief.9PR0uXQozOo7losy5klz.WpHSclVVSxeEDPO',
+    'password_hash' => '$2y$10$2fTDQCXlPfM6U4s32ocFpuYuG58Szu6ZcgxU2/4EufP.AHN4zuxIe',
     'role' => 'admin',
     'is_verified' => true,
     'verification_token' => NULL,
