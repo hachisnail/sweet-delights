@@ -1,0 +1,94 @@
+{% extends "Layouts/public.twig" %}
+
+{% block content %}
+
+{# --- HERO SECTION --- #}
+<section class="min-h-screen bg-cover bg-center bg-no-repeat px-6 sm:px-30 pt-20 sm:pt-15 flex items-center justify-center snap-start"
+         style="background-image: url('/Assets/Background1.png');">
+  <div class="flex flex-col xl:flex-row w-full">
+    <div class="flex flex-col justify-center gap-y-2">
+      <p class="font-zen-antique text-xl sm:text-5xl text-[#835234]">Welcome to</p>
+      <h2 class="text-6xl lg:text-[9rem] leading-10 lg:leading-[7rem] text-[#A96B44] font-zen-antique text-shadow-sm text-shadow-[#8c8989]">
+        FlourEver
+      </h2>
+      <p class="font-zen-antique text-2xl text-[#A69273]">The sweet spot for cravings</p>
+
+      <button onclick="location.href='/products'"
+              class="mt-4 w-fit bg-[#A96B44] shadow-md shadow-[#8c8989]/50 text-white flex gap-x-3 pr-3 pl-5 py-2 border border-[#6B4226] rounded-full font-semibold hover:scale-105 transition">
+        Order Now
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             class="lucide lucide-arrow-right">
+          <path d="M5 12h14"/>
+          <path d="m12 5 7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+
+    <img src="/Assets/PileOfDonuts.png" alt="Delicious baked goods" class="w-100 lg:w-160 ml-auto drop-shadow-lg">
+  </div>
+</section>
+
+
+{# --- EXPLORE OUR CATEGORIES SECTION --- #}
+<section class="flex flex-col min-h-screen items-center justify-center snap-start pt-30 bg-[#FFF9F2]">
+  <div class="w-fit flex flex-col items-center gap-y-4">
+    <h1 class="font-zen-antique text-3xl lg:text-6xl text-[#835234] text-shadow-sm text-shadow-[#d1bfa5]">
+      Explore Our Categories
+    </h1>
+
+    <div class="flex items-center gap-y-5">
+      <div class="flex flex-col gap-y-3 justify-center items-end">
+        <div class="w-30 lg:w-60 bg-[#A96B44] h-[0.1rem] rounded-full"></div>
+        <div class="w-20 lg:w-45 bg-[#C7A97E] h-[0.1rem] rounded-full"></div>
+      </div>
+
+      <img src="/Assets/BobaTea.svg" alt="Boba Teas" class="w-15">
+
+      <div class="flex flex-col h-full gap-y-3 justify-center items-start">
+        <div class="w-30 lg:w-60 bg-[#A96B44] h-[0.1rem] rounded-full"></div>
+        <div class="w-20 lg:w-45 bg-[#C7A97E] h-[0.1rem] rounded-full"></div>
+      </div>
+    </div>
+
+    {# --- CATEGORY GRID --- #}
+    <div class="min-h-90 w-full flex flex-wrap justify-center items-center gap-6 mt-8">
+      {% for cat in categories %}
+        {% set image_src = cat.image ? '/Assets/Categories/' ~ cat.image : '/Assets/Categories/' ~ cat.slug ~ '.png' %}
+
+        <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border border-[#e4d3be] shadow-md shadow-[#d4c2a8] bg-white flex flex-col items-center justify-end group hover:scale-[1.02] transition-transform duration-500">
+
+          <!-- Image -->
+          <a href="/products?category={{ cat.slug }}" class="absolute inset-0">
+            <img 
+              src="{{ image_src }}" 
+              alt="{{ cat.name }}" 
+              class="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-110"
+              onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+          </a>
+
+          <!-- Floating Button -->
+          <a href="/products?category={{ cat.slug }}"
+             class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44] text-white font-semibold rounded-full overflow-hidden group/button shadow-md hover:shadow-lg transition-all duration-300 border border-[#835234]">
+            
+            <!-- Fill Effect (left → right) -->
+            <span class="absolute inset-0 bg-[#fff1e1] opacity-30 scale-x-0 origin-left group-hover/button:scale-x-100 transition-transform duration-500 ease-in-out"></span>
+
+            <!-- Label -->
+            <span class="relative z-10 flex items-center justify-center h-full tracking-wide">
+              {{ cat.name }}
+            </span>
+          </a>
+
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="flex flex-col items-center gap-y-3 h-15 justify-center mt-10">
+      <div class="w-60 lg:w-200 bg-[#A96B44] rounded-full h-[0.1rem]"></div>
+      <div class="w-30 lg:w-170 bg-[#C7A97E] rounded-full h-[0.1rem]"></div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

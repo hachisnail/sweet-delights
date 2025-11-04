@@ -1,0 +1,234 @@
+{% set activePage = 'settings' %}
+
+{% extends "Layouts/account.twig" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-lg border border-pink-100">
+  <h1 class="text-3xl font-bold text-[#835234] mb-8">{{ title }}</h1>
+
+  {# --- SUCCESS/ERROR MESSAGES --- #}
+  {% if success == 'profile' %}
+    <div class="mb-6 p-4 rounded-lg bg-green-100 text-green-800 border border-green-200">
+      Profile updated successfully.
+    </div>
+  {% endif %}
+  {% if success == 'password' %}
+    <div class="mb-6 p-4 rounded-lg bg-green-100 text-green-800 border border-green-200">
+      Password updated successfully.
+    </div>
+  {% endif %}
+  {% if error == 'password' %}
+    <div class="mb-6 p-4 rounded-lg bg-red-100 text-red-800 border border-red-200">
+      Incorrect current password. Please try again.
+    </div>
+  {% endif %}
+  {# --- END MESSAGES --- #}
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-12">
+    
+    <div class="space-y-6">
+      <h2 class="text-2xl font-semibold text-[#a07445]">Update Profile</h2>
+      {# MODIFIED: Added id="profileForm" #}
+      <form id="profileForm" class="flex flex-col gap-y-5" action="/account/settings/update" method="POST" >
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="first_name" class="block text-sm font-medium text-gray-700">First Name</label>
+            <input 
+              type="text" 
+              id="first_name" 
+              name="first_name" 
+              value="{{ user.first_name }}" 
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]"
+            >
+          </div>
+          <div>
+            <label for="last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
+            <input 
+              type="text" 
+              id="last_name" 
+              name="last_name" 
+              value="{{ user.last_name }}" 
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]"
+            >
+          </div>
+        </div>
+
+        <div>
+          <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+          <input 
+            type="email" 
+            id="email" 
+            name="email" 
+            value="{{ user.email }}" 
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]"
+          >
+        </div>
+
+        <div>
+          <label for="contact_number" class="block text-sm font-medium text-gray-700">Contact Number</label>
+          <input 
+            type="tel" 
+            id="contact_number" 
+            name="contact_number" 
+            value="{{ user.contact_number }}" 
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]"
+          >
+        </div>
+
+        <fieldset class="border border-gray-300 rounded-lg p-4 space-y-4">
+          <legend class="px-2 text-sm font-medium text-gray-700">Delivery Address</legend>
+          
+          <div>
+            <label for="address_street" class="block text-sm font-medium text-gray-700">Street Address</label>
+            <input 
+              type="text" 
+              id="address_street" 
+              name="address_street" 
+              value="{{ user.address.street }}" 
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]"
+            >
+          </div>
+
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <label for="address_city" class="block text-sm font-medium text-gray-700">City</label>
+              <input 
+                type="text" 
+                id="address_city" 
+                name="address_city" 
+                value="{{ user.address.city }}" 
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]"
+              >
+            </div>
+            <div>
+              <label for="address_state" class="block text-sm font-medium text-gray-700">State / Province</label>
+              <input 
+                type="text" 
+                id="address_state" 
+                name="address_state" 
+                value="{{ user.address.state }}" 
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]"
+              >
+            </div>
+            <div>
+              <label for="address_postal_code" class="block text-sm font-medium text-gray-700">Postal Code</label>
+              <input 
+                type="text" 
+                id="address_postal_code" 
+                name="address_postal_code" 
+                value="{{ user.address.postal_code }}" 
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]"
+              >
+            </div>
+          </div>
+        </fieldset>
+
+        {# MODIFIED: Changed type="submit" to type="button" and added id #}
+        <button type="button" id="profileSubmitBtn" class="w-full px-6 py-2 bg-[#b06f52] hover:bg-[#a26046] text-white font-semibold rounded-xl transition">
+          Save Changes
+        </button>
+      </form>
+    </div>
+
+    <div class="space-y-6">
+      <h2 class="text-2xl font-semibold text-[#a07445]">Change Password</h2>
+      {# MODIFIED: Added id="passwordForm" #}
+      <form id="passwordForm" class="flex flex-col gap-y-5" action="/account/settings/password" method="POST">
+        <div>
+          <label for="current_password" class="block text-sm font-medium text-gray-700">Current Password</label>
+          <input 
+            type="password" 
+            id="current_password" 
+            name="current_password" 
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]"
+          >
+        </div>
+        <div>
+          <label for="new_password" class="block text-sm font-medium text-gray-700">New Password</label>
+          <input 
+            type="password" 
+            id="new_password" 
+            name="new_password" 
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]"
+          >
+        </div>
+        {# MODIFIED: Changed type="submit" to type="button" and added id #}
+        <button type="button" id="passwordSubmitBtn" class="w-full px-6 py-2 bg-gray-700 hover:bg-gray-800 text-white font-semibold rounded-xl transition">
+          Update Password
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# --- NEW SCRIPT BLOCK --- #}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Get the forms and buttons
+    const profileForm = document.getElementById('profileForm');
+    const profileBtn = document.getElementById('profileSubmitBtn');
+    
+    const passwordForm = document.getElementById('passwordForm');
+    const passwordBtn = document.getElementById('passwordSubmitBtn');
+
+    // --- Profile Form Confirmation ---
+    profileBtn?.addEventListener('click', (e) => {
+      e.preventDefault(); // Stop the button's default action
+      
+      // Show confirmation modal
+      window.showModal({
+        type: 'warning',
+        title: 'Update Profile?',
+        message: 'Are you sure you want to save these changes to your profile?',
+        buttons: [
+          {
+            text: 'Cancel',
+            variant: 'cancel'
+          },
+          {
+            text: 'Save Changes',
+            variant: 'primary',
+            callback: () => {
+              // If confirmed, submit the form
+              profileForm.submit();
+            }
+          }
+        ]
+      });
+    });
+
+    // --- Password Form Confirmation ---
+    passwordBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+
+      // Show confirmation modal
+      window.showModal({
+        type: 'warning',
+        title: 'Update Password?',
+        message: 'Are you sure you want to change your password? This action cannot be undone.',
+        buttons: [
+          {
+            text: 'Cancel',
+            variant: 'cancel'
+          },
+          {
+            text: 'Update Password',
+            variant: 'danger', // Use danger variant for password changes
+            callback: () => {
+              // If confirmed, submit the form
+              passwordForm.submit();
+            }
+          }
+        ]
+      });
+    });
+
+  });
+</script>
+{% endblock %}

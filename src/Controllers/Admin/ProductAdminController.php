@@ -7,7 +7,7 @@ use Slim\Views\Twig;
 use Slim\Routing\RouteContext;
 use Slim\Psr7\UploadedFile;
 
-//  INHERIT from BaseAdminController
+// INHERIT from BaseAdminController
 class ProductAdminController extends BaseAdminController
 {
     private $productsPath;
@@ -23,6 +23,8 @@ class ProductAdminController extends BaseAdminController
         $this->publicUploadPath = '/Assets/Products/';
     }
 
+    // --- ✅ START: DATA HELPERS ---
+
     private function getProducts(): array
     {
         if (!file_exists($this->productsPath)) return [];
@@ -37,9 +39,8 @@ class ProductAdminController extends BaseAdminController
 
     private function saveProducts(array $products)
     {
-        $indexedProducts = array_values($products);
-        $phpCode = '<?php' . PHP_EOL . 'return ' . var_export($indexedProducts, true) . ';';
-        file_put_contents($this->productsPath, $phpCode);
+        // ✅ Uses inherited saveData method
+        $this->saveData($this->productsPath, $products);
     }
 
     private function findProduct(string $id): ?array
@@ -52,7 +53,9 @@ class ProductAdminController extends BaseAdminController
         return null;
     }
 
-    // ---  NEW: Recursive Helper for Indented Category List ---
+    // --- ✅ END: DATA HELPERS ---
+
+    // ---  NEW: Recursive Helper for Indented Category List ---
     private function getIndentedCategories(array $allCategories, $parentId = null, int $level = 0): array
     {
         $indentedList = [];
@@ -71,19 +74,23 @@ class ProductAdminController extends BaseAdminController
     }
 
 
-    // ---  ROBUST File Upload Helpers ---
+    // ---  ROBUST File Upload Helpers (Specific to Product Controller) ---
     /**
      * @throws \Exception
      */
-    private function handleUpload(UploadedFile $uploadedFile): ?string
+    private function handleUpload(?UploadedFile $uploadedFile): ?string
     {
+        if (!$uploadedFile) {
+            return null;
+        }
+
         if ($uploadedFile->getError() !== UPLOAD_ERR_OK) {
             switch ($uploadedFile->getError()) {
                 case UPLOAD_ERR_INI_SIZE:
                 case UPLOAD_ERR_FORM_SIZE:
                     throw new \Exception('File is too large.');
                 case UPLOAD_ERR_NO_FILE:
-                    throw new \Exception('No file was uploaded.');
+                    return null; 
                 default:
                     throw new \Exception('An unknown error occurred during file upload.');
             }
@@ -114,8 +121,8 @@ class ProductAdminController extends BaseAdminController
         return $filename;
     }
     
-    // ---  UPDATED Data Processing Helper ---
-    private function processProductData(array $data): array
+    // --- Data Processing Helper ---
+    private function processProductData(array $data, array $sizeImageFiles): array
     {
         $sizes = [];
         $totalStock = 0;
@@ -127,11 +134,37 @@ class ProductAdminController extends BaseAdminController
                 $price = $data['sizes_price'][$index] ?? 0;
                 
                 if (!empty($name)) {
+                    
+                    // --- START: IMAGE LOGIC ---
+                    $existingImagePath = $data['sizes_existing_image'][$index] ?? null;
+                    // The file is an array of data, convert it back to an UploadedFile object/data structure
+                    // This is complex, but for this exercise, we treat the files array as already parsed/structured 
+                    // where $sizeImageFiles[$index] is a valid UploadedFile object or null/error array.
+                    
+                    // For the purpose of this isolated function, assume $sizeImageFiles is an array of UploadedFile objects or null.
+                    // The original product controller had this simplified, let's keep the simplified intention.
+                    
+                    $newImageFile = $sizeImageFiles[$index] ?? null;
+                    
+                    $finalImagePath = $existingImagePath; // Default to old path
+
+                    try {
+                        if ($newImageFile && $newImageFile->getError() === UPLOAD_ERR_OK) {
+                            $finalImagePath = $this->handleUpload($newImageFile);
+                        }
+                    } catch (\Exception $e) {
+                        error_log("Error uploading size image: " . $e->getMessage());
+                        $finalImagePath = $existingImagePath;
+                    }
+                    // --- END: IMAGE LOGIC ---
+
                     $sizeData = [
                         'name' => $name, 
                         'stock' => (int)$stock,
-                        'price' => (float)$price
+                        'price' => (float)$price,
+                        'image' => $finalImagePath, 
                     ];
+                    
                     $sizes[] = $sizeData;
                     $totalStock += (int)$stock;
                     $prices[] = (float)$price;
@@ -154,9 +187,6 @@ class ProductAdminController extends BaseAdminController
 
     // --- CRUD Methods ---
 
-    /**
-     * GET /app/products
-     */
     public function index(Request $request, Response $response): Response
     {
         $view = $this->viewFromRequest($request);
@@ -165,12 +195,13 @@ class ProductAdminController extends BaseAdminController
         $searchTerm = $params['search'] ?? null;
         $categoryFilter = $params['category'] ?? null;
 
-        $products = $this->getProducts();
+        $products = $this->getProducts(); 
         $categories = $this->getCategories();
         
         if ($searchTerm) {
             $products = array_filter($products, function($product) use ($searchTerm) {
-                return stripos($product['name'], $searchTerm) !== false;
+                // Search by name or SKU
+                return stripos($product['name'], $searchTerm) !== false || (isset($product['sku']) && stripos($product['sku'], $searchTerm) !== false);
             });
         }
         
@@ -208,9 +239,6 @@ class ProductAdminController extends BaseAdminController
         ]);
     }
 
-    /**
-     * GET /app/products/new
-     */
     public function create(Request $request, Response $response): Response
     {
         $view = $this->viewFromRequest($request);
@@ -226,7 +254,7 @@ class ProductAdminController extends BaseAdminController
         
         return $view->render($response, 'Admin/product-form.twig', [
             'title' => 'Add New Product',
-            'all_categories' => $indentedCategories,
+            'all_categories' => $indentedCategories, 
             'form_action' => $routeParser->urlFor('app.products.store'),
             'app_url' => $_ENV['APP_URL'] ?? '',
             'breadcrumbs' => $breadcrumbs,
@@ -234,9 +262,6 @@ class ProductAdminController extends BaseAdminController
         ]);
     }
 
-    /**
-     * POST /app/products
-     */
     public function store(Request $request, Response $response): Response
     {
         $data = $request->getParsedBody();
@@ -245,13 +270,13 @@ class ProductAdminController extends BaseAdminController
         
         $products = $this->getProducts();
         
-        $data = $this->processProductData($data); 
+        $sizeImageFiles = $files['sizes_image'] ?? [];
+        $data = $this->processProductData($data, $sizeImageFiles); 
 
         $imagePath = null;
         try {
-            if (isset($files['image']) && $files['image']->getError() === UPLOAD_ERR_OK) {
-                $imagePath = $this->handleUpload($files['image']);
-            }
+            $imageFile = $files['image'] ?? null;
+            $imagePath = $this->handleUpload($imageFile);
         } catch (\Exception $e) {
             error_log("File upload error: " . $e->getMessage());
         }
@@ -261,14 +286,20 @@ class ProductAdminController extends BaseAdminController
             $ids = array_map('intval', array_column($products, 'id'));
             $newId = max($ids) + 1;
         }
+        $newIdStr = (string)$newId;
+
+        // --- ✅ GENERATE SKU (Uses inherited method) ---
+        $allCategories = $this->getCategories();
+        $sku = $this->generateSku($data['name'], $newIdStr, (int)($data['category_id'] ?? 0), $allCategories);
 
         $newProduct = [
-            'id' => (string)$newId,
+            'id' => $newIdStr,
+            'sku' => $sku, 
             'name' => $data['name'],
             'price' => (float)$data['price'],
             'image' => $imagePath ?? '/Assets/Products/placeholder.png',
             'stock' => $data['stock'],
-            'category_id' => (int)$data['category_id'],
+            'category_id' => (int)($data['category_id'] ?? 0),
             'sizes' => $data['sizes'],
             'description' => $data['description'] ?? '',
         ];
@@ -280,9 +311,6 @@ class ProductAdminController extends BaseAdminController
     }
 
 
-    /**
-     * GET /app/products/{id}/edit
-     */
     public function edit(Request $request, Response $response, array $args): Response
     {
         $view = $this->viewFromRequest($request);
@@ -300,7 +328,7 @@ class ProductAdminController extends BaseAdminController
 
         $rawCategories = $this->getCategories();
         $indentedCategories = $this->getIndentedCategories($rawCategories);
-
+        
         $breadcrumbs = $this->breadcrumbs($request, [
             ['name' => 'Products', 'url' => 'app.products.index'],
             ['name' => $product['name'] ?? 'Edit', 'url' => null]
@@ -309,7 +337,7 @@ class ProductAdminController extends BaseAdminController
         return $view->render($response, 'Admin/product-form.twig', [
             'title' => 'Edit Product',
             'product' => $product,
-            'all_categories' => $indentedCategories,
+            'all_categories' => $indentedCategories, 
             'form_action' => $routeParser->urlFor('app.products.update', ['id' => $id]),
             'app_url' => $_ENV['APP_URL'] ?? '',
             'breadcrumbs' => $breadcrumbs,
@@ -317,9 +345,6 @@ class ProductAdminController extends BaseAdminController
         ]);
     }
 
-    /**
-     * POST /app/products/{id}
-     */
     public function update(Request $request, Response $response, array $args): Response
     {
         $id = $args['id'];
@@ -343,25 +368,34 @@ class ProductAdminController extends BaseAdminController
             return $response->withHeader('Location', $routeParser->urlFor('app.products.index'))->withStatus(302);
         }
 
-        $data = $this->processProductData($data);
+        $sizeImageFiles = $files['sizes_image'] ?? [];
+        $data = $this->processProductData($data, $sizeImageFiles);
         
         $imagePath = $oldProduct['image']; 
         try {
-            if (isset($files['image']) && $files['image']->getError() === UPLOAD_ERR_OK) {
-                $imagePath = $this->handleUpload($files['image']);
+            $imageFile = $files['image'] ?? null;
+            $newImagePath = $this->handleUpload($imageFile);
+            if ($newImagePath) {
+                $imagePath = $newImagePath;
             }
         } catch (\Exception $e) {
             error_log("File upload error: " . $e->getMessage());
-            $imagePath = $oldProduct['image'];
         }
+
+        // --- ✅ RE-GENERATE SKU (Uses inherited method) ---
+        $allCategories = $this->getCategories();
+        $newCategoryId = (int)($data['category_id'] ?? $oldProduct['category_id'] ?? 0);
+        $newName = $data['name'] ?? $oldProduct['name'];
+        $sku = $this->generateSku($newName, $id, $newCategoryId, $allCategories);
 
         $updatedProduct = [
             'id' => $id,
+            'sku' => $sku, 
             'name' => $data['name'] ?? $oldProduct['name'],
             'price' => (float)$data['price'],
             'image' => $imagePath,
             'stock' => $data['stock'],
-            'category_id' => (int)($data['category_id'] ?? $oldProduct['category_id']),
+            'category_id' => $newCategoryId,
             'sizes' => $data['sizes'],
             'description' => $data['description'] ?? $oldProduct['description'] ?? '',
         ];
@@ -372,9 +406,6 @@ class ProductAdminController extends BaseAdminController
         return $response->withHeader('Location', $routeParser->urlFor('app.products.index'))->withStatus(302);
     }
     
-    /**
-     * POST /app/products/{id}/delete
-     */
     public function delete(Request $request, Response $response, array $args): Response
     {
         $id = $args['id'];
@@ -391,4 +422,3 @@ class ProductAdminController extends BaseAdminController
         return $response->withHeader('Location', $routeParser->urlFor('app.products.index'))->withStatus(302);
     }
 }
-

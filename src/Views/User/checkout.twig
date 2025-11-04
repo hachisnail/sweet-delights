@@ -1,0 +1,138 @@
+{% extends "Layouts/public.twig" %}
+{% set hideHeader = true %}
+{% set hideFooter = true %}
+
+{% block content %}
+{# Minimal Checkout Header #}
+<header class="w-full px-10 py-4 bg-white border-b border-pink-100 flex items-center z-30">
+    <a href="/" class="flex items-center gap-2">
+        <img src="/Assets/LogoWithName.png" alt="Sweet Delights Logo" class="h-16 w-16">
+        <span class="text-xl font-bold text-[#835234]">FlourEver</span>
+    </a>
+    <a href="/products" class="ml-auto text-sm text-pink-600 hover:underline">Return to Shop</a>
+</header>
+
+<div class="bg-pink-50 min-h-screen pt-20">
+    <div class="max-w-6xl mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12">
+        
+        <div>
+            <h1 class="text-3xl font-bold text-[#835234] mb-8">Checkout</h1>
+
+            {# --- NEW: ERROR BLOCKS --- #}
+            {% if error == 'stock' %}
+                <div class="mb-6 p-4 rounded-lg bg-red-100 text-red-800 border border-red-200">
+                    <strong>Update Required:</strong> One or more items in your cart have insufficient stock. Please <a href="/cart" class="font-bold underline">return to your cart</a> to adjust quantities.
+                </div>
+            {% elseif error == 'address' %}
+                <div class="mb-6 p-4 rounded-lg bg-yellow-100 text-yellow-800 border border-yellow-200">
+                    <strong>Update Required:</strong> Your shipping address is incomplete. Please <a href="/account/settings" class="font-bold underline">update your profile</a> before checking out.
+                </div>
+            {% elseif error == 'lock' %}
+                <div class="mb-6 p-4 rounded-lg bg-yellow-100 text-yellow-800 border border-yellow-200">
+                    <strong>Please try again:</strong> The store is busy processing another order. Please try placing your order again in a few seconds.
+                </div>
+            {% endif %}
+            {# --- END ERROR BLOCKS --- #}
+
+
+            <form id="checkoutForm" action="/checkout/process" method="POST">
+                
+                <div class="bg-white p-6 rounded-2xl shadow border border-pink-100 mb-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-[#a07445]">Shipping Details</h2>
+                        <a href="/account/settings" class="text-sm text-pink-600 hover:underline">Edit</a>
+                    </div>
+                    <div class="text-gray-700 space-y-1">
+                        {% if user.address.street %}
+                            <p class="font-medium">{{ user.first_name }} {{ user.last_name }}</p>
+                            <p>{{ user.address.street }}</p>
+                            <p>{{ user.address.city }}, {{ user.address.state }} {{ user.address.postal_code }}</p>
+                            <p>{{ user.contact_number }}</p>
+                        {% else %}
+                            <p class="text-red-600">No address on file. Please update your profile.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow border border-pink-100">
+                    <h2 class="text-xl font-semibold text-[#a07445] mb-4">Payment Method</h2>
+                    <p class="text-sm text-gray-600 mb-4">This is a mock payment form. Any details will work.</p>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label for="card_number" class="block text-sm font-medium text-gray-700">Card Number</label>
+                            <input type="text" id="card_number" name="card_number" value="4242 4242 4242 4242" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]">
+                        </div>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label for="card_expiry" class="block text-sm font-medium text-gray-700">MM / YY</label>
+                                <input type="text" id="card_expiry" name="card_expiry" value="12 / 28" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]">
+                            </div>
+                            <div class="col-span-2">
+                                <label for="card_cvc" class="block text-sm font-medium text-gray-700">CVC</label>
+                                <input type="text" id="card_cvc" name="card_cvc" value="123" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#b06f52] focus:border-[#b06f52]">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <input type="hidden" name="mock_payment_token" value="SUCCESS">
+            </form>
+        </div>
+
+        <div class="lg:pt-16">
+            <div class="bg-white p-6 rounded-2xl shadow border border-pink-100 sticky top-10">
+                <h2 class="text-xl font-semibold text-[#a07445] mb-6">Order Summary</h2>
+
+                <div class="space-y-4 mb-6 max-h-64 overflow-y-auto pr-2">
+                    {% for item in cart %}
+                        <div class="flex items-center gap-4">
+                            <img src="{{ item.image }}" alt="{{ item.name }}" class="w-16 h-16 rounded-lg object-cover border border-pink-100">
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-800">{{ item.name }}</p>
+                                <p class="text-sm text-gray-500">{{ item.selectedSize }} &times; {{ item.quantity }}</p>
+                            </div>
+                            <p class="font-medium text-gray-900">₱{{ (item.price * item.quantity)|number_format(2) }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="space-y-2 border-t border-pink-200 pt-4">
+                    <div class="flex justify-between text-gray-700">
+                        <span>Subtotal</span>
+                        <span class="font-medium">₱{{ totals.subtotal|number_format(2) }}</span>
+                    </div>
+                    
+                    {# --- MODIFICATION START --- #}
+                    <div class="flex justify-between text-gray-700">
+                        <span>Tax ({{ (config.tax_rate * 100)|default(12) }}%)</span>
+                        <span class="font-medium">₱{{ totals.tax|number_format(2) }}</span>
+                    </div>
+                    <div class="flex justify-between text-gray-700">
+                        <span>Shipping</span>
+                        <span class="font-medium">₱{{ totals.shipping|number_format(2) }}</span>
+                    </div>
+                    {# --- MODIFICATION END --- #}
+                    
+                    <div class="flex justify-between text-xl font-bold text-[#835234] mt-2 pt-2 border-t border-pink-300">
+                        <span>Total</span>
+                        <span>₱{{ totals.total|number_format(2) }}</span>
+                    </div>
+                </div>
+
+                {# --- MODIFIED: Disable button if there is any error --- #}
+                <button 
+                    type="submit" 
+                    form="checkoutForm" 
+                    class="w-full px-6 py-3 mt-8 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-xl transition text-lg disabled:bg-gray-400"
+                    {{ error ? 'disabled' : '' }}
+                >
+                    {{ error ? 'Update Required' : 'Pay Now' }}
+                </button>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

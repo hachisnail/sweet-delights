@@ -1,0 +1,31 @@
+{% extends "Layouts/public.twig" %}
+
+{% block content %}
+<div class="min-h-screen flex flex-col justify-center bg-[#9a6546] relative overflow-hidden snap-start">
+
+  <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-0 rotate-180">
+    <svg class="relative block w-full h-[120px]" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1200 120">
+      <path d="M985.66,83.29C906,104,823,116,739.29,114.88c-84-.91-168.07-14.29-251.06-27.64C404,74,320,61,236.53,63.33,153.36,65.64,69.18,83.31,0,104V0H1200V104C1128,91,1064,66,985.66,83.29Z" fill="#fee7b5"></path>
+    </svg>
+  </div>
+
+  <div class="relative z-10 w-full max-w-md mx-auto bg-[#fee7b5] p-8 rounded-3xl shadow-2xl border border-[#f1d59d] text-center">
+    <div class="mb-4 mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-green-100 text-green-600">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    </div>
+
+    <h1 class="text-3xl font-zen-antique text-[#835234] mb-4">
+      Account Created!
+    </h1>
+    <p class="text-lg text-[#7a4a2a]">
+      Thank you for registering. We've sent a verification link to your email address.
+    </p>
+    <p class="text-md text-[#7a4a2a] mt-2">
+      Please check your inbox (and spam folder) to activate your account.
+    </p>
+    <a href="/login" class="mt-8 block w-full py-3 bg-[#b06f52] hover:bg-[#a26046] text-white font-semibold rounded-xl shadow-md transition">
+      Back to Login
+    </a>
+  </div>
+</div>
+{% endblock %}

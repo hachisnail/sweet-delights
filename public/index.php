@@ -18,18 +18,13 @@ $dotenv->load();
 
 $app = AppFactory::create();
 
-// ✅ --- ADD THIS LINE ---
-// This middleware will parse JSON, url-encoded, and XML request bodies
-// and make them available in $request->getParsedBody()
 $app->addBodyParsingMiddleware();
-// ✅ --------------------
 
 
-$twig = Twig::create(__DIR__ . '/../src/Templates', [
+$twig = Twig::create(__DIR__ . '/../src/Views', [
     'cache' => false,
 ]);
 
-// Add global env variables to Twig
 $twig->getEnvironment()->addGlobal('env', $_ENV);
 
 

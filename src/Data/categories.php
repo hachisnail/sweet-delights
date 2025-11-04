@@ -6,6 +6,7 @@ return array (
     'parent_id' => NULL,
     'name' => 'Cakes',
     'slug' => 'cakes',
+    'image' => '1.jpg', // Image is set here
   ),
   1 => 
   array (
@@ -13,6 +14,7 @@ return array (
     'parent_id' => NULL,
     'name' => 'Cupcakes',
     'slug' => 'cupcakes',
+    'image' => null, // Image field added
   ),
   2 => 
   array (
@@ -20,6 +22,7 @@ return array (
     'parent_id' => NULL,
     'name' => 'Sweets',
     'slug' => 'sweets',
+    'image' => null, // Image field added
   ),
   3 => 
   array (
@@ -27,6 +30,7 @@ return array (
     'parent_id' => NULL,
     'name' => 'Breads',
     'slug' => 'breads',
+    'image' => null, // Image field added
   ),
   4 => 
   array (
@@ -34,6 +38,7 @@ return array (
     'parent_id' => NULL,
     'name' => 'Drinks',
     'slug' => 'drinks',
+    'image' => null, // Image field added
   ),
   5 => 
   array (
@@ -76,5 +81,12 @@ return array (
     'parent_id' => 2,
     'name' => 'Classic and Simple',
     'slug' => 'classic-and-simple',
+  ),
+  11 => 
+  array (
+    'id' => 12,
+    'parent_id' => 5,
+    'name' => 'Coffee',
+    'slug' => 'coffee',
   ),
 );

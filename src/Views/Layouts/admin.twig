@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title|default('Admin - FlourEver') }}</title>
+  <link rel="icon" type="image/png" href="/Assets/favicon.png">
+  {# <link rel="stylesheet" href="/css/globals.css"> #}
+  <link href="/css/output.css" rel="stylesheet">
+  <script src="/js/ModalService.js" defer></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+</head>
+<body class="bg-gray-50 text-gray-800 flex h-screen overflow-hidden">
+
+  {% include 'Components/admin-sidebar.twig' %}
+
+  <div class="flex-1 flex flex-col h-screen overflow-y-auto">
+    
+    <header class="sticky top-0 z-30 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200">
+      {% if breadcrumbs is defined and breadcrumbs|length > 0 %}
+        {% include 'Components/admin-navbar.twig' %}
+      {% endif %}
+    </header>
+
+    <main class="p-6 flex-1">
+      {% block content %}{% endblock %}
+    </main>
+    {% include 'Components/modal.twig' %}
+
+
+    <footer class="p-4 text-center text-sm text-gray-400 border-t">
+      &copy; {{ "now"|date("Y") }} FlourEver Admin
+    </footer>
+  </div>
+
+
+
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const logoutButton = document.getElementById("logoutButton");
+      
+      if (logoutButton) {
+        logoutButton.addEventListener("click", (e) => {
+            e.preventDefault(); 
+            
+            if (typeof window.showModal === 'function') {
+              window.showModal({
+                  type: "warning",
+                  title: "Confirm Logout",
+                  message: "Are you sure you want to log out?",
+                  buttons: [
+                      {
+                          text: "Cancel",
+                          variant: "cancel"
+                      },
+                      {
+                          text: "Logout",
+                          variant: "danger",
+                          action: () => {
+                              window.location.href = "/logout";
+                          }
+                      }
+                  ]
+              });
+            } else {
+              console.error("showModal function not found. Did ModalService.js load?");
+              if (confirm("Are you sure you want to log out? (Modal failed to load)")) {
+                window.location.href = "/logout";
+              }
+            }
+        });
+      } else {
+        // This is normal if the user isn't on a page with the sidebar
+        // console.warn("Logout button (id='logoutButton') not found.");
+      }
+    });
+  </script>
+</body>
+</html>
+

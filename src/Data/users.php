@@ -4,105 +4,66 @@ return array (
   0 => 
   array (
     'id' => 1,
-    'name' => 'Mayie',
+    'first_name' => 'Mayie',
+    'last_name' => 'Admin',
     'email' => 'mayie@example.com',
-    'password_hash' => '$2y$10$qbDw3KQZQz3b7EgetOqonuudMfxYnd7ZabYiABQDLEkor5XBl7zC2',
+    'contact_number' => '09171234567',
+    'address' => 
+    array (
+      'street' => '123 Bakery Lane',
+      'city' => 'Manila',
+      'state' => 'Metro Manila',
+      'postal_code' => '1000',
+    ),
+    'password_hash' => '$2y$10$hd7OejGNyUAgPief.9PR0uXQozOo7losy5klz.WpHSclVVSxeEDPO',
     'role' => 'admin',
+    'is_verified' => true,
+    'verification_token' => NULL,
+    'password_reset_token' => NULL,
+    'password_reset_expires' => NULL,
+    'is_active' => true,
     'cart' => 
     array (
-      0 => 
-      array (
-        'id' => 2,
-        'name' => 'Chocolate Donut',
-        'image' => '/Assets/Products/Chocolate Donut.png',
-        'price' => 180,
-        'selectedSize' => 'Large',
-        'stock' => 12,
-        'quantity' => 12,
-      ),
-      1 => 
-      array (
-        'id' => 2,
-        'name' => 'Chocolate Donut',
-        'image' => '/Assets/Products/Chocolate Donut.png',
-        'price' => 180,
-        'selectedSize' => 'Regular',
-        'stock' => 18,
-        'quantity' => 5,
-      ),
-      2 => 
-      array (
-        'id' => 3,
-        'name' => 'Strawberry Chocolate Cupcake',
-        'image' => '/Assets/Products/Strawberry Chocolate Cupcake.png',
-        'price' => 520,
-        'selectedSize' => 'Box of 6',
-        'stock' => 3,
-        'quantity' => 1,
-      ),
-      3 => 
-      array (
-        'id' => 5,
-        'name' => 'Cookies & Cream Cupcake',
-        'image' => '/Assets/Products/Cookies Cream Cupcake.png',
-        'price' => 590,
-        'selectedSize' => 'Box of 6',
-        'stock' => 5,
-        'quantity' => 2,
-      ),
-      4 => 
-      array (
-        'id' => 8,
-        'name' => 'Brownie',
-        'image' => '/Assets/Products/7dbe45d0c10faaaa.jpg',
-        'price' => 100,
-        'selectedSize' => NULL,
-        'stock' => 2,
-        'quantity' => 2,
-      ),
-      5 => 
-      array (
-        'id' => 7,
-        'name' => 'Mocha Cupcake',
-        'image' => '/Assets/Products/9047b75e2b5a4a6f.jpg',
-        'price' => 500,
-        'selectedSize' => 'Box of 20',
-        'stock' => 3,
-        'quantity' => 2,
-      ),
     ),
     'favourites' => 
     array (
       0 => 
       array (
-        'id' => 6,
-        'name' => 'Cinnamon Roll',
-        'image' => '/Assets/Products/Cinnamon Roll.png',
-        'price' => 300,
-      ),
-      1 => 
-      array (
         'id' => 8,
         'name' => 'Brownie',
         'image' => '/Assets/Products/7dbe45d0c10faaaa.jpg',
         'price' => 100,
       ),
-      2 => 
+      1 => 
       array (
-        'id' => 7,
-        'name' => 'Mocha Cupcake',
-        'image' => '/Assets/Products/9047b75e2b5a4a6f.jpg',
-        'price' => 90,
+        'id' => 3,
+        'name' => 'Strawberry Chocolate Cupcake',
+        'image' => '/Assets/Products/Strawberry Chocolate Cupcake.png',
+        'price' => 100,
       ),
     ),
   ),
   1 => 
   array (
     'id' => 2,
-    'name' => 'Jeffe',
+    'first_name' => 'Jeffe',
+    'last_name' => 'Customer',
     'email' => 'jeffe@example.com',
-    'password_hash' => '$2y$10$zdU0.LHJHyrGUg4mvqlgEuMmBIMcUiIbT/9Xj8XMBPKPKr7VaIlUi',
+    'contact_number' => '09187654321',
+    'address' => 
+    array (
+      'street' => '456 Main St',
+      'city' => 'Quezon City',
+      'state' => 'Metro Manila',
+      'postal_code' => '1100',
+    ),
+    'password_hash' => '$2y$10$x9Fz9Qf206s.vRmMwcGiXuR4wwlNhq/lAZ0Gie1TVMWDBEPSup.ay',
     'role' => 'customer',
+    'is_verified' => true,
+    'verification_token' => NULL,
+    'password_reset_token' => NULL,
+    'password_reset_expires' => NULL,
+    'is_active' => false,
     'cart' => 
     array (
     ),
@@ -113,10 +74,62 @@ return array (
   2 => 
   array (
     'id' => 3,
-    'name' => 'SysAdmin',
-    'email' => 'super@example.com',
-    'password_hash' => '$2y$10$CrEKRg/JKZG.uEQYvNtli.k1bXbbNGicTDv54cTqh.TY.yX19TKZq',
+    'first_name' => 'Jefferson',
+    'last_name' => 'Talagtag',
+    'email' => 'jeffersontalagtag06@gmail.com',
+    'contact_number' => '09190001111',
+    'address' => 
+    array (
+      'street' => '1 Server Rack',
+      'city' => 'Pasig',
+      'state' => 'Metro Manila',
+      'postal_code' => '1600',
+    ),
+    'password_hash' => '$2y$10$1vBmPwL.9YeHsrwdneW1bOinSOHgNpfGTP.wetlid8g/91mgoE0sS',
     'role' => 'superadmin',
+    'is_verified' => true,
+    'verification_token' => NULL,
+    'password_reset_token' => NULL,
+    'password_reset_expires' => NULL,
+    'is_active' => true,
+    'cart' => 
+    array (
+      0 => 
+      array (
+        'id' => 2,
+        'name' => 'Chocolate Donut',
+        'image' => '/Assets/Products/Chocolate Donut.png',
+        'price' => 220,
+        'selectedSize' => 'Large',
+        'stock' => 5,
+        'quantity' => 2,
+      ),
+    ),
+    'favourites' => 
+    array (
+    ),
+  ),
+  3 => 
+  array (
+    'id' => 4,
+    'first_name' => 'Hillary',
+    'last_name' => 'Delos Santos',
+    'email' => 'hillarydelossantos21@gmail.com',
+    'contact_number' => '',
+    'address' => 
+    array (
+      'street' => '',
+      'city' => '',
+      'state' => '',
+      'postal_code' => '',
+    ),
+    'password_hash' => '$2y$10$yhqCZNbtZuzyN/Rg3UpaX.HrBSyhV3irxZrVRk3JddYnNsuJoykca',
+    'role' => 'customer',
+    'is_verified' => true,
+    'verification_token' => NULL,
+    'password_reset_token' => 'f873c34d2257498950943f4485b59a04a3cada061e8ad72ccd5ce831ef1b6973',
+    'password_reset_expires' => 1762245475,
+    'is_active' => true,
     'cart' => 
     array (
     ),

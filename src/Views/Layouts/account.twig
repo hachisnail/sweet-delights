@@ -1,0 +1,342 @@
+{# FILE: Views/Layouts/account.twig #}
+{# This layout is corrected for the 5.5rem (h-22) header height #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ title|default('FlourEver - My Account') }}</title>
+<link rel="icon" type="image/png" href="/Assets/favicon.png">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<link href="/css/output.css" rel="stylesheet">
+
+<script src="/js/ModalService.js"></script>
+<script>
+ window.AUTH_STATE = {
+ isLoggedIn: {{ user ? 'true' : 'false' }},
+ initialCart: {{ (user.cart ?? [])|json_encode|raw }},
+ initialFavs: {{ (user.favourites ?? [])|json_encode|raw }}
+ };
+</script>
+<script src="/js/CartService.js"></script>
+<script src="/js/FavouriteService.js"></script>
+
+</head>
+<body class="bg-pink-50 text-gray-900 relative ">
+
+  {% if not hideHeader %}
+    {% include 'Components/header.twig' with { onAccountPage: true } %}
+  {% endif %}
+
+ {# --- NEW LAYOUT STRUCTURE --- #}
+ <div class="flex ">
+   
+   <aside class="fixed top-22 left-0 w-64 h-[calc(100vh-5.5rem)] bg-white border-r border-pink-200 shadow-lg z-20 overflow-y-auto">
+     {% block sidebar %}
+       <div class="p-6">
+         <h2 class="text-xl font-bold text-[#835234] mb-6">My Account</h2>
+      	<nav class="flex flex-col space-y-2">
+      		
+      		{% set baseClass = 'px-4 py-2 rounded-lg font-medium' %}
+      		{% set activeClass = 'bg-pink-100 text-[#835234] font-semibold' %}
+      		{% set inactiveClass = 'text-gray-700 hover:bg-pink-100' %}
+
+      		{% set activePage = activePage|default(null) %}
+
+      		<a href="/account/orders" 
+      		   class="{{ baseClass }} {{ activePage == 'orders' ? activeClass : inactiveClass }}">
+      		   My Orders
+      		</a>
+      		<a href="/account/settings" 
+      		   class="{{ baseClass }} {{ activePage == 'settings' ? activeClass : inactiveClass }}">
+      		   Account Settings
+      		</a>
+      		
+      		<a href="/logout" class="px-4 py-2 rounded-lg text-red-600 hover:bg-pink-100 font-medium border-t border-pink-200 mt-4 pt-4">Logout</a>
+      	</nav>
+      </div>
+     {% endblock %}
+   </aside>
+
+   <main class="flex-1 ml-64 min-h-[calc(100vh-5.5rem)] p-10">
+     {% block content %}{% endblock %}
+   </main>
+ </div>
+ {# --- END NEW LAYOUT STRUCTURE --- #}
+
+
+{# These are your existing fly-out sidebars and modals #}
+{% include 'Components/sidebar-favourite.twig' %}
+{% include 'Components/sidebar-cart.twig' %}
+{% include 'Components/modal.twig' %}
+
+<div id="overlay" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity z-40"></div>
+
+{# ... all your original <script> tags remain unchanged ... #}
+<script>
+ // --- History API patch ---
+ (function(history) {
+ const pushState = history.pushState;
+ history.pushState = function() {
+  const result = pushState.apply(this, arguments);
+  window.dispatchEvent(new Event('pushstate')); 
+  return result;
+ };
+ const replaceState = history.replaceState;
+ history.replaceState = function() {
+  const result = replaceState.apply(this, arguments);
+  window.dispatchEvent(new Event('replacestate'));
+  return result;
+ };
+ })(window.history);
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+ // --- Elements ---
+ const favouriteBtn = document.getElementById("favouriteBtn"); 
+ const cartBtn = document.getElementById("cartBtn");
+ const userMenuBtn = document.getElementById("userMenuBtn");
+ const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+ const checkoutBtn = document.getElementById("checkoutBtn"); // <-- Already here
+
+ const favouriteSidebar = document.getElementById("favouriteSidebar"); 
+ const cartSidebar = document.getElementById("cartSidebar");
+ const userDropdown = document.getElementById("userDropdown");
+ const mobileMenu = document.getElementById("mobileMenu");
+ 
+ const overlay = document.getElementById("overlay");
+ 
+
+ function closeAllSidebars() {
+ favouriteSidebar?.classList.add("translate-x-full"); 
+ cartSidebar?.classList.add("translate-x-full");
+ userDropdown?.classList.add("hidden");
+ mobileMenu?.classList.add("hidden");
+ overlay?.classList.add("hidden");
+ }
+
+
+ window.cartService = new CartService();
+ window.favouriteService = new FavouriteService();
+ 
+ window.cartService.init();
+ window.favouriteService.init();
+
+ window.dispatchEvent(new Event('servicesReady'));
+
+ // --- Toggle Functions ---
+ 
+ // Toggles sidebars that USE the overlay (Cart, Favourites)
+ function toggleSidebar(btn, sidebar, e) {
+ e.stopPropagation();
+ const isOpen = !sidebar.classList.contains("translate-x-full");
+ closeAllSidebars();
+ if (!isOpen) {
+  sidebar?.classList.remove("translate-x-full");
+  overlay?.classList.remove("hidden");
+  }
+ }
+ 
+ // Toggles dropdowns that DO NOT use the overlay (User Menu, Mobile Nav)
+ function toggleDropdown(btn, dropdown, e) {
+ e.stopPropagation();
+ const isOpen = !dropdown.classList.contains("hidden");
+ closeAllSidebars(); // This now closes all other panels
+ if (!isOpen) {
+  dropdown?.classList.remove("hidden");
+ }
+ }
+
+ // --- Event Listeners ---
+ favouriteBtn?.addEventListener("click", (e) => toggleSidebar(favouriteBtn, favouriteSidebar, e));
+ cartBtn?.addEventListener("click", (e) => toggleSidebar(cartBtn, cartSidebar, e));
+ 
+ // Use the *same* function for both dropdown-style menus
+ userMenuBtn?.addEventListener("click", (e) => toggleDropdown(userMenuBtn, userDropdown, e));
+ mobileMenuBtn?.addEventListener("click", (e) => toggleDropdown(mobileMenuBtn, mobileMenu, e));
+
+ // --- CHECKOUT BUTTON LISTENER (MODIFIED) ---
+ checkoutBtn?.addEventListener('click', () => {
+    if (window.AUTH_STATE.isLoggedIn) {
+        // User is logged in, proceed to checkout
+        window.location.href = '/checkout';
+    } else {
+        // User is not logged in, show login prompt
+        window.showModal({
+            type: 'warning',
+            title: 'Login Required',
+            message: 'You must be logged in to proceed to checkout.',
+            buttons: [
+                { 
+                    text: 'Cancel', 
+                    variant: 'cancel' 
+                },
+                {
+                    text: 'Login',
+                    variant: 'primary',
+                    callback: () => {
+                        // Redirect to the login page
+                        window.location.href = '/login';
+                    }
+                }
+            ]
+        });
+    }
+   });
+ // --- END OF MODIFICATION ---
+ 	
+ overlay?.addEventListener("click", closeAllSidebars);
+
+ // This listener now handles closing *both* dropdowns if you click away
+ window.addEventListener("click", (e) => {
+  // Handle User Dropdown
+  if (userDropdown && !userDropdown.classList.contains("hidden")) {
+ 	  if (!userMenuBtn.contains(e.target) && !userDropdown.contains(e.target)) {
+ 	 	  userDropdown.classList.add("hidden");
+ 	  }
+  }
+  
+  // Handle Mobile Menu
+  if (mobileMenu && !mobileMenu.classList.contains("hidden")) {
+ 	  if (!mobileMenuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+ 	 	  mobileMenu.classList.add("hidden");
+ 	  }
+  }
+ });
+
+ // --- LOGOUT BUTTON LOGIC ---
+ const logoutBtn = document.querySelector('a[href="/logout"]');
+ if (logoutBtn) {
+ 	 logoutBtn.addEventListener('click', (e) => {
+ 	 	  e.preventDefault();
+ 	 	  localStorage.removeItem('cart');
+ 	 	  localStorage.removeItem('favourite');
+ 	 	  window.location.href = '/logout';
+ 	 });
+ }
+
+ // --- Navigation Changes ---
+ function handleNavigation() {
+  closeAllSidebars(); 
+ }
+ window.addEventListener('popstate', handleNavigation);
+ window.addEventListener('pushstate', handleNavigation);
+ window.addEventListener('replacestate', handleNavigation);
+
+ // --- Cross-tab sync ---
+ window.addEventListener("storage", (e) => {
+  if (e.key === "cart" || e.key === "favourite") {
+ 	  window.cartService.init();
+ 	  window.favouriteService.init();
+  }
+ });
+});
+</script>
+
+{# ... (search-related script) ... #}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+// --- Helper function to prevent spamming the API on every key press ---
+let debounceTimer;
+const debounce = (func, delay) => {
+ return (...args) => {
+ 	  clearTimeout(debounceTimer);
+ 	  debounceTimer = setTimeout(() => {
+ 	 	  func.apply(this, args);
+ 	  }, delay);
+ };
+};
+
+// --- Renders the HTML for the dropdown ---
+const renderResults = (results, container) => {
+ 	// Clear old results
+ 	container.innerHTML = '';
+ 	
+ 	if (results.categories.length === 0 && results.products.length === 0) {
+ 	  container.innerHTML = `<div class="p-3 text-sm text-gray-500">No results found.</div>`;
+ 	  container.classList.remove('hidden');
+ 	  return;
+ 	}
+
+ 	// Add categories
+ 	if (results.categories.length > 0) {
+ 	  let categoryHtml = '<div class="p-2 border-b border-pink-100"><span class="px-2 text-xs font-bold text-gray-500 uppercase">Categories</span>';
+ 	  results.categories.forEach(cat => {
+ 	 	  categoryHtml += `<a href="${cat.url}" class="block px-4 py-2 text-sm text-[#835234] hover:bg-pink-50 rounded-md">${cat.name}</a>`;
+ 	  });
+ 	  categoryHtml += '</div>';
+ 	  container.innerHTML += categoryHtml;
+ 	}
+
+ 	// Add products
+ 	if (results.products.length > 0) {
+ 	  let productHtml = '<div class="p-2"><span class="px-2 text-xs font-bold text-gray-500 uppercase">Products</span>';
+ 	  results.products.forEach(prod => {
+ 	 	  productHtml += `
+ 	 	 	  <a href="${prod.url}" class="flex items-center gap-3 px-4 py-2 text-sm text-[#835234] hover:bg-pink-50 rounded-md">
+ 	 	 	 	  <img src="${prod.image}" alt="${prod.name}" class="w-8 h-8 rounded-md object-cover" onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+ 	 	 	 	  <span>${prod.name}</span>
+ 	 	 	  </a>`;
+ 	  });
+ 	  productHtml += '</div>';
+ 	  container.innerHTML += productHtml;
+ 	}
+ 	
+ 	container.classList.remove('hidden');
+};
+
+// --- Fetches data from the API and calls render ---
+const fetchAndDisplayResults = async (query, container) => {
+ 	if (query.length < 2) { // Don't search for 1 character
+ 	  container.classList.add('hidden');
+ 	  return;
+ 	}
+
+ 	try {
+ 	  const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+ 	  if (!response.ok) return;
+
+ 	  const results = await response.json();
+ 	  renderResults(results, container);
+ 	} catch (error) {
+ 	  console.error('Search fetch error:', error);
+ 	}
+};
+
+// --- Setup for Desktop Search ---
+const desktopSearchInput = document.getElementById('desktopSearch');
+const desktopResultsContainer = document.getElementById('desktopSearchResults');
+
+if (desktopSearchInput) {
+ 	desktopSearchInput.addEventListener('input', debounce((e) => {
+ 	  fetchAndDisplayResults(e.target.value, desktopResultsContainer);
+ 	}, 300)); // 300ms delay
+}
+
+// --- Setup for Mobile Search ---
+const mobileSearchInput = document.getElementById('mobileSearch');
+const mobileResultsContainer = document.getElementById('mobileSearchResults');
+
+if (mobileSearchInput) {
+ 	mobileSearchInput.addEventListener('input', debounce((e) => {
+ 	  fetchAndDisplayResults(e.target.value, mobileResultsContainer);
+  }, 300)); // 300ms delay
+}
+
+// --- Close dropdowns when clicking outside ---
+document.addEventListener('click', (e) => {
+ 	if (desktopSearchInput && !desktopSearchInput.contains(e.target) && !desktopResultsContainer.contains(e.target)) {
+ 	  desktopResultsContainer.classList.add('hidden');
+ 	}
+ 	if (mobileSearchInput && !mobileSearchInput.contains(e.target) && !mobileResultsContainer.contains(e.target)) {
+  	  mobileResultsContainer.classList.add('hidden');
+ 	}
+});
+});
+</script>
+
+</body>
+</html>

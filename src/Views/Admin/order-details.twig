@@ -1,0 +1,128 @@
+{% extends "Layouts/admin.twig" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+
+  <div class="flex flex-col md:flex-row justify-between md:items-start gap-4 mb-6">
+    <div>
+      <h2 class="text-3xl font-bold text-[#835234]">{{ title }}</h2>
+      <p class="text-gray-500">Placed on: {{ order.date|date("F j, Y, g:i a") }}</p>
+    </div>
+    
+    <div>
+      <form action="{{ app_url }}/app/orders/{{ order.id }}/update-status" method="POST" class="flex items-center gap-2">
+        
+        {# --- MODIFICATION START --- #}
+        {% set isLocked = order.status == 'Delivered' or order.status == 'Cancelled' %}
+        {# --- MODIFICATION END --- #}
+
+        <label for="status" class="text-sm font-medium text-gray-700">Set Status:</label>
+        <select name="status" id="status" 
+                class="block w-48 px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 text-sm
+                       {{ isLocked ? 'bg-gray-100 cursor-not-allowed' : '' }}"
+                {{ isLocked ? 'disabled' : '' }}>
+          
+          {% for status in order_statuses %}
+            <option value="{{ status }}" {{ order.status == status ? 'selected' : '' }}>{{ status }}</option>
+          {% endfor %}
+        </select>
+        
+        <button type="submit" 
+                class="px-4 py-2 text-white text-sm font-medium rounded-md transition
+                       {{ isLocked ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#835234] hover:bg-[#6d412a]' }}"
+                {{ isLocked ? 'disabled' : '' }}>
+          Update
+        </button>
+      </form>
+
+      {# --- MODIFICATION START --- #}
+      {% if isLocked %}
+        <p class="text-xs text-gray-500 mt-1 text-right">
+          This order is {{ order.status }} and can no longer be modified.
+        </p>
+      {% endif %}
+      {# --- MODIFICATION END --- #}
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md shadow-gray-400 border border-gray-200">
+      <h3 class="text-xl font-semibold text-[#a07445] mb-3">Customer & Shipping</h3>
+      <div class="text-gray-700 space-y-1">
+        <p class="font-medium">{{ order.customer_name }}</d>
+        <p class="text-sm">{{ order.address.street }}</p>
+        <p class="text-sm">{{ order.address.city }}, {{ order.address.state }} {{ order.address.postal_code }}</p>
+        <p class="text-sm pt-2 border-t border-gray-100 mt-2">{{ order.customer_email ?? 'N/A' }}</p>
+        <p class="text-sm">{{ order.customer_contact ?? 'N/A' }}</p>
+      </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md shadow-gray-400 border border-gray-200">
+      <h3 class="text-xl font-semibold text-[#a07445] mb-3">Order Summary</h3>
+      
+      {# This checks if the fee data exists from the new controller logic below #}
+      {% if order.subtotal is defined %}
+        <div class="space-y-2 text-gray-700">
+          <div class="flex justify-between">
+            <span>Subtotal</span>
+            <span class="font-medium">₱{{ order.subtotal|number_format(2) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Tax</span>
+            <span class="font-medium">₱{{ order.tax|number_format(2) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Shipping</span>
+            <span class="font-medium">₱{{ order.shipping_fee|number_format(2) }}</span>
+          </div>
+          <div class="flex justify-between text-xl font-bold text-[#835234] mt-2 pt-2 border-t border-gray-200">
+            <span>Total</span>
+            <span>₱{{ order.total|number_format(2) }}</span>
+          </div>
+        </div>
+      {% else %}
+         {# Fallback for old orders before you added this feature #}
+         {% set subtotal = order.total / 1.12 %}
+         {% set tax = order.total - subtotal %}
+         <div class="space-y-2 text-gray-700">
+            <div class="flex justify-between">
+              <span>Subtotal</span>
+              <span class="font-medium">₱{{ subtotal|number_format(2) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Tax (12%)</span>
+              <span class="font-medium">₱{{ tax|number_format(2) }}</span>
+            </div>
+            <div class="flex justify-between text-xl font-bold text-[#835234] mt-2 pt-2 border-t border-gray-200">
+              <span>Total</span>
+              <span>₱{{ order.total|number_format(2) }}</span>
+            </div>
+         </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-md shadow-gray-400 border border-gray-200 overflow-hidden">
+    <h3 class="text-xl font-semibold text-[#a07445] p-6">Items ({{ order.items|length }})</h3>
+    <div class="border-t border-gray-200">
+      {% for item in order.items %}
+        <a href="{{ item.sku ? '/products/' ~ item.sku : '#' }}" target="_blank"
+           class="flex items-center gap-4 p-4 transition hover:bg-gray-50 {{ not loop.last ? 'border-b border-gray-200' : '' }}">
+          
+          <img src="{{ item.image }}" alt="{{ item.name }}" class="w-16 h-16 rounded-lg object-cover border border-pink-100 bg-pink-50">
+          
+          <div class="flex-1">
+            <p class="text-md font-semibold text-gray-800">{{ item.name }}</p>
+            <p class="text-sm text-gray-500">{{ item.selectedSize }}</p>
+          </div>
+          
+          <div class="text-right text-gray-700">
+            <p class="text-sm">₱{{ item.price|number_format(2) }} &times; {{ item.quantity }}</p>
+            <p class="text-md font-medium text-gray-900">₱{{ (item.price * item.quantity)|number_format(2) }}</p>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

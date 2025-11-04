@@ -1,0 +1,447 @@
+{% extends "Layouts/public.twig" %}
+
+{% block content %}
+
+{% if product %}
+
+  <div class="snap-start pt-20 ">
+
+    <div class="max-w-4xl mx-auto px-6 mb-4">
+      <div class="flex items-center gap-x-2 text-sm text-[#A69273] font-semibold">
+        
+        <a href="/products" class="hover:text-[#A96B44] hover:underline">All Products</a>
+        
+        {% if product.category and product.category.parent %}
+          <span>/</span>
+          <a href="/products?category={{ product.category.parent.slug }}" class="hover:text-[#A96B44] hover:underline">
+            {{ product.category.parent.name }}
+          </a>
+        {% endif %}
+
+        {% if product.category %}
+          <span>/</span>
+          <a href="/products?category={{ product.category.slug }}" class="hover:text-[#A96B44] hover:underline">
+            {{ product.category.name }}
+          </a>
+        {% elseif product.category_name %}
+           {# Fallback in case only the old 'category_name' string is available #}
+           <span>/</span>
+           <span class="text-gray-500">{{ product.category_name }}</span>
+        {% endif %}
+
+        {# 3. Display the current Product Name (as text) #}
+        <span>/</span>
+        <span class="text-[#A96B44] truncate max-w-xs cursor-default">{{ product.name }}</span>
+      </div>
+    </div>
+    {# --- END: ADDED BREADCRUMB --- #}
+
+
+    {# This is all your existing code for a found product #}
+    <div class="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-lg border border-pink-100 "
+         data-product-id="{{ product.id }}"
+         data-product-name="{{ product.name }}"
+         data-product-price="{{ product.price }}" {# This is now the base/starting price #}
+         data-product-image="{{ product.image }}"
+         data-product-stock="{{ product.stock }}"
+         data-product-sizes='{{ product.sizes|json_encode|raw }}'>
+
+      <div class="flex flex-col md:flex-row gap-8">
+        <div class="md:w-1/2 flex justify-center">
+          {#  --- START: UPDATED IMAGE --- #}
+          <img src="{{ product.image }}" alt="{{ product.name }}"
+               id="mainProductImage" {#  ADDED ID #}
+               class="rounded-xl w-full max-w-sm object-cover shadow-md shadow-gray-400"
+               onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+          {#  --- END: UPDATED IMAGE --- #}
+        </div>
+
+        <div class="md:w-1/2 flex flex-col ">
+          <div>
+            <h1 class="text-3xl font-bold text-[#835234] mb-2">{{ product.name }}</h1>
+            
+            {# --- MODIFIED CATEGORY LINE --- #}
+            {# Uses 'product.category.name' if available, falls back to 'product.category_name' #}
+            <p class="text-sm text-pink-600 font-semibold mb-2">{{ product.category.name | default(product.category_name) }}</p>
+            {# --- END MODIFIED LINE --- #}
+            
+            <p id="productPriceDisplay" class="text-gray-600 mb-4 text-lg">
+                {% if product.sizes is defined and product.sizes|length > 0 %}
+                    Starts at ₱{{ product.price|number_format(2, '.', ',') }}
+                {% else %}
+                    ₱{{ product.price|number_format(2, '.', ',') }}
+                {% endif %}
+            </p>
+            
+            <p class="text-gray-700 mb-6 leading-relaxed">{{ product.description }}</p>
+
+            {% if product.sizes is defined and product.sizes|length > 0 %}
+              <div class="mb-4">
+                <p class="font-semibold text-[#835234] mb-1">Available Sizes:</p>
+                <div id="sizeSelector" class="flex gap-2 flex-wrap">
+                  {% for size in product.sizes %}
+                    {#  --- START: UPDATED BUTTON --- #}
+                    <button 
+                      type="button"
+                      data-size="{{ size.name }}"
+                      data-stock="{{ size.stock }}"
+                      data-price="{{ size.price }}"
+                      data-image="{{ size.image | default('') }}" {#  ADDED DATA-IMAGE #}
+                      class="size-btn px-3 py-1 bg-pink-100 text-pink-700 rounded-lg text-sm hover:bg-pink-200 focus:outline-none transition">
+                      {{ size.name }} (₱{{ size.price|number_format(2) }}) - {{ size.stock }} left
+                    </button>
+                    {#  --- END: UPDATED BUTTON --- #}
+                  {% endfor %}
+                </div>
+                <div id="sizeWarning" class="hidden flex items-center gap-2 mt-1 text-red-500 text-xs">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert flex-shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                  <p>Please select a size before adding to cart.</p>
+                </div>
+              </div>
+            {% endif %}
+            
+            {% if product.sizes is empty %}
+                <p class="text-sm text-gray-500 mt-4">Total Stock: {{ product.stock }}</p>
+            {% endif %}
+          </div>
+
+          <div class="mt-6 flex flex-col gap-3">
+            
+            {# --- START: MODIFIED QUANTITY SELECTOR --- #}
+            <div id="quantitySelectorContainer" 
+                 class="flex items-center gap-3 {% if product.sizes is defined and product.sizes|length > 0 %}hidden{% endif %}">
+              <label class="text-[#835234] font-semibold">Quantity:</label>
+              <div class="flex items-center border rounded-lg overflow-hidden">
+                <button id="decreaseQty" class="px-3 py-1 bg-pink-100 hover:bg-pink-200">−</button>
+                <input id="quantityInput" type="number" value="1" min="1" max="{{ product.stock }}"
+                       class="w-16 text-center border-l border-r outline-none">
+                <button id="increaseQty" class="px-3 py-1 bg-pink-100 hover:bg-pink-200">+</button>
+              </div>
+            </div>
+            {# --- END: MODIFIED QUANTITY SELECTOR --- #}
+
+            <div class="flex gap-3">
+              <button id="addToCartBtn" 
+                      class="flex-1 bg-[#835234] hover:bg-[#6d412a] text-white py-2 rounded-xl transition">
+                Add to Cart
+              </button>
+              <button id="addToFavouriteBtn" 
+                      class="bg-pink-100 hover:bg-pink-200 text-[#835234] p-2 rounded-xl transition relative">
+                <svg id="heartIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart transition-all duration-300"><path d="M19.5 12.571 12 20l-7.5-7.429A5 5 0 0 1 12 6a5 5 0 0 1 7.5 6.571Z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+  .shake {
+    animation: shake 0.3s ease-in-out;
+  }
+  </style>
+
+<script>
+window.addEventListener("servicesReady", () => {
+  const container = document.querySelector("[data-product-id]");
+  if (!container) return;
+
+  const qtyInput = document.getElementById("quantityInput");
+  const decBtn = document.getElementById("decreaseQty");
+  const incBtn = document.getElementById("increaseQty");
+  const sizeButtons = Array.from(document.querySelectorAll("[data-size]"));
+  const sizeWarning = document.getElementById("sizeWarning");
+  const sizeSelector = document.getElementById("sizeSelector");
+  const addToCartBtn = document.getElementById("addToCartBtn");
+  
+  {# --- START: ADDED QUANTITY VAR --- #}
+  const quantitySelectorContainer = document.getElementById("quantitySelectorContainer");
+  {# --- END: ADDED QUANTITY VAR --- #}
+  
+  // --- START: FAVOURITE VARS ---
+  const addToFavouriteBtn = document.getElementById("addToFavouriteBtn");
+  const heartIcon = document.getElementById("heartIcon");
+  // --- END: FAVOURITE VARS ---
+  
+  const priceDisplay = document.getElementById("productPriceDisplay");
+  const mainProductImage = document.getElementById("mainProductImage");
+
+  const product = {
+    id: Number(container.dataset.productId),
+    name: container.dataset.productName,
+    price: Number(container.dataset.productPrice), // This is the base/starting price
+    image: container.dataset.productImage,
+    stock: Number(container.dataset.productStock || "1"),
+    sizes: JSON.parse(container.dataset.productSizes || "[]"),
+  };
+
+  let selectedSize = null;
+  let selectedStock = 0;
+  let selectedPrice = product.price; // Default to base price
+  let selectedImage = product.image; // Default to main image
+
+  // --- START: ADDED FAVOURITE LOGIC (1 of 2) ---
+  const updateHeartUI = () => {
+    if (window.favouriteService && window.favouriteService.isFavourite(product.id)) {
+        // Apply classes to show it's favourited
+        heartIcon.classList.add("fill-red-500", "stroke-red-500");
+    } else {
+        // Remove classes to show it's not favourited
+        heartIcon.classList.remove("fill-red-500", "stroke-red-500");
+    }
+  };
+  // --- END: ADDED FAVOURITE LOGIC (1 of 2) ---
+
+  const getAvailableStockForSelectedSize = () => {
+    if (product.sizes.length > 0) {
+      // If sizes exist, stock is determined by selectedSize
+      // If no size is selected, stock is 0
+      return selectedSize ? selectedStock : 0;
+    }
+    // If no sizes, stock is from the main product
+    return product.stock;
+  };
+
+  const refreshQuantityUI = () => {
+    if (product.sizes.length > 0) {
+        if (!selectedSize) {
+          addToCartBtn.classList.add("opacity-60", "cursor-not-allowed");
+          addToCartBtn.dataset.disabled = "true";
+          qtyInput.value = 1;
+          decBtn.disabled = true;
+          incBtn.disabled = true;
+          
+          if (priceDisplay) {
+              priceDisplay.textContent = `Starts at ₱${product.price.toFixed(2)}`;
+          }
+          
+          if (mainProductImage) {
+              mainProductImage.src = product.image;
+          }
+          selectedImage = product.image;
+          return;
+        }
+    }
+    
+    const available = getAvailableStockForSelectedSize();
+
+    addToCartBtn.classList.remove("opacity-60", "cursor-not-allowed");
+    addToCartBtn.dataset.disabled = "false";
+    
+    if (available <= 0) {
+      addToCartBtn.classList.add("opacity-60", "cursor-not-allowed");
+      addToCartBtn.dataset.disabled = "true";
+      addToCartBtn.textContent = "Out of Stock";
+    } else {
+      addToCartBtn.classList.remove("opacity-60", "cursor-not-allowed");
+      addToCartBtn.dataset.disabled = "false";
+      addToCartBtn.textContent = "Add to Cart";
+    }
+
+    decBtn.disabled = Number(qtyInput.value) <= 1;
+    incBtn.disabled = Number(qtyInput.value) >= available;
+    qtyInput.max = available;
+  };
+
+  // --- Size selection ---
+  sizeButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      sizeButtons.forEach(b => b.classList.remove("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]"));
+      sizeButtons.forEach(b => b.classList.add("bg-pink-100", "text-pink-700"));
+
+      btn.classList.remove("bg-pink-100", "text-pink-700");
+      btn.classList.add("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]");
+
+      selectedSize = btn.dataset.size;
+      selectedStock = Number(btn.dataset.stock);
+      
+      selectedPrice = Number(btn.dataset.price); // Get price from button
+      if (priceDisplay) {
+        priceDisplay.textContent = `₱${selectedPrice.toFixed(2)}`; // Update UI
+      }
+      
+      const newImage = btn.dataset.image;
+      if (newImage && mainProductImage) {
+          mainProductImage.src = newImage;
+          selectedImage = newImage;
+      } else if (mainProductImage) {
+          mainProductImage.src = product.image;
+          selectedImage = product.image;
+      }
+      
+      {# --- START: SHOW QUANTITY SELECTOR --- #}
+      if (quantitySelectorContainer) {
+        quantitySelectorContainer.classList.remove("hidden");
+      }
+      {# --- END: SHOW QUANTITY SELECTOR --- #}
+      
+      sizeWarning.classList.add("hidden");
+      qtyInput.value = 1;
+      refreshQuantityUI();
+    });
+  });
+
+  if (product.sizes.length === 1) {
+    sizeButtons[0].click();
+  }
+  
+  // --- Quantity buttons ---
+  decBtn.addEventListener("click", () => {
+      let currentVal = Number(qtyInput.value);
+      if (currentVal > 1) {
+          qtyInput.value = currentVal - 1;
+          refreshQuantityUI();
+      }
+  });
+
+  incBtn.addEventListener("click", () => {
+      let currentVal = Number(qtyInput.value);
+      const max = Number(qtyInput.max || 1);
+      if (currentVal < max) {
+          qtyInput.value = currentVal + 1;
+          refreshQuantityUI();
+      }
+  });
+  
+  qtyInput.addEventListener("change", () => {
+      let currentVal = Number(qtyInput.value);
+      const max = Number(qtyInput.max || 1);
+      if (currentVal < 1) qtyInput.value = 1;
+      if (currentVal > max) qtyInput.value = max;
+      refreshQuantityUI();
+  });
+
+  // --- Add to Cart ---
+  addToCartBtn.addEventListener("click", () => {
+    if (product.sizes.length > 0 && !selectedSize) {
+      sizeWarning.classList.remove("hidden");
+      sizeSelector.classList.add("shake");
+      setTimeout(() => sizeSelector.classList.remove("shake"), 300);
+      return;
+    }
+
+    const availableStock = getAvailableStockForSelectedSize();
+    if (availableStock <= 0) {
+      window.showModal({
+        type: "warning",
+        title: "Out of Stock",
+        message: `Sorry, ${product.name}${selectedSize ? " (" + selectedSize + ")" : ""} is out of stock.`,
+        buttons: [{ text: "OK", variant: "cancel" }],
+      });
+      return;
+    }
+    
+    const requested = Math.min(Number(qtyInput.value) || 1, availableStock);
+
+    window.cartService.addItem({
+        id: product.id,
+        name: product.name,
+        image: selectedImage, 
+        price: selectedPrice,
+        selectedSize,
+        stock: selectedSize ? selectedStock : product.stock,
+    }, requested);
+
+    window.showModal({
+        type: "success",
+        title: "Added to Cart",
+        message: `${product.name}${selectedSize ? " (" + selectedSize + ")" : ""} × ${requested} added successfully.`,
+        buttons: [{ text: "OK", variant: "confirm" }],
+    });
+
+    // Reset UI
+    qtyInput.value = 1;
+    if (product.sizes.length > 0) {
+        selectedSize = null;
+        selectedStock = 0;
+        selectedPrice = product.price; 
+        selectedImage = product.image; 
+        if (mainProductImage) {
+          mainProductImage.src = product.image;
+        }
+        sizeButtons.forEach(b => {
+          b.classList.remove("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]");
+          b.classList.add("bg-pink-100", "text-pink-700");
+        });
+        
+        {# --- START: HIDE QUANTITY SELECTOR ON RESET --- #}
+        if (quantitySelectorContainer) {
+          quantitySelectorContainer.classList.add("hidden");
+        }
+        {# --- END: HIDE QUANTITY SELECTOR ON RESET --- #}
+    }
+    refreshQuantityUI();
+  });
+
+  // --- START: ADDED FAVOURITE LOGIC (2 of 2) ---
+  addToFavouriteBtn.addEventListener("click", () => {
+    if (!window.favouriteService) return;
+
+    // Use the main 'product' object. Favourites track the base product.
+    const wasAdded = window.favouriteService.toggle(product);
+    
+    // Update the heart icon immediately
+    updateHeartUI();
+
+    // Show a confirmation
+    window.showModal({
+        type: wasAdded ? "success" : "info",
+        title: wasAdded ? "Added to Favourites" : "Removed from Favourites",
+        message: `${product.name} ${wasAdded ? "added to" : "removed from"} your favourites.`,
+        buttons: [{ text: "OK", variant: "confirm" }],
+        duration: 3000 // Auto-close after 3 seconds
+    });
+  });
+  // --- END: ADDED FAVOURITE LOGIC (2 of 2) ---
+
+  window.addEventListener("favouritesChanged", updateHeartUI);
+  window.addEventListener("cartChanged", refreshQuantityUI);
+  window.addEventListener("storage", () => {
+    refreshQuantityUI();
+    updateHeartUI();
+  });
+
+  // --- Initial Load ---
+  refreshQuantityUI();
+  updateHeartUI();
+});
+</script>
+  {# End of existing code for a found product #}
+
+
+{% else %}
+
+  {#  START: This block runs if product is null (not found) #}
+  <div class="snap-start pt-20 ">
+    <div class="max-w-4xl mx-auto p-6 py-20 bg-white rounded-2xl shadow-lg border border-pink-100 text-center">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-slash mx-auto text-pink-400 mb-4">
+            <path d="m14 14-4.5 4.5"/>
+            <path d="M10.5 10.5 6 6"/>
+            <path d="m21 21-4.5-4.5"/>
+            <path d="m17 17-4.5-4.5"/>
+            <circle cx="11" cy="11" r="8"/>
+        </svg>
+
+        <h1 class="text-3xl font-bold text-[#835234] mb-4">Product Not Found</h1>
+        <p class="text-gray-700 mb-8 text-lg">
+            {{ error_message|default("Sorry, we couldn't find that product. It might have been unlisted, edited, or removed.") }}
+        </p>
+        <a href="/products" 
+           class="bg-[#835234] hover:bg-[#6d412a] text-white py-2 px-6 rounded-xl transition font-semibold text-lg">
+            Back to All Products
+        </a>
+    </div>
+  </div>
+  {#  END: Error block #}
+
+{% endif %}
+{#  END: Error Handler Check #}
+
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "Layouts/admin.twig" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
+    <h2 class="text-2xl font-bold text-[#835234]">{{ title }}</h2>
+    <a href="{{ app_url }}/system/users" class="text-sm text-pink-600 hover:underline">
+      &larr; Back to User List
+    </a>
+  </div>
+
+  <div class="bg-white p-6 rounded-lg shadow-md shadow-gray-400 border border-gray-200">
+
+    <form method="POST" action="{{ form_action }}" class="space-y-6">
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label for="first_name" class="block text-sm font-medium text-gray-700">First Name</label>
+          <input type="text" name="first_name" id="first_name" value="{{ (form_mode == 'edit') ? user.first_name : '' }}" required
+                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+        </div>
+        <div>
+          <label for="last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
+          <input type="text" name="last_name" id="last_name" value="{{ (form_mode == 'edit') ? user.last_name : '' }}" required
+                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+        </div>
+      </div>
+
+      <div>
+        <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+        <input type="email" name="email" id="email" value="{{ (form_mode == 'edit') ? user.email : '' }}" required
+               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+        {% if error == 'email_exists' %}
+            <p class="mt-2 text-sm text-red-600">This email address is already in use.</p>
+        {% endif %}
+      </div>
+
+      <div>
+        <label for="password" class="block text-sm font-medium text-gray-700">
+          Password
+          {% if form_mode == 'edit' %}<span class="text-gray-500">(Leave blank to keep unchanged)</span>{% endif %}
+        </label>
+        <input type="password" name="password" id="password" 
+               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
+               {{ form_mode == 'create' ? 'required' : '' }}>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
+          <select id="role" name="role" 
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+            {% for role in user_roles %}
+              <option value="{{ role }}" {{ (user.role|default('customer')) == role ? 'selected' : '' }}>
+                {{ role|capitalize }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="is_active" class="block text-sm font-medium text-gray-700">Account Status</label>
+          <div class="mt-2 flex items-center">
+            <input id="is_active" name="is_active" type="checkbox" value="1"
+                   class="h-4 w-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500"
+                   {{ (form_mode == 'create') or (form_mode == 'edit' and user.is_active) ? 'checked' : '' }}>
+            <label for="is_active" class="ml-2 block text-sm text-gray-900">
+              Account is Active
+            </label>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">If unchecked, the user will not be able to log in.</p>
+        </div>
+      </div>
+      
+      <div class="border-t border-gray-200 pt-5">
+        <button type="submit" class="w-full md:w-auto px-6 py-2 bg-pink-600 text-white font-semibold rounded-xl hover:bg-pink-700 transition">
+          {{ form_mode == 'create' ? 'Create User' : 'Save Changes' }}
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}

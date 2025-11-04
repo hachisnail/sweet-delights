@@ -7,19 +7,24 @@ use Slim\Routing\RouteCollectorProxy; // <-- Ensures correct type hinting
 use SweetDelights\Mayie\Controllers\HomeController;
 use SweetDelights\Mayie\Controllers\AboutController;
 use SweetDelights\Mayie\Controllers\ProductsController;
-
+use SweetDelights\Mayie\Controllers\SearchController;
 
 use SweetDelights\Mayie\Controllers\AccountController;
+use SweetDelights\Mayie\Controllers\CheckoutController; // <-- ADD THIS
 use SweetDelights\Mayie\Controllers\UnderConstructionController;
 
-use SweetDelights\Mayie\Controllers\Api\AuthController; 
-use SweetDelights\Mayie\Controllers\Api\CartController;
-use SweetDelights\Mayie\Controllers\Api\FavouritesController;
+use SweetDelights\Mayie\Controllers\Api\ApiAuthController; 
+use SweetDelights\Mayie\Controllers\Api\ApiCartController;
+use SweetDelights\Mayie\Controllers\Api\ApiFavouritesController;
+use SweetDelights\Mayie\Controllers\Api\ApiSearchController; 
 use SweetDelights\Mayie\Middleware\ApiAuthMiddleware;
 
 use SweetDelights\Mayie\Controllers\Admin\DashboardAdminController;
 use SweetDelights\Mayie\Controllers\Admin\SystemAdminController; 
 use SweetDelights\Mayie\Controllers\Admin\UserAdminController;
+use SweetDelights\Mayie\Controllers\Admin\OrderAdminController;   // <-- ADD THIS
+use SweetDelights\Mayie\Controllers\Admin\ReportsAdminController;
+use SweetDelights\Mayie\Controllers\Admin\SettingsAdminController;
 
 use SweetDelights\Mayie\Controllers\Admin\CategoryAdminController; 
 use SweetDelights\Mayie\Controllers\Admin\ProductAdminController; 
@@ -28,47 +33,90 @@ use SweetDelights\Mayie\Middleware\RoleAuthMiddleware;
 
 return function (App $app) {
 
-    // (Public and Auth routes are unchanged)
-    $app->get('/', [HomeController::class, 'index']);
+    // (Public and Auth routes)
+    $app->get('/', [HomeController::class, 'index'])->setName('home');
     $app->get('/about', [AboutController::class, 'index']);
-    $app->get('/products', [ProductsController::class, 'index']);
-    $app->get('/products/{id:[0-9]+}', [ProductsController::class, 'show']); // Allow numeric IDs
-    $app->get('/login', [AuthController::class, 'showLogin']);
-    $app->post('/login', [AuthController::class, 'login']);
-    $app->get('/logout', [AuthController::class, 'logout']);
+    $app->get('/products', [ProductsController::class, 'index'])->setName('products.index');
+    
+    $app->get('/search', [SearchController::class, 'index'])->setName('search.index');
+
+    $app->get('/products/{sku}', [ProductsController::class, 'show'])->setName('products.show');
+
+    $app->get('/register', [ApiAuthController::class, 'showRegister']);
+    $app->post('/register', [ApiAuthController::class, 'register']);
+    $app->get('/verify-message', [ApiAuthController::class, 'showVerificationMessage']);
+    $app->get('/verify-email', [ApiAuthController::class, 'verifyEmail']);
+    
+    $app->get('/forgot-password', [ApiAuthController::class, 'showForgotPassword']);
+    $app->post('/forgot-password', [ApiAuthController::class, 'handleForgotPassword']);
+    $app->get('/reset-password', [ApiAuthController::class, 'showResetPassword']);
+    $app->post('/reset-password', [ApiAuthController::class, 'handleResetPassword']);
+    
+    $app->get('/login', [ApiAuthController::class, 'showLogin']);
+    $app->post('/login', [ApiAuthController::class, 'login']);
+    $app->get('/logout', [ApiAuthController::class, 'logout']);
 
 
-    // (API routes are unchanged)
+    // (API routes)
     $app->group('/api', function (RouteCollectorProxy $group) {
-        $group->post('/cart/sync', [CartController::class, 'sync']);
-        $group->post('/favourites/sync', [FavouritesController::class, 'sync']);
-    })->add(new ApiAuthMiddleware());
+        
+        $group->get('/search', ApiSearchController::class);
+
+        // --- Authenticated API routes ---
+        $group->group('', function (RouteCollectorProxy $authGroup) {
+            $authGroup->post('/cart/sync', [ApiCartController::class, 'sync']);
+            $authGroup->post('/favourites/sync', [ApiFavouritesController::class, 'sync']);
+        })->add(new ApiAuthMiddleware());
+
+    });
 
 
-    // (Account routes are unchanged)
+    // (Account routes)
     $app->group('/account', function (RouteCollectorProxy $group) {
         $group->get('/settings', [AccountController::class, 'showSettings']);
-        $group->get('/orders', [AccountController::class, 'showOrders']);
+        $group->get('/orders', [AccountController::class, 'showOrders'])->setName('account.orders');
+        $group->get('/orders/{id:[0-9]+}', [AccountController::class, 'showOrderDetails'])->setName('account.orders.show');
+        $group->post('/orders/{id:[0-9]+}/confirm-delivery', [AccountController::class, 'confirmDelivery'])->setName('account.orders.confirm');
         $group->post('/settings/update', [AccountController::class, 'updateProfile']);
         $group->post('/settings/password', [AccountController::class, 'updatePassword']);
+    })->add(new RoleAuthMiddleware(['customer', 'admin', 'superadmin']));
+
+    // --- NEW CHECKOUT ROUTES ---
+    // This group handles the checkout flow and must be authenticated.
+    $app->group('/checkout', function (RouteCollectorProxy $group) {
+        $group->get('', [CheckoutController::class, 'showCheckout'])->setName('checkout.show');
+        $group->post('/process', [CheckoutController::class, 'processCheckout'])->setName('checkout.process');
+        $group->get('/success', [CheckoutController::class, 'showSuccess'])->setName('checkout.success');
     })->add(new RoleAuthMiddleware(['customer', 'admin', 'superadmin']));
 
 
     // --- Admin Routes ---
     $app->group('/app', function (RouteCollectorProxy $group) {
         
-        // Dashboard (Already correct)
+        // Dashboard
         $group->get('', [DashboardAdminController::class, 'dashboard'])->setName('app.dashboard');
         $group->get('/', [DashboardAdminController::class, 'dashboard'])->setName('app.dashboard.slash');
         $group->get('/dashboard', [DashboardAdminController::class, 'dashboard'])->setName('app.dashboard.main');
         
         // Users
-        $group->get('/users', [UserAdminController::class, 'index'])->setName('app.users');
+        $group->get('/users', [UserAdminController::class, 'index'])->setName('app.users.index'); // <-- CHANGED
+        $group->get('/users/new', [UserAdminController::class, 'create'])->setName('app.users.create'); // <-- NEW
+        $group->post('/users', [UserAdminController::class, 'store'])->setName('app.users.store'); // <-- NEW
+        $group->get('/users/{id:[0-9]+}/edit', [UserAdminController::class, 'edit'])->setName('app.users.edit'); // <-- NEW
+        $group->post('/users/{id:[0-9]+}', [UserAdminController::class, 'update'])->setName('app.users.update'); // <-- NEW
         
         // Placeholder
-        $group->get('/orders', [UnderConstructionController::class, 'show'])->setName('app.orders');
+        $group->get('/orders', [OrderAdminController::class, 'index'])->setName('app.orders.index'); // Replaces placeholder
+        $group->get('/orders/{id:[0-9]+}', [OrderAdminController::class, 'show'])->setName('app.orders.show');
+        $group->post('/orders/{id:[0-9]+}/update-status', [OrderAdminController::class, 'updateStatus'])->setName('app.orders.update');
 
-        // ---  CATEGORY CRUD ROUTES (CHANGED) ---
+        $group->get('/reports', [ReportsAdminController::class, 'index'])->setName('app.reports.index');
+        $group->get('/reports/export', [ReportsAdminController::class, 'export'])->setName('app.reports.export');
+
+        $group->get('/settings', [SettingsAdminController::class, 'show'])->setName('app.settings');
+        $group->post('/settings', [SettingsAdminController::class, 'update'])->setName('app.settings.update');
+
+        // ---  CATEGORY CRUD ROUTES ---
         $group->get('/categories', [CategoryAdminController::class, 'index'])
               ->setName('app.categories.index');
         $group->get('/categories/new', [CategoryAdminController::class, 'create'])
@@ -79,10 +127,11 @@ return function (App $app) {
               ->setName('app.categories.edit');
         $group->post('/categories/{id:[0-9]+}', [CategoryAdminController::class, 'update'])
               ->setName('app.categories.update');
+        
         $group->post('/categories/{id:[0-9]+}/delete', [CategoryAdminController::class, 'delete'])
               ->setName('app.categories.delete');
               
-        // ---  NEW: PRODUCT CRUD ROUTES (CHANGED) ---
+        // ---  PRODUCT CRUD ROUTES ---
         $group->get('/products', [ProductAdminController::class, 'index'])
               ->setName('app.products.index');
               
@@ -107,7 +156,11 @@ return function (App $app) {
     // (Super Admin routes are unchanged)
     $app->group('/system', function (RouteCollectorProxy $group) {
        $group->get('/logs', [SystemAdminController::class, 'viewLogs']);
-       $group->get('/users', [UnderConstructionController::class, 'show']);
+       $group->get('/users', [SystemAdminController::class, 'manageUsers'])->setName('system.users.index');
+       $group->get('/users/new', [SystemAdminController::class, 'createUser'])->setName('system.users.create');
+       $group->post('/users', [SystemAdminController::class, 'storeUser'])->setName('system.users.store');
+       $group->get('/users/{id:[0-9]+}/edit', [SystemAdminController::class, 'editUser'])->setName('system.users.edit');
+       $group->post('/users/{id:[0-9]+}', [SystemAdminController::class, 'updateUser'])->setName('system.users.update');
     })->add(new RoleAuthMiddleware(['superadmin']));
 
 };

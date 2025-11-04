@@ -1,0 +1,84 @@
+{% extends "Layouts/public.twig" %}
+
+{% block content %}
+<div class="p-6 flex flex-col items-center min-h-screen bg-[#FFF8F2]">
+  <div class="w-full max-w-7xl">
+    
+    {# --- Header --- #}
+    <h1 class="font-zen-antique text-3xl lg:text-5xl text-[#A96B44] font-400 text-shadow-sm text-shadow-[#8c8989] mb-4">
+      Search Results
+    </h1>
+    {% if query %}
+      <p class="text-lg text-gray-600 mb-10">
+        You searched for: <strong class="text-[#835234]">'{{ query }}'</strong>
+      </p>
+    {% else %}
+       <p class="text-lg text-gray-600 mb-10">
+        Please enter a search term.
+      </p>
+    {% endif %}
+
+    {# --- No Results Message --- #}
+    {% if products is empty and categories is empty and query %}
+      <p class="text-center text-gray-500 col-span-full text-lg">
+        Sorry, we couldn't find any results for '{{ query }}'.
+      </p>
+    {% endif %}
+
+    {# --- Found Categories --- #}
+    {% if categories is not empty %}
+      <section class="mb-12">
+        <h2 class="text-3xl font-zen-antique text-[#A96B44] mb-6 text-left">Matching Categories</h2>
+        <div class="flex flex-wrap gap-4">
+          {% for cat in categories %}
+            <a href="/products?category={{ cat.slug | url_encode }}"
+              class="px-5 py-2 rounded-full border font-semibold text-sm transition
+                     bg-white text-[#835234] border-[#CBB890] hover:bg-[#FFF3E0] shadow-sm">
+              {{ cat.name }}
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    {# --- Found Products --- #}
+    {% if products is not empty %}
+      <section>
+        <h2 class="text-3xl font-zen-antique text-[#A96B44] mb-6 text-left">Matching Products</h2>
+        
+        <div id="products-grid" class="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          {% for product in products %}
+            {# --- Reuse your Product Card --- #}
+            <a href="{{ app_url }}/products/{{ product.sku | default(product.id) }}"
+              class="block bg-white rounded-2xl shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 border border-[#EADBCB] overflow-hidden">
+
+              <div class="relative w-full h-48">
+                <img src="{{ product.image }}" alt="{{ product.name }}"
+                     class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-in-out hover:scale-105"
+                     onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+              </div>
+
+              <div class="p-4">
+                <h2 class="font-semibold text-lg text-[#835234] truncate">{{ product.name }}</h2>
+                <p class="text-[#A69273] mb-1">
+                  {% if product.sizes is defined and product.sizes|length > 0 %}
+                    Starts at ₱{{ product.price|number_format(2, '.', ',') }}
+                  {% else %}
+                    ₱{{ product.price|number_format(2, '.', ',') }}
+                  {% endif %}
+                </p>
+
+                <span class="inline-block px-3 py-1 text-xs bg-[#FDE7D6] text-[#A96B44] rounded-full mt-2">
+                  {{ product.category_name }}
+                </span>
+              </div>
+            </a>
+            {# --- End of Product Card --- #}
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+    
+  </div>
+</div>
+{% endblock %}
