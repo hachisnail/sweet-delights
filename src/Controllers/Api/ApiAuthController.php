@@ -5,28 +5,12 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use Slim\Routing\RouteContext;
-use SweetDelights\Mayie\Controllers\BaseDataController;
 use SweetDelights\Mayie\Services\MailService; 
 
-class ApiAuthController extends BaseDataController { 
+class ApiAuthController extends BaseApiController { 
 
-    private $usersPath;
-
-    public function __construct()
-    {
-        $this->usersPath = __DIR__ . '/../../Data/users.php';
-    }
-
-    // --- Data Helpers ---
-    private function getUsers(): array
-    {
-        return file_exists($this->usersPath) ? require $this->usersPath : [];
-    }
-
-    private function saveUsers(array $users)
-    {
-        $this->saveData($this->usersPath, $users);
-    }
+    // --- REMOVED: __construct, getUsers, saveUsers ---
+    // They are all inherited from BaseApiController
     
     // --- LOGIN & LOGOUT (Modified) ---
 
@@ -53,7 +37,7 @@ class ApiAuthController extends BaseDataController {
         $password = $data['password'] ?? '';
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Uses inherited method
 
         $foundUser = null;
         foreach ($users as $user) {
@@ -140,7 +124,7 @@ class ApiAuthController extends BaseDataController {
      */
     public function register(Request $request, Response $response): Response {
         $data = $request->getParsedBody();
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Uses inherited method
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
         // 1. Validate data
@@ -165,16 +149,19 @@ class ApiAuthController extends BaseDataController {
             'last_name' => $data['last_name'],
             'email' => $data['email'],
             'contact_number' => '', // Empty by default
-            'address' => [         // Empty by default
-              'street' => '',
-              'city' => '',
-              'state' => '',
-              'postal_code' => '',
+            'address' => [ 
+                'street' => '',
+                'city' => '',
+                'state' => '',
+                'postal_code' => '',
             ],
             'password_hash' => password_hash($data['password'], PASSWORD_DEFAULT),
             'role' => 'customer', // Default role
             'is_verified' => false,
+            'is_active' => true, // <-- NEW: Set to active by default
             'verification_token' => $token,
+            'password_reset_token' => null, // <-- NEW
+            'password_reset_expires' => null, // <-- NEW
             'cart' => [],
             'favourites' => []
         ];
@@ -191,7 +178,7 @@ class ApiAuthController extends BaseDataController {
 
         // 5. Save user to file
         $users[] = $newUser;
-        $this->saveUsers($users);
+        $this->saveUsers($users); // <-- Uses inherited method
 
         // 6. Redirect to a "please verify" message page
         return $response->withHeader('Location', '/verify-message')->withStatus(302);
@@ -218,7 +205,7 @@ class ApiAuthController extends BaseDataController {
             return $response->withStatus(400);
         }
 
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Uses inherited method
         $userFound = false;
         
         foreach ($users as &$user) {
@@ -232,7 +219,7 @@ class ApiAuthController extends BaseDataController {
         unset($user);
 
         if ($userFound) {
-            $this->saveUsers($users);
+            $this->saveUsers($users); // <-- Uses inherited method
             // Redirect to login with a success message
             return $response->withHeader('Location', '/login?error=verified')->withStatus(302);
         }
@@ -242,7 +229,7 @@ class ApiAuthController extends BaseDataController {
     }
 
 
-       public function showForgotPassword(Request $request, Response $response): Response {
+    public function showForgotPassword(Request $request, Response $response): Response {
         $view = Twig::fromRequest($request);
         return $view->render($response, 'Public/forgot-password.twig', [
              'title'      => 'Forgot Password',
@@ -257,7 +244,7 @@ class ApiAuthController extends BaseDataController {
     public function handleForgotPassword(Request $request, Response $response): Response {
         $data = $request->getParsedBody();
         $email = $data['email'] ?? '';
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Uses inherited method
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $userFound = false;
 
@@ -277,7 +264,7 @@ class ApiAuthController extends BaseDataController {
 
         if ($userFound) {
             // Save the token to the users file
-            $this->saveUsers($users);
+            $this->saveUsers($users); // <-- Uses inherited method
 
             // Send the email
             $view = Twig::fromRequest($request);
@@ -295,7 +282,7 @@ class ApiAuthController extends BaseDataController {
      */
     public function showResetPassword(Request $request, Response $response): Response {
         $token = $request->getQueryParams()['token'] ?? '';
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Uses inherited method
         $validToken = false;
         $error = null;
 
@@ -303,9 +290,9 @@ class ApiAuthController extends BaseDataController {
             $error = 'invalid';
         } else {
             foreach ($users as $user) {
-                if ($user['password_reset_token'] === $token) {
+                if (($user['password_reset_token'] ?? null) === $token) {
                     // Token found, now check expiry
-                    if (time() > $user['password_reset_expires']) {
+                    if (time() > ($user['password_reset_expires'] ?? 0)) {
                         $error = 'expired';
                     } else {
                         $validToken = true;
@@ -341,13 +328,13 @@ class ApiAuthController extends BaseDataController {
             return $response->withHeader('Location', '/reset-password?token=' . $token . '&error=match')->withStatus(302);
         }
 
-        $users = $this->getUsers();
+        $users = $this->getUsers(); // <-- Uses inherited method
         $userUpdated = false;
 
         foreach ($users as &$user) {
-            if ($user['password_reset_token'] === $token) {
+            if (($user['password_reset_token'] ?? null) === $token) {
                 // Token found, check expiry
-                if (time() > $user['password_reset_expires']) {
+                if (time() > ($user['password_reset_expires'] ?? 0)) {
                     return $response->withHeader('Location', '/reset-password?token=' . $token . '&error=expired')->withStatus(302);
                 }
 
@@ -362,7 +349,7 @@ class ApiAuthController extends BaseDataController {
         unset($user);
 
         if ($userUpdated) {
-            $this->saveUsers($users);
+            $this->saveUsers($users); // <-- Uses inherited method
             // Success! Redirect to login with a message.
             return $response->withHeader('Location', '/login?error=reset_success')->withStatus(302);
         }
@@ -371,3 +358,4 @@ class ApiAuthController extends BaseDataController {
         return $response->withHeader('Location', '/reset-password?token=' . $token . '&error=invalid')->withStatus(302);
     }
 }
+

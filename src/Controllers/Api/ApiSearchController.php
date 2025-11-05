@@ -4,7 +4,8 @@ namespace SweetDelights\Mayie\Controllers\Api; // <-- Updated Namespace
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
-class ApiSearchController
+// Inherit from the new BaseApiController
+class ApiSearchController extends BaseApiController
 {
     /**
      * Handles the /api/search route for live search
@@ -16,14 +17,12 @@ class ApiSearchController
 
         // Don't search for nothing
         if (empty($query)) {
-            // --- FIX for withJson ---
-            $response->getBody()->write(json_encode(['products' => [], 'categories' => []]));
-            return $response->withHeader('Content-Type', 'application/json');
+            return $this->respondWithData($response, ['products' => [], 'categories' => []]);
         }
         
-        // Path is now one level deeper
-        $allProducts = require __DIR__ . '/../../Data/products.php';
-        $allCategories = require __DIR__ . '/../../Data/categories.php';
+        // Use inherited methods to get data
+        $allProducts = $this->getProducts();
+        $allCategories = $this->getCategories();
 
         $foundProducts = [];
         $foundCategories = [];
@@ -61,9 +60,7 @@ class ApiSearchController
             'categories' => $foundCategories
         ];
 
-        // --- FIX for withJson ---
-        $response->getBody()->write(json_encode($results));
-        return $response->withHeader('Content-Type', 'application/json');
+        // Use the new JSON helper
+        return $this->respondWithData($response, $results);
     }
 }
-
