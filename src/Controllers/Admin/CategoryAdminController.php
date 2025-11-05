@@ -5,6 +5,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use Slim\Routing\RouteContext;
+use \PDO; // <-- Use PDO for database queries
 
 class CategoryAdminController extends BaseAdminController
 {
@@ -14,74 +15,84 @@ class CategoryAdminController extends BaseAdminController
 
     public function __construct()
     {
-        // Call parent to set $this->categoriesPath, $this->productsPath, etc.
+        // Call parent to set $this->db, $this->categoriesPath, $this->productsPath, etc.
         parent::__construct(); 
         
         // Set the path specific to this controller
         $this->uploadDir = __DIR__ . '/../../../public/Assets/Categories/'; 
     }
 
-    // --- Data Helper Functions (getCategories, getProducts, saveCategories, saveProducts) are now inherited ---
+    // --- Data Helper Functions are now inherited from BaseAdminController ---
     
-    // 3. ✅ NEW: File Upload Helper (specific to this controller)
+    /**
+     * File Upload Helper (specific to this controller)
+     * This logic remains unchanged as it deals with the filesystem.
+     */
     private function uploadCategoryPicture(int $categoryId, Request $request): ?string
     {
         $uploadedFiles = $request->getUploadedFiles();
         $file = $uploadedFiles['image'] ?? null;
 
-        if (!$file || $file->getError() !== UPLOAD_ERR_OK) {
+        if (!$file || $file->getError() !== \UPLOAD_ERR_OK) {
             return null; // No file uploaded or there was an error
         }
 
-        // Basic validation and security (You may want more robust validation)
+        // Basic validation and security
         $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
         if (!in_array($file->getClientMediaType(), $allowedTypes)) {
             return null; // Invalid file type
         }
         
         $originalFilename = $file->getClientFilename();
-        $extension = pathinfo($originalFilename, PATHINFO_EXTENSION); // Using pathinfo for extension
+        $extension = pathinfo($originalFilename, PATHINFO_EXTENSION);
 
-        // Create a new, unique filename based on the category ID
-        $newFilename = $categoryId . '.' . strtolower($extension);
+        // Create a new filename (e.g., 1.jpg, 2.png)
+        // We add a timestamp to prevent browser cache issues
+        $newFilename = $categoryId . '-' . time() . '.' . strtolower($extension);
         $targetPath = $this->uploadDir . $newFilename;
 
         // Ensure the directory exists
         if (!is_dir($this->uploadDir)) {
-            mkdir($this->uploadDir, 0777, true);
+            mkdir($this->uploadDir, 0775, true);
         }
 
         // Move the file
         $file->moveTo($targetPath);
         
-        return $newFilename;
+        return $newFilename; // Return the new unique filename
     }
 
     // --- Find/Tree Helpers (Remain Local) ---
 
-    private function findCategory(int $id): ?array
+    /**
+     * NEW: Database-driven finder
+     */
+    private function findCategoryById(int $id): ?array
     {
-        foreach ($this->getCategories() as $category) { // <-- Uses inherited method
-            if ($category['id'] === $id) {
-                return $category;
-            }
-        }
-        return null;
+        $stmt = $this->db->prepare("SELECT * FROM categories WHERE id = ?");
+        $stmt->execute([$id]);
+        $category = $stmt->fetch();
+        return $category ?: null;
     }
 
     private function findCategoryName(int $id): string
     {
-        $category = $this->findCategory($id);
+        $category = $this->findCategoryById($id); // <-- Use new DB method
         if ($category) {
             return "'" . htmlspecialchars($category['name'], ENT_QUOTES) . "'";
         }
         return 'this category';
     }
 
+    /**
+     * This function remains unchanged. It builds the tree
+     * from the array provided by the (now DB-driven) getCategories().
+     */
     private function buildTree(array $elements, $parentId = null): array
     {
         $branch = [];
         foreach ($elements as $element) {
+            // Note: $element['parent_id'] from DB can be NULL
             if ($element['parent_id'] == $parentId) {
                 $children = $this->buildTree($elements, $element['id']);
                 if ($children) {
@@ -93,6 +104,9 @@ class CategoryAdminController extends BaseAdminController
         return $branch;
     }
 
+    /**
+     * This function also remains unchanged.
+     */
     private function getDescendantIds(array $allCategories, int $parentId): array
     {
         $ids = [];
@@ -105,7 +119,7 @@ class CategoryAdminController extends BaseAdminController
         return $ids;
     }
 
-    // --- Slug Helper (needed for 'store' method, can remain local for simplicity) ---
+    // --- Slug Helper (Unchanged) ---
     private function createSlug(string $name): string
     {
         return str_replace(' ', '-', strtolower(trim(preg_replace('/[^A-Za-z0-9 ]/', '', $name))));
@@ -116,7 +130,7 @@ class CategoryAdminController extends BaseAdminController
     public function index(Request $request, Response $response): Response
     {
         $view = $this->viewFromRequest($request);
-        $categories = $this->getCategories(); // <-- Uses inherited method
+        $categories = $this->getCategories(); // <-- Uses inherited DB method
         $nested = $this->buildTree($categories);
 
         $params = $request->getQueryParams();
@@ -146,17 +160,16 @@ class CategoryAdminController extends BaseAdminController
         ]);
     }
 
-    public function create(Request $request, Response $response): Response
+public function create(Request $request, Response $response): Response
     {
         $view = $this->viewFromRequest($request);
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         
         $template = 'Admin/category-form.twig'; 
 
-        $allCategories = $this->getCategories(); // <-- Uses inherited method
-        // Filter for top-level categories only (for the dropdown)
-        $topLevelCategories = array_filter($allCategories, fn($cat) => $cat['parent_id'] === null);
-
+        $allCategories = $this->getCategories(); // <-- Get flat list
+        $nestedCategories = $this->buildTree($allCategories); // <-- Build nested list
+        
         $breadcrumbs = $this->breadcrumbs($request, [
             ['name' => 'Categories', 'url' => 'app.categories.index'],
             ['name' => 'Add New', 'url' => null],
@@ -165,8 +178,10 @@ class CategoryAdminController extends BaseAdminController
         return $view->render($response, $template, [
             'title' => 'Add New Category',
             'form_action' => $routeParser->urlFor('app.categories.store'),
-            'top_level_categories' => $topLevelCategories, 
-            'all_categories' => $allCategories, 
+            
+            // --- UPDATED ---
+            'nested_categories' => $nestedCategories, // Send the nested list
+
             'form_mode' => 'create', 
             'breadcrumbs' => $breadcrumbs,
             'active_page' => 'categories',
@@ -174,66 +189,84 @@ class CategoryAdminController extends BaseAdminController
         ]);
     }
 
+
+
     public function store(Request $request, Response $response): Response
     {
         $data = $request->getParsedBody();
-        $categories = $this->getCategories(); // <-- Uses inherited method
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
+        
+        // --- NEW: Get Actor ID from request (assuming auth middleware sets 'user' attribute) ---
+        $user = $request->getAttribute('user');
+        $actorId = $user ? (int)$user['id'] : null;
 
-        $newParentId = $data['parent_id'] ? (int)$data['parent_id'] : null;
+        $newParentId = !empty($data['parent_id']) ? (int)$data['parent_id'] : null;
         $subCategoryNames = $data['sub_category_names'] ?? [];
-        $newId = 1;
-        if (count($categories) > 0) {
-            $newId = max(array_column($categories, 'id')) + 1;
-        }
-
-        $newParentImageFilename = null; 
-
-        // --- LOGIC FOR ADVANCED FORM ---
-
-        if ($newParentId === -1) {
-            // --- SCENARIO 1: Create new Top-Level Category + Sub-categories ---
-            
-            $newParentName = $data['new_parent_name'] ?? 'New Category';
-            $newParentSlug = $this->createSlug($newParentName);
-            $newParentId = $newId; // This is the ID for the new parent
-            
-            $newParentImageFilename = $this->uploadCategoryPicture($newParentId, $request);
-
-            // Add the new parent
-            $categories[] = [
-                'id' => $newParentId,
-                'parent_id' => null,
-                'name' => $newParentName,
-                'slug' => $newParentSlug,
-                'image' => $newParentImageFilename, 
-            ];
-            
-            $newId++; // Increment ID for the sub-categories
-
-        } else if ($newParentId !== null) {
-            // Note: Image upload is generally handled in the edit form for existing categories.
-        }
+        $newParentName = $data['new_parent_name'] ?? null;
         
-        // --- SCENARIO 2: Add Sub-categories to Existing (or new) Parent ---
-        
-        foreach ($subCategoryNames as $subName) {
-            if (!empty(trim($subName))) {
-                $slug = $this->createSlug($subName);
-                $categories[] = [
-                    'id' => $newId,
-                    'parent_id' => $newParentId, 
-                    'name' => $subName,
-                    'slug' => $slug,
-                    'image' => null, // Sub-categories do not get an image from this form
-                ];
-                $newId++;
+        $this->db->beginTransaction();
+        try {
+            if ($newParentId === -1 && !empty($newParentName)) {
+                // --- SCENARIO 1: Create new Top-Level Category ---
+                
+                $newParentSlug = $this->createSlug($newParentName);
+                
+                $stmt = $this->db->prepare("INSERT INTO categories (parent_id, name, slug) VALUES (NULL, ?, ?)");
+                $stmt->execute([$newParentName, $newParentSlug]);
+                
+                $newParentId = (int)$this->db->lastInsertId(); // Get the new parent's ID
+                
+                // --- Handle image upload for the new parent ---
+                $newParentImageFilename = $this->uploadCategoryPicture($newParentId, $request);
+                if ($newParentImageFilename) {
+                    $imgStmt = $this->db->prepare("UPDATE categories SET image = ? WHERE id = ?");
+                    $imgStmt->execute([$newParentImageFilename, $newParentId]);
+                }
+
+                // --- LOG ACTIVITY ---
+                $this->logEntityChange(
+                    $actorId,
+                    'create',                          // actionType
+                    'category',                        // entityType
+                    $newParentId,                      // entityId
+                    null,                              // before
+                    $this->findCategoryById($newParentId) // after
+                );
+                // --- END LOG ---
             }
+            
+            // --- SCENARIO 2: Add Sub-categories to Existing (or new) Parent ---
+            if ($newParentId !== null && $newParentId > 0 && !empty($subCategoryNames)) {
+                $stmt = $this->db->prepare("INSERT INTO categories (parent_id, name, slug, image) VALUES (?, ?, ?, NULL)");
+                foreach ($subCategoryNames as $subName) {
+                    if (!empty(trim($subName))) {
+                        $slug = $this->createSlug($subName);
+                        $stmt->execute([$newParentId, $subName, $slug]);
+                        $subId = (int)$this->db->lastInsertId(); // Get ID
+
+                        // --- LOG ACTIVITY ---
+                        $this->logEntityChange(
+                            $actorId,
+                            'create',          // actionType
+                            'category',        // entityType
+                            $subId,            // entityId
+                            null,              // before
+                            $this->findCategoryById($subId) // after
+                        );
+                        // --- END LOG ---
+                    }
+                }
+            }
+            
+            $this->db->commit();
+
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            // In a real app, you'd log this error
+            // error_log("Category store error: " . $e->getMessage());
+            // For now, just redirect back (maybe with an error)
+            return $response->withHeader('Location', $routeParser->urlFor('app.categories.index') . '?error=unknown')->withStatus(302);
         }
-
-        // --- END ADVANCED LOGIC ---
-
-        $this->saveCategories($categories); // <-- Uses inherited method
 
         return $response->withHeader('Location', $routeParser->urlFor('app.categories.index'))->withStatus(302);
     }
@@ -243,7 +276,7 @@ class CategoryAdminController extends BaseAdminController
         $view = $this->viewFromRequest($request);
         $routeParser = RouteContext::fromRequest($request)->getRouteParser(); 
         $id = (int)$args['id'];
-        $category = $this->findCategory($id);
+        $category = $this->findCategoryById($id); // <-- Use new DB method
 
         if (!$category) {
             return $response->withHeader('Location', $routeParser->urlFor('app.categories.index'))->withStatus(302);
@@ -251,11 +284,9 @@ class CategoryAdminController extends BaseAdminController
         
         $template = 'Admin/category-form.twig';
         
-        $allCategories = $this->getCategories(); // <-- Uses inherited method
+        $allCategories = $this->getCategories(); // <-- Get flat list
+        $nestedCategories = $this->buildTree($allCategories); // <-- Build nested list
         
-        // Filter for top-level categories
-        $topLevelCategories = array_filter($allCategories, fn($cat) => $cat['parent_id'] === null);
-
         $breadcrumbs = $this->breadcrumbs($request, [
             ['name' => 'Categories', 'url' => 'app.categories.index'],
             ['name' => $category['name'] ?? 'Edit', 'url' => null],
@@ -264,8 +295,10 @@ class CategoryAdminController extends BaseAdminController
         return $view->render($response, $template, [
             'title' => 'Edit Category',
             'category' => $category,
-            'all_categories' => $allCategories, 
-            'top_level_categories' => $topLevelCategories, 
+            
+            // --- UPDATED ---
+            'nested_categories' => $nestedCategories, // Send the nested list
+
             'form_mode' => 'edit', 
             'form_action' => $routeParser->urlFor('app.categories.update', ['id' => $id]),
             'app_url' => $_ENV['APP_URL'] ?? '',
@@ -279,20 +312,24 @@ class CategoryAdminController extends BaseAdminController
     {
         $id = (int)$args['id'];
         $data = $request->getParsedBody();
-        $categories = $this->getCategories(); // <-- Uses inherited method
+        $allCategories = $this->getCategories(); // Get all categories for cycle check/SKU regen
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         
-        $newParentId = $data['parent_id'] ? (int)$data['parent_id'] : null;
+        // --- NEW: Get Actor ID ---
+        $user = $request->getAttribute('user');
+        $actorId = $user ? (int)$user['id'] : null;
+
+        $newParentId = !empty($data['parent_id']) ? (int)$data['parent_id'] : null;
 
         // --- Cycle Check ---
         if ($newParentId !== null) {
-            if ($newParentId === $id) {
+            if ($newParentId === $id) { // Can't be its own parent
                 $url = $routeParser->urlFor('app.categories.index') . '?error=cycle&id=' . $id;
                 return $response->withHeader('Location', $url)->withStatus(302);
             }
             
-            $descendantIds = $this->getDescendantIds($categories, $id);
-            if (in_array($newParentId, $descendantIds)) {
+            $descendantIds = $this->getDescendantIds($allCategories, $id);
+            if (in_array($newParentId, $descendantIds)) { // Can't be a child of its own descendant
                 $url = $routeParser->urlFor('app.categories.index') . '?error=cycle&id=' . $id;
                 return $response->withHeader('Location', $url)->withStatus(302);
             }
@@ -300,67 +337,82 @@ class CategoryAdminController extends BaseAdminController
         
         $slug = $this->createSlug($data['name']);
         
-        // ✅ Upload new image if provided
+        // --- Handle Image ---
+        // --- CAPTURE BEFORE STATE (for image handling AND logging) ---
+        $oldCategory = $this->findCategoryById($id);
+        $finalImage = $oldCategory['image'] ?? null; // Start with the existing image
+
         $uploadedFilename = $this->uploadCategoryPicture($id, $request);
+        
+        if ($uploadedFilename !== null) {
+            // New image was uploaded, use it
+            $finalImage = $uploadedFilename;
+        } elseif (isset($data['delete_image']) && $data['delete_image'] === '1' && $finalImage) {
+            // User checked 'delete'
+            $imagePath = $this->uploadDir . $finalImage;
+            if (file_exists($imagePath)) {
+                unlink($imagePath);
+            }
+            $finalImage = null;
+        }
+        // --- End Image Handling ---
+        
+        $this->db->beginTransaction();
+        try {
+            // 1. Update the category itself
+            $stmt = $this->db->prepare("UPDATE categories SET name = ?, parent_id = ?, slug = ?, image = ? WHERE id = ?");
+            $stmt->execute([$data['name'], $newParentId, $slug, $finalImage, $id]);
 
-        // Update the category in the array
-        foreach ($categories as $index => &$category) {
-            if ($category['id'] === $id) {
-                $category['name'] = $data['name'];
-                $category['parent_id'] = $newParentId;
-                $category['slug'] = $slug;
+            // 2. --- START: REGENERATE PRODUCT SKUS ---
+            $allCategoryIdsToUpdate = array_merge([$id], $this->getDescendantIds($allCategories, $id));
+            
+            if (!empty($allCategoryIdsToUpdate)) {
+                // Get all categories *again* to ensure we have the new parent data
+                $updatedCategories = $this->getCategories(); 
                 
-                // ✅ Update the image field if a new file was uploaded
-                if ($uploadedFilename !== null) {
-                    $category['image'] = $uploadedFilename;
-                }
-                // ✅ Handle image deletion if requested
-                if (isset($data['delete_image']) && $data['delete_image'] === '1' && isset($category['image'])) {
-                    // Delete the file from the filesystem
-                    $imagePath = $this->uploadDir . $category['image'];
-                    if (file_exists($imagePath)) {
-                        unlink($imagePath);
+                // Create a placeholder string like ?,?,?
+                $placeholders = implode(',', array_fill(0, count($allCategoryIdsToUpdate), '?'));
+                
+                $productStmt = $this->db->prepare("SELECT id, name, category_id, sku FROM products WHERE category_id IN ($placeholders)");
+                $productStmt->execute($allCategoryIdsToUpdate);
+                $allProductsToUpdate = $productStmt->fetchAll();
+                
+                $updateSkuStmt = $this->db->prepare("UPDATE products SET sku = ? WHERE id = ?");
+
+                foreach ($allProductsToUpdate as $product) {
+                    $newSku = $this->generateSku(
+                        $product['name'], 
+                        $product['id'], 
+                        (int)$product['category_id'], 
+                        $updatedCategories // Pass the up-to-date category list
+                    );
+                    
+                    if ($product['sku'] !== $newSku) {
+                        $updateSkuStmt->execute([$newSku, $product['id']]);
                     }
-                    $category['image'] = null;
                 }
-                break;
             }
-        }
-        unset($category); 
+            // --- END: REGENERATE PRODUCT SKUS ---
 
-        // Save the updated categories list FIRST
-        $this->saveCategories($categories); // <-- Uses inherited method
-        
-        // --- START: REGENERATE PRODUCT SKUS ---
-        
-        $allCategoryIdsToUpdate = array_merge([$id], $this->getDescendantIds($categories, $id));
-        $allProducts = $this->getProducts(); // <-- Uses inherited method
-        $productsWereUpdated = false;
-        
-        foreach ($allProducts as &$product) {
-            if (isset($product['category_id']) && in_array($product['category_id'], $allCategoryIdsToUpdate)) {
-                
-                // ✅ Uses inherited generateSku method
-                $newSku = $this->generateSku(
-                    $product['name'], 
-                    $product['id'], 
-                    (int)$product['category_id'], 
-                    $categories
-                );
-                
-                if (!isset($product['sku']) || $product['sku'] !== $newSku) {
-                    $product['sku'] = $newSku;
-                    $productsWereUpdated = true;
-                }
-            }
+            // --- LOG ACTIVITY (Placed before commit) ---
+            $newCategory = $this->findCategoryById($id); // Refetch
+            $this->logEntityChange(
+                $actorId,
+                'update',          // actionType
+                'category',        // entityType
+                $id,               // entityId
+                $oldCategory,      // before
+                $newCategory       // after
+            );
+            // --- END LOG ---
+
+            $this->db->commit();
+            
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            // error_log("Category update error: " . $e->getMessage());
+            return $response->withHeader('Location', $routeParser->urlFor('app.categories.index') . '?error=unknown')->withStatus(302);
         }
-        unset($product);
-        
-        if ($productsWereUpdated) {
-            $this->saveProducts($allProducts); // <-- Uses inherited method
-        }
-        
-        // --- END: REGENERATE PRODUCT SKUS ---
         
         return $response->withHeader('Location', $routeParser->urlFor('app.categories.index'))->withStatus(302);
     }
@@ -368,38 +420,45 @@ class CategoryAdminController extends BaseAdminController
     public function delete(Request $request, Response $response, array $args): Response
     {
         $id = (int)$args['id'];
-        $categories = $this->getCategories(); // <-- Uses inherited method
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
-        $categoryToDelete = $this->findCategory($id); // Find the category before deletion
+        
+        // --- NEW: Get Actor ID ---
+        $user = $request->getAttribute('user');
+        $actorId = $user ? (int)$user['id'] : null;
+
+        // --- CAPTURE BEFORE STATE ---
+        $categoryToDelete = $this->findCategoryById($id); // Get category info *before* deleting
 
         // --- CHECK IF CATEGORY IS IN USE ---
-        $isCategoryInUse = false;
-        foreach ($this->getProducts() as $product) { // <-- Uses inherited method
-            if (isset($product['category_id']) && $product['category_id'] == $id) {
-                $isCategoryInUse = true;
-                break;
-            }
-        }
-
-        if ($isCategoryInUse) {
+        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM products WHERE category_id = ?");
+        $stmt->execute([$id]);
+        if ($stmt->fetch()['count'] > 0) {
             $url = $routeParser->urlFor('app.categories.index') . '?error=in_use&id=' . $id;
             return $response->withHeader('Location', $url)->withStatus(302);
         }
         // --- END CHECK ---
 
-        $newCategories = array_filter($categories, fn($cat) => $cat['id'] !== $id);
-        
-        foreach ($newCategories as &$cat) {
-            if ($cat['parent_id'] === $id) {
-                $cat['parent_id'] = null; 
-            }
-        }
-        unset($cat);
+        // --- Delete from DB ---
+        // The `ON DELETE SET NULL` foreign key on `categories.parent_id`
+        // will automatically handle moving orphans to the top level.
+        $deleteStmt = $this->db->prepare("DELETE FROM categories WHERE id = ?");
+        $deleteStmt->execute([$id]);
 
-        $this->saveCategories($newCategories); // <-- Uses inherited method
-        
-        // ✅ Delete image file from filesystem after successful deletion
-        if ($categoryToDelete && isset($categoryToDelete['image']) && $categoryToDelete['image']) {
+        // --- LOG ACTIVITY ---
+        if ($categoryToDelete) { // Only log if we found it first
+            $this->logEntityChange(
+                $actorId,
+                'delete',          // actionType
+                'category',        // entityType
+                $id,               // entityId
+                $categoryToDelete, // before
+                null               // after
+            );
+        }
+        // --- END LOG ---
+
+        // --- Delete image file ---
+        if ($categoryToDelete && !empty($categoryToDelete['image'])) {
             $imagePath = $this->uploadDir . $categoryToDelete['image'];
             if (file_exists($imagePath)) {
                 unlink($imagePath);

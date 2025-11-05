@@ -12,7 +12,7 @@
           
           {# 3. ✅ Display the category image (optional, assumes image is for top-level) #}
           {% if category.image is defined and category.image and category.parent_id is null %} 
-              <img src="{{ upload_url ~ category.image }}" alt="{{ category.name }} image" class="w-10 h-10 object-cover rounded-md border border-gray-200 flex-shrink-0">
+              <img src="{{ upload_url ~ category.image }}" alt="{{ category.name }} image" class="w-10 h-10 object-cover rounded-md border border-gray-200 shrink-0">
           {% endif %}
           
           <div>

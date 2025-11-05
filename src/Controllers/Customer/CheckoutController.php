@@ -3,47 +3,37 @@ namespace SweetDelights\Mayie\Controllers\Customer;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Slim\Views\Twig;
-use SweetDelights\Mayie\Controllers\BaseDataController;
+// use Slim\Views\Twig; // <-- Removed
+// use SweetDelights\Mayie\Controllers\BaseDataController; // <-- Removed
+use SweetDelights\Mayie\Controllers\Admin\BaseAdminController; // <-- Added
 use Slim\Routing\RouteContext;
 
 
-class CheckoutController extends BaseDataController {
+// --- FIX: Extend the BaseAdminController ---
+class CheckoutController extends BaseAdminController {
 
-    private $usersPath;
-    private $productsPath;
-    private $ordersPath;
-    private $lockFilePath; 
-    private $configPath;
+    // --- FIX: All data-path properties and file-helpers removed ---
+    // (e.g., $usersPath, $productsPath, getProducts(), saveProducts(), etc.)
+    // They are all now inherited from BaseAdminController.
 
     public function __construct()
     {
-        $this->usersPath = __DIR__ . '/../../Data/users.php';
-        $this->productsPath = __DIR__ . '/../../Data/products.php';
-        $this->ordersPath = __DIR__ . '/../../Data/orders.php';
-        $this->lockFilePath = __DIR__ . '/../../Data/products.lock'; 
-        $this->configPath = __DIR__ . '/../../Data/config.php';
+        // --- FIX: Constructor just calls the parent to get DB access ---
+        parent::__construct();
     }
-
-    // --- Data Helpers (Unchanged) ---
-    private function getProducts(): array { return require $this->productsPath; }
-    private function saveProducts(array $data) { $this->saveData($this->productsPath, $data); }
-    private function getUsers(): array { return require $this->usersPath; }
-    private function saveUsers(array $data) { $this->saveData($this->usersPath, $data); }
-    private function getOrders(): array { return require $this->ordersPath; }
-    private function saveOrders(array $data) { $this->saveData($this->ordersPath, $data); }
-
-    private function getConfig(): array { return require $this->configPath; }
 
     /**
      * Show the checkout page.
      * (Unchanged)
      */
     public function showCheckout(Request $request, Response $response): Response {
-        $view = Twig::fromRequest($request);
+        // --- FIX: Use inherited view helper ---
+        $view = $this->viewFromRequest($request);
         $user = $request->getAttribute('user');
         $cart = $user['cart'] ?? [];
-        $config = $this->getConfig(); // <-- GET CONFIG
+        
+        // --- FIX: This now calls the inherited getConfig() from the DB ---
+        $config = $this->getConfig(); 
 
         if (empty($cart)) {
             $routeParser = RouteContext::fromRequest($request)->getRouteParser();
@@ -55,8 +45,8 @@ class CheckoutController extends BaseDataController {
         foreach ($cart as $item) {
             $subtotal += $item['price'] * $item['quantity'];
         }
-        $tax = $subtotal * $config['tax_rate'];
-        $shipping = $config['shipping_fee'];
+        $tax = $subtotal * ($config['tax_rate'] ?? 0);
+        $shipping = $config['shipping_fee'] ?? 0;
         $total = $subtotal + $tax + $shipping;
 
         return $view->render($response, 'User/checkout.twig', [
@@ -66,10 +56,10 @@ class CheckoutController extends BaseDataController {
             'totals' => [
                 'subtotal' => $subtotal,
                 'tax' => $tax,
-                'shipping' => $shipping, // <-- PASS SHIPPING
+                'shipping' => $shipping,
                 'total' => $total
             ],
-            'config' => $config, // <--- THIS IS THE FIX
+            'config' => $config,
             'error' => $request->getQueryParams()['error'] ?? null
         ]);
     }
@@ -77,12 +67,14 @@ class CheckoutController extends BaseDataController {
     /**
      * Process the checkout:
      * 1. Validate Address
-     * 2. Acquire Lock
-     * 3. Validate stock
+     * 2. Start DB Transaction (replaces file lock)
+     * 3. Validate stock (with row-level locking)
      * 4. Reduce stock
-     * 5. Release Lock
-     * 6. Create order
-     * 7. Clear cart
+     * 5. Create order
+     * 6. Create order_items
+     * 7. Log Activity
+     * 8. Commit Transaction
+     * 9. Clear cart
      */
     public function processCheckout(Request $request, Response $response): Response {
         $user = $request->getAttribute('user');
@@ -90,122 +82,147 @@ class CheckoutController extends BaseDataController {
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $config = $this->getConfig();
 
-        // --- 1. NEW: Validate Address ---
+        // --- 1. Validate Address (Unchanged) ---
         $addr = $user['address'];
         if (empty($addr['street']) || empty($addr['city']) || empty($addr['state']) || empty($addr['postal_code'])) {
             return $response->withHeader('Location', '/checkout?error=address')->withStatus(302);
         }
 
-        // --- 2. NEW: Acquire Lock ---
-        // We use a separate lock file to manage concurrency.
-        $lockFileHandle = fopen($this->lockFilePath, 'c');
-        if (!flock($lockFileHandle, LOCK_EX)) {
-            // Failed to get lock, tell user to try again
+        // --- 2. NEW: Start Database Transaction (Replaces flock) ---
+        $newOrderId = null; // Initialize here
+        try {
+            $this->db->beginTransaction();
+
+            // --- 3. Validate Stock (Now inside transaction) ---
+            $stockErrors = [];
+            foreach ($cart as $item) {
+                // Find the product_id from the SKU
+                $productStmt = $this->db->prepare("SELECT id FROM products WHERE sku = ?");
+                $productStmt->execute([$item['sku']]);
+                $product = $productStmt->fetch();
+
+                if (!$product) {
+                    $stockErrors[] = "Product {$item['name']} not found.";
+                    continue;
+                }
+
+                // Find the specific size and *lock the row* for this transaction
+                $sizeStmt = $this->db->prepare(
+                    "SELECT stock FROM product_sizes WHERE product_id = ? AND name = ? FOR UPDATE"
+                );
+                $sizeStmt->execute([$product['id'], $item['selectedSize']]);
+                $size = $sizeStmt->fetch();
+
+                if (!$size || $item['quantity'] > $size['stock']) {
+                    $stockErrors[] = "Not enough stock for {$item['name']} ({$item['selectedSize']}).";
+                }
+            }
+
+            if (!empty($stockErrors)) {
+                // This will trigger the catch block and roll back the transaction
+                throw new \Exception('Stock validation failed: ' . implode(', ', $stockErrors));
+            }
+
+            // --- 4. Mock Payment (Always Succeeds) ---
+            // (No change)
+
+            // --- 5. Reduce Stock (Still inside transaction) ---
+            foreach ($cart as $item) {
+                // We need the product_id again to be safe
+                $productStmt = $this->db->prepare("SELECT id FROM products WHERE sku = ?");
+                $productStmt->execute([$item['sku']]);
+                $product = $productStmt->fetch();
+
+                $updateStmt = $this->db->prepare(
+                    "UPDATE product_sizes SET stock = stock - ? WHERE product_id = ? AND name = ?"
+                );
+                $updateStmt->execute([$item['quantity'], $product['id'], $item['selectedSize']]);
+            }
+
+            // --- 6. Create Order Record ---
+            $subtotal = array_reduce($cart, fn($sum, $item) => $sum + ($item['price'] * $item['quantity']), 0);
+            $tax = $subtotal * ($config['tax_rate'] ?? 0);
+            $shipping = $config['shipping_fee'] ?? 0;
+            $total = $subtotal + $tax + $shipping;
+
+            $orderStmt = $this->db->prepare(
+                "INSERT INTO orders (user_id, customer_name, address, date, status, subtotal, tax, shipping_fee, total)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            );
+            $orderStmt->execute([
+                $user['id'],
+                $user['first_name'] . ' ' . $user['last_name'],
+                json_encode($user['address']), // Store address as JSON
+                date('Y-m-d H:i:s'),
+                'Processing',
+                $subtotal,
+                $tax,
+                $shipping,
+                $total
+            ]);
+            // --- FIX: Get ID from database, don't calculate it ---
+            $newOrderId = (int)$this->db->lastInsertId();
+
+            // --- 7. Create order_items Records ---
+            $itemStmt = $this->db->prepare(
+                "INSERT INTO order_items (order_id, sku, product_name, size, price, quantity, image)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)"
+            );
+
+            $productImageStmt = $this->db->prepare("SELECT image FROM products WHERE sku = ?");
+
+            foreach ($cart as $item) {
+
+                $productImageStmt->execute([$item['sku']]);
+                $productData = $productImageStmt->fetch();
+                $productImage = $productData ? $productData['image'] : null;
+
+                $itemStmt->execute([
+                    $newOrderId,
+                    $item['sku'],
+                    $item['name'],
+                    $item['selectedSize'],
+                    $item['price'],
+                    $item['quantity'],
+                    $productImage
+                ]);
+            }
+            
+            // --- 8. LOG ACTIVITY (Inside transaction) ---
+            $orderAfter = $this->getOrderById($newOrderId);
+            $this->logEntityChange(
+                $user['id'],    // The customer is the actor
+                'create',       // actionType
+                'order',        // entityType
+                $newOrderId,    // entityId
+                null,           // before
+                $orderAfter    // after
+            );
+            // --- END LOG ---
+
+            // --- 9. NEW: Commit Transaction (Releases all locks) ---
+            $this->db->commit();
+
+        } catch (\Exception $e) {
+            // --- NEW: Rollback Transaction on *any* failure ---
+            $this->db->rollBack();
+            error_log('Checkout Failed: ' . $e->getMessage()); // Log the error
+
+            // Redirect back with an error
+            if (str_contains($e->getMessage(), 'Stock validation failed')) {
+                return $response->withHeader('Location', '/checkout?error=stock')->withStatus(302);
+            }
+            // Generic error for lock failure or other DB issues
             return $response->withHeader('Location', '/checkout?error=lock')->withStatus(302);
         }
-        
-        // --- 3. Validate Stock (Now inside lock) ---
-        $allProducts = $this->getProducts(); // Read products *after* getting lock
-        $stockErrors = [];
 
-        foreach ($cart as $item) {
-            foreach ($allProducts as $product) {
-                 if ($product['sku'] == $item['sku']) {
-                    if (!empty($product['sizes'])) {
-                        foreach ($product['sizes'] as $size) {
-                            if ($size['name'] == $item['selectedSize']) {
-                                if ($item['quantity'] > $size['stock']) {
-                                    $stockErrors[] = "Not enough stock for {$item['name']} ({$size['name']}).";
-                                }
-                                break;
-                            }
-                        }
-                    } else {
-                        if ($item['quantity'] > $product['stock']) {
-                            $stockErrors[] = "Not enough stock for {$item['name']}.";
-                        }
-                    }
-                    break;
-                }
-            }
-        }
+        // --- 10. Clear Cart (Only happens on success) ---
+        // --- FIX: Use the inherited saveUserKey helper ---
+        $this->saveUserKey($user['id'], 'cart', []);
+        $_SESSION['user']['cart'] = []; // Update session immediately
 
-        if (!empty($stockErrors)) {
-            // Stock error found. Release lock and redirect.
-            flock($lockFileHandle, LOCK_UN);
-            fclose($lockFileHandle);
-            return $response->withHeader('Location', '/checkout?error=stock')->withStatus(302);
-        }
-
-        // --- 4. Mock Payment (Always Succeeds) ---
-        // (This is fine)
-
-        // --- 5. Reduce Stock (Still inside lock) ---
-        foreach ($cart as $item) {
-            foreach ($allProducts as &$product) {
-                 if ($product['sku'] == $item['sku']) {
-                    if (!empty($product['sizes'])) {
-                        $totalStock = 0;
-                        foreach ($product['sizes'] as &$size) {
-                            if ($size['name'] == $item['selectedSize']) {
-                                $size['stock'] -= $item['quantity'];
-                            }
-                            $totalStock += $size['stock'];
-                        }
-                        $product['stock'] = $totalStock;
-                    } else {
-                        $product['stock'] -= $item['quantity'];
-                    }
-                    break;
-                }
-            }
-        }
-        unset($product); unset($size);
-        $this->saveProducts($allProducts); // Save updated stock to disk
-
-        // --- 6. NEW: Release Lock ---
-        flock($lockFileHandle, LOCK_UN);
-        fclose($lockFileHandle);
-
-        // --- 7. Create Order Record ---
-        // (This logic is outside the lock, which is fine)
-        $allOrders = $this->getOrders();
-        $newOrderId = empty($allOrders) ? 1 : max(array_column($allOrders, 'id')) + 1;
-
-        $subtotal = array_reduce($cart, fn($sum, $item) => $sum + ($item['price'] * $item['quantity']), 0);
-        $tax = $subtotal * $config['tax_rate'];
-        $shipping = $config['shipping_fee'];
-        $total = $subtotal + $tax + $shipping;
-
-        $newOrder = [
-            'id' => $newOrderId,
-            'user_id' => $user['id'],
-            'customer_name' => $user['first_name'] . ' ' . $user['last_name'],
-            'address' => $user['address'],
-            'date' => date('Y-m-d H:i:s'),
-            'status' => 'Processing',
-            'items' => $cart,
-            'subtotal' => $subtotal,      // <-- SAVE THIS
-            'tax' => $tax,              // <-- SAVE THIS
-            'shipping_fee' => $shipping,
-            'total' => $total
-        ];
-        $allOrders[] = $newOrder;
-        $this->saveOrders($allOrders);
-
-        // --- 8. Clear Cart ---
-        $allUsers = $this->getUsers();
-        foreach ($allUsers as &$fileUser) {
-            if ($fileUser['id'] === $user['id']) {
-                $fileUser['cart'] = [];
-                break;
-            }
-        }
-        unset($fileUser);
-        $this->saveUsers($allUsers);
-        $_SESSION['user']['cart'] = [];
-
-        // --- 9. Redirect to Success Page ---
+        // --- 11. Redirect to Success Page ---
+        // --- FIX: Corrected syntax error ( _ -> . ) ---
         $successUrl = $routeParser->urlFor('checkout.success') . '?order_id=' . $newOrderId;
         return $response->withHeader('Location', $successUrl)->withStatus(302);
     }
@@ -215,7 +232,8 @@ class CheckoutController extends BaseDataController {
      * (Unchanged)
      */
     public function showSuccess(Request $request, Response $response): Response {
-        $view = Twig::fromRequest($request);
+        // --- FIX: Use inherited view helper ---
+        $view = $this->viewFromRequest($request);
         $orderId = $request->getQueryParams()['order_id'] ?? null;
 
         if (!$orderId) {

@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  {# <meta name="viewport" content="width=device-width, initial-scale=1.0"> #}
+  <!-- FIX: Uncommented the viewport tag. This is essential for responsiveness. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title|default('Admin - FlourEver') }}</title>
   <link rel="icon" type="image/png" href="/Assets/favicon.png">
   {# <link rel="stylesheet" href="/css/globals.css"> #}
@@ -11,18 +12,57 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-
+  <!-- FIX: Added styles for the mobile overlay -->
+  <style>
+    /* This will be the dark background behind the sidebar on mobile */
+    #sidebar-overlay {
+      transition: opacity 0.3s ease-in-out;
+    }
+  </style>
 </head>
-<body class="bg-gray-50 text-gray-800 flex h-screen overflow-hidden">
+<!-- FIX: Added 'relative' for the overlay positioning -->
+<body class="bg-gray-50 text-gray-800 flex h-screen overflow-hidden relative">
 
-  {% include 'Components/admin-sidebar.twig' %}
+  <!-- 
+    FIX: Wrapped sidebar in a new div for toggling.
+    - 'hidden' by default (mobile-first)
+    - 'lg:flex' to show it on large screens
+    - 'z-40' to put it above the content
+    - 'absolute' for mobile overlay, 'lg:relative' for desktop flow
+  -->
+  <div id="admin-sidebar" 
+       class="absolute lg:relative z-40 h-screen hidden lg:flex transition-transform duration-300 ease-in-out">
+    {% include 'Components/admin-sidebar.twig' %}
+  </div>
+
+  <!-- FIX: Added a mobile overlay that will cover the main content when the sidebar is open -->
+  <div id="sidebar-overlay" 
+       class="absolute inset-0 bg-black/50 z-30 hidden lg:hidden opacity-0">
+  </div>
 
   <div class="flex-1 flex flex-col h-screen overflow-y-auto">
     
     <header class="sticky top-0 z-30 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200">
-      {% if breadcrumbs is defined and breadcrumbs|length > 0 %}
-        {% include 'Components/admin-navbar.twig' %}
-      {% endif %}
+      
+      <!-- FIX: Added a container for the mobile hamburger button and the navbar -->
+      <div class="flex justify-between items-center w-full">
+        
+        <!-- Hamburger Button (visible on mobile) -->
+        <button id="menu-toggle-btn" class="p-4 text-gray-600 hover:text-pink-600 lg:hidden" aria-label="Open menu">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
+        <!-- Navbar (breadcrumbs) -->
+        <div class="flex-1">
+          {% if breadcrumbs is defined and breadcrumbs|length > 0 %}
+            {% include 'Components/admin-navbar.twig' %}
+          {% endif %}
+        </div>
+      </div>
     </header>
 
     <main class="p-6 flex-1">
@@ -42,7 +82,31 @@
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const logoutButton = document.getElementById("logoutButton");
-      
+      // --- START: New Sidebar Toggle Logic ---
+      const sidebar = document.getElementById("admin-sidebar");
+      const overlay = document.getElementById("sidebar-overlay");
+      const menuButton = document.getElementById("menu-toggle-btn");
+
+      const toggleSidebar = () => {
+        if (sidebar && overlay) {
+          sidebar.classList.toggle("hidden");
+          overlay.classList.toggle("hidden");
+          // A small delay to allow the 'hidden' class to be removed before transitioning opacity
+          setTimeout(() => {
+            overlay.classList.toggle("opacity-0");
+          }, 20);
+        }
+      };
+
+      if (menuButton) {
+        menuButton.addEventListener("click", toggleSidebar);
+      }
+      if (overlay) {
+        overlay.addEventListener("click", toggleSidebar);
+      }
+      // --- END: New Sidebar Toggle Logic ---
+
+
       if (logoutButton) {
         logoutButton.addEventListener("click", (e) => {
             e.preventDefault(); 
@@ -81,4 +145,3 @@
   </script>
 </body>
 </html>
-

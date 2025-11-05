@@ -2,44 +2,95 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
+
   <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
     <h2 class="text-2xl font-bold text-[#835234]">{{ title }}</h2>
     <a href="{{ app_url }}/system/users/new" 
-       class="px-5 py-2 bg-pink-500 text-white rounded-xl font-semibold hover:bg-pink-600 transition text-center">
+       class="px-5 py-2 bg-pink-500 text-white rounded-xl font-semibold hover:bg-pink-600 transition text-center w-full md:w-auto">
       Add New User
     </a>
   </div>
 
-  <div class="bg-white p-6 rounded-lg shadow-md shadow-gray-400 border border-gray-200">
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          {% for u in users %}
+  {# Check if there are any users first #}
+  {% if users|length > 0 %}
+
+    {# Desktop Table View #}
+    <div class="hidden md:block bg-white p-6 rounded-lg shadow-md shadow-gray-400 border border-gray-200">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
             <tr>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {{ u.first_name }} {{ u.last_name }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ u.email }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                  {% if u.role == 'superadmin' %} bg-red-100 text-red-800
-                  {% elseif u.role == 'admin' %} bg-yellow-100 text-yellow-800
-                  {% else %} bg-green-100 text-green-800
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {% for u in users %}
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {{ u.first_name }} {{ u.last_name }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ u.email }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                    {% if u.role == 'superadmin' %} bg-red-100 text-red-800
+                    {% elseif u.role == 'admin' %} bg-yellow-100 text-yellow-800
+                    {% else %} bg-green-100 text-green-800
+                    {% endif %}
+                  ">
+                    {{ u.role|capitalize }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                  {% if u.is_active %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                      Active
+                    </span>
+                  {% else %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                      Disabled
+                    </span>
                   {% endif %}
-                ">
-                  {{ u.role|capitalize }}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm">
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                  <a href="{{ app_url }}/system/users/{{ u.id }}/edit" class="text-pink-600 hover:text-pink-800">Edit</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# Mobile Card View #}
+    <div class="md:hidden space-y-4">
+      {% for u in users %}
+        <div class="bg-white p-4 rounded-lg shadow-md shadow-gray-400 border border-gray-200">
+          <div class="flex justify-between items-center pb-3 border-b border-gray-200">
+            <span class="text-lg font-bold text-pink-600">
+              {{ u.first_name }} {{ u.last_name }}
+            </span>
+            <span class="px-2 py-0.5 rounded-full text-xs font-medium
+              {% if u.role == 'superadmin' %} bg-red-100 text-red-800
+              {% elseif u.role == 'admin' %} bg-yellow-100 text-yellow-800
+              {% else %} bg-green-100 text-green-800
+              {% endif %}
+            ">
+              {{ u.role|capitalize }}
+            </span>
+          </div>
+
+          <div class="space-y-2 pt-3 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-500">Email</span>
+              <span class="font-medium text-gray-800 text-right">{{ u.email }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Status</span>
+              <span class="font-medium text-right">
                 {% if u.is_active %}
                   <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                     Active
@@ -49,19 +100,24 @@
                     Disabled
                   </span>
                 {% endif %}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
-                <a href="{{ app_url }}/system/users/{{ u.id }}/edit" class="text-pink-600 hover:text-pink-800">Edit</a>
-              </td>
-            </tr>
-          {% else %}
-            <tr>
-              <td colspan="5" class="px-6 py-4 text-center text-gray-500">No users found.</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              </span>
+            </div>
+          </div>
+
+          <a href="{{ app_url }}/system/users/{{ u.id }}/edit" class="block w-full text-center mt-4 px-4 py-2 bg-[#835234] text-white text-sm font-medium rounded-md hover:bg-[#6d412a] transition">
+            Edit User
+          </a>
+        </div>
+      {% endfor %}
     </div>
-  </div>
+
+  {% else %}
+    <div class="bg-white rounded-lg shadow-md shadow-gray-400 border border-gray-200 overflow-hidden">
+      <p class="px-6 py-10 text-center text-gray-500">
+        No users found.
+      </p>
+    </div>
+  {% endif %}
+
 </div>
 {% endblock %}

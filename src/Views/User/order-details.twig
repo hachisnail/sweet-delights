@@ -40,9 +40,9 @@
   <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
    <h2 class="text-lg font-semibold text-[#a07445] mb-3">Shipping Address</h2>
    <div class="text-gray-700 not-italic">
-     <p class="font-medium">{{ order.customer_name }}</p>
-     <p>{{ order.address.street }}</p>
-     <p>{{ order.address.city }}, {{ order.address.state }} {{ order.address.postal_code }}</p>
+    <p class="font-medium">{{ order.customer_name }}</p>
+    <p>{{ order.address.street }}</p>
+    <p>{{ order.address.city }}, {{ order.address.state }} {{ order.address.postal_code }}</p>
    </div>
   </div>
  </div>
@@ -55,11 +55,16 @@
    <a href="{{ item.sku ? '/products/' ~ item.sku : '#' }}" 
     class="flex items-center gap-4 p-2 rounded-lg transition {{ item.sku ? 'hover:bg-pink-50' : 'cursor-default' }}">
     
-    <img src="{{ item.image }}" alt="{{ item.name }}" class="w-20 h-20 rounded-lg object-cover border border-pink-100 bg-pink-50">
-    
+    <!-- --- FIX: Added a fallback image and an onerror event --- -->
+    <img src="{{ item.image | default('/Assets/placeholder-item.png') }}" 
+         alt="{{ item.product_name }}" 
+         class="w-20 h-20 rounded-lg object-cover border border-pink-100 bg-pink-50"
+         onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+    <!-- --- END FIX --- -->
+
     <div class="flex-1">
-     <p class="text-lg font-semibold text-gray-800">{{ item.name }}</p>
-     <p class="text-sm text-gray-500">{{ item.selectedSize }}</p>
+     <p class="text-lg font-semibold text-gray-800">{{ item.product_name }}</p>
+     <p class="text-sm text-gray-500">{{ item.size }}</p>
      <p class="text-sm text-gray-500">Quantity: {{ item.quantity }}</p>
     </div>
     
@@ -78,22 +83,22 @@
   <div class="w-full max-w-sm space-y-2">
    
    <div class="flex justify-between text-gray-700">
-     <span>Subtotal</span>
-     <span class="font-medium">₱{{ order.subtotal|number_format(2) }}</span>
+    <span>Subtotal</span>
+    <span class="font-medium">₱{{ order.subtotal|number_format(2) }}</span>
    </div>
    <div class="flex justify-between text-gray-700">
-     <span>Tax</span>
-     <span class="font-medium">₱{{ order.tax|number_format(2) }}</span>
+    <span>Tax</span>
+    <span class="font-medium">₱{{ order.tax|number_format(2) }}</span>
    </div>
    <div class="flex justify-between text-gray-700">
-     <span>Shipping</span>
-     <span class="font-medium">₱{{ order.shipping_fee|number_format(2) }}</span>
+    <span>Shipping</span>
+    <span class="font-medium">₱{{ order.shipping_fee|number_format(2) }}</span>
    </div>
    <div class="flex justify-between text-xl font-bold text-[#835234] mt-2 pt-2 border-t border-pink-300">
-     <span>Total Paid</span>
-     <span>₱{{ (order.total)|number_format(2) }}</span>
+    <span>Total Paid</span>
+    <span>₱{{ (order.total)|number_format(2) }}</span>
    </div>
- section </div>
+  </div>
  </div>
 
 </div>

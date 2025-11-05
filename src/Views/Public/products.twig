@@ -54,7 +54,7 @@
             {% set image_src = cat.image ? '/Assets/Categories/' ~ cat.image : '/Assets/Categories/' ~ cat.slug ~ '.png' %}
             
             <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border border-[#E8C7A5]
-                        bg-white shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 group">
+                         bg-white shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 group">
               
               <a href="?category={{ cat.slug | url_encode }}" class="absolute inset-0 block">
                 <img src="{{ image_src }}" alt="{{ cat.name }}"
@@ -65,7 +65,7 @@
 
               <a href="?category={{ cat.slug | url_encode }}"
                  class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44] text-white font-zen-antique text-lg rounded-full overflow-hidden
-                        shadow-md hover:shadow-xl transition-all duration-300 group/button flex items-center justify-center">
+                         shadow-md hover:shadow-xl transition-all duration-300 group/button flex items-center justify-center">
                 
                 <span class="absolute inset-0 bg-white opacity-25 scale-x-0 origin-left group-hover/button:scale-x-100 transition-transform duration-500 ease-in-out"></span>
                 <span class="relative z-10">{{ cat.name }}</span>
@@ -83,48 +83,70 @@
   <section class="mt-10 snap-start">
     <h1 class="text-3xl font-zen-antique text-[#A96B44] mb-6 text-center">Our Treats</h1>
 
-    {# --- THIS LINE IS UPDATED --- #}
-    <div id="products-grid" class="w-full max-w-8xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-      {# --- End of Update --- #}
+    <!-- 
+      FIX: 
+      - Replaced 'md:grid-cols-4' with 'md:grid-cols-3 lg:grid-cols-4'
+      - This makes cards larger on standard desktop screens (3 columns)
+      - and only goes to 4 columns on very wide screens.
+    -->
+    <div id="products-grid" class="w-full max-w-8xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       
       {% if products is empty %}
         <p class="text-center text-gray-500 col-span-full">No products found.</p>
       {% else %}
         {% for product in products %}
-        <a href="{{ app_url }}/products/{{ product.sku | default(product.id) }}"
-          class="block bg-white rounded-2xl shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 border border-[#EADBCB] overflow-hidden">
 
+        <!-- --- CARD START --- -->
+        <!-- FIX: Added 'flex flex-col' to make the card a vertical flex container -->
+        <a href="{{ app_url }}/products/{{ product.sku | default(product.id) }}"
+           class="min-w-70 flex flex-col bg-white rounded-2xl shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 border border-[#EADBCB] overflow-hidden">
+
+          <!-- Image (no change) -->
           <div class="relative w-full h-48">
             <img src="{{ product.image }}" alt="{{ product.name }}"
                  class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-in-out hover:scale-105"
                  onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
           </div>
 
-          <div class="p-4">
-            <h2 class="font-semibold text-lg text-[#835234] truncate">{{ product.name }}</h2>
-            <p class="text-[#A69273] mb-1">
+          <!-- Content Wrapper -->
+          <!-- FIX: Added 'flex flex-col flex-grow' to make this section fill the remaining height -->
+          <div class="p-4 flex flex-col grow">
+            
+            <!-- Main content (name, price, sizes) -->
+            <div>
+              <h2 class="font-semibold text-lg text-[#835234] truncate">{{ product.name }}</h2>
+              <p class="text-[#A69273] mb-1">
+                {% if product.sizes is defined and product.sizes|length > 0 %}
+                  Starts at ₱{{ product.price|number_format(2, '.', ',') }}
+                {% else %}
+                  ₱{{ product.price|number_format(2, '.', ',') }}
+                {% endif %}
+              </p>
+
               {% if product.sizes is defined and product.sizes|length > 0 %}
-                Starts at ₱{{ product.price|number_format(2, '.', ',') }}
-              {% else %}
-                ₱{{ product.price|number_format(2, '.', ',') }}
+              <div class="flex flex-wrap gap-1 mb-2">
+                {% for size in product.sizes %}
+                <span class="px-2 py-0.5 text-xs bg-[#FFF3E0] text-[#A96B44] border border-[#EAD0B5] rounded-full font-medium">
+                  {{ size.name }}
+                </span>
+                {% endfor %}
+              </div>
               {% endif %}
-            </p>
-
-            {% if product.sizes is defined and product.sizes|length > 0 %}
-            <div class="flex flex-wrap gap-1 mb-2">
-              {% for size in product.sizes %}
-              <span class="px-2 py-0.5 text-xs bg-[#FFF3E0] text-[#A96B44] border border-[#EAD0B5] rounded-full font-medium">
-                {{ size.name }}
-              </span>
-              {% endfor %}
             </div>
-            {% endif %}
+            
+            <!-- Category Tag Wrapper -->
+            <!-- FIX: Added 'mt-auto' to push this block to the bottom of the card -->
+            <div class="mt-auto pt-2">
+              <span class="inline-block px-3 py-1 text-xs bg-[#FDE7D6] text-[#A96B44] rounded-full">
+                {{ product.category_name }}
+              </span>
+            </div>
 
-            <span class="inline-block px-3 py-1 text-xs bg-[#FDE7D6] text-[#A96B44] rounded-full mt-2">
-              {{ product.category_name }}
-            </span>
           </div>
+          <!-- End Content Wrapper -->
+
         </a>
+        <!-- --- CARD END --- -->
         {% endfor %}
       {% endif %}
     </div>

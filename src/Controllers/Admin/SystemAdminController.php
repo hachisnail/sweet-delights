@@ -4,6 +4,7 @@ namespace SweetDelights\Mayie\Controllers\Admin;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Routing\RouteContext;
+use \PDO; // <-- Not strictly needed but good practice
 
 class SystemAdminController extends BaseAdminController {
 
@@ -22,8 +23,23 @@ class SystemAdminController extends BaseAdminController {
     public function viewLogs(Request $request, Response $response): Response {
         $view = $this->viewFromRequest($request);
         
-        // --- FIX: Use inherited helper method ---
-        $mockLogs = $this->getLogs(); 
+        // --- NEW: Handle filter query parameters ---
+        $params = $request->getQueryParams();
+        $filters = [
+            'actor'  => $params['actor'] ?? null,
+            'action' => $params['action'] ?? null,
+            'target' => $params['target'] ?? null,
+        ];
+
+        // --- NEW: Handle pagination ---
+        $currentPage = (int)($params['page'] ?? 1);
+        $perPage = 20; // Set how many logs to show per page
+        
+        // --- FIX: Use inherited helper method with filters ---
+        $logData = $this->getLogs($filters, $currentPage, $perPage);
+        $logs = $logData['logs'];
+        $totalLogs = $logData['total'];
+        $totalPages = (int)ceil($totalLogs / $perPage);
 
         $breadcrumbs = $this->breadcrumbs($request, [
             ['name' => 'System Logs', 'url' => null]
@@ -31,7 +47,44 @@ class SystemAdminController extends BaseAdminController {
 
         return $view->render($response, 'Admin/system-logs.twig', [
             'title' => 'System Logs',
-            'logs'  => $mockLogs,
+            'logs'  => $logs,
+            'breadcrumbs' => $breadcrumbs, 
+            'active_page' => 'system_logs',
+            'app_url' => $_ENV['APP_URL'] ?? '', // <-- Added for filter form
+            'current_filters' => $filters,     // <-- Added for filter form
+
+            // --- NEW PAGINATION VARS ---
+            'currentPage' => $currentPage,
+            'totalPages' => $totalPages,
+            'totalLogs' => $totalLogs
+        ]);
+    }
+
+    /**
+     * Show the details page for a single log entry.
+     */
+    public function viewLogDetails(Request $request, Response $response, array $args): Response 
+    {
+        $view = $this->viewFromRequest($request);
+        $routeParser = RouteContext::fromRequest($request)->getRouteParser();
+        $id = (int)$args['id'];
+        
+        // Use the getLogById helper from BaseAdminController
+        $log = $this->getLogById($id);
+
+        if (!$log) {
+            // Log not found, redirect back to the list
+            return $response->withHeader('Location', $routeParser->urlFor('system.logs.index'))->withStatus(302);
+        }
+
+        $breadcrumbs = $this->breadcrumbs($request, [
+            ['name' => 'System Logs', 'url' => 'system.logs.index'],
+            ['name' => 'Log Details', 'url' => null]
+        ]);
+
+        return $view->render($response, 'Admin/system-logs-details.twig', [
+            'title' => 'Log Details',
+            'log'   => $log,
             'breadcrumbs' => $breadcrumbs, 
             'active_page' => 'system_logs', 
         ]);
@@ -39,10 +92,11 @@ class SystemAdminController extends BaseAdminController {
 
     /**
      * Show the user list page (for superadmins).
+     * (This method is already correct, as getUsors() is now the DB version)
      */
     public function manageUsers(Request $request, Response $response): Response {
         $view = $this->viewFromRequest($request);
-        $allUsers = $this->getUsers(); // <-- Inherited
+        $allUsers = $this->getUsers(); // <-- Inherited DB method
         
         $safeUsers = array_map(function($user) {
             unset($user['password_hash']);
@@ -64,6 +118,7 @@ class SystemAdminController extends BaseAdminController {
 
     /**
      * Show the form to create a new user (superadmin version).
+     * (This method is correct, no data logic)
      */
     public function createUser(Request $request, Response $response): Response
     {
@@ -89,20 +144,22 @@ class SystemAdminController extends BaseAdminController {
     public function storeUser(Request $request, Response $response): Response
     {
         $data = $request->getParsedBody();
-        $users = $this->getUsers(); // <-- Inherited
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
-        // Check for duplicate email
-        foreach ($users as $user) {
-            if ($user['email'] === $data['email']) {
-                $url = $routeParser->urlFor('system.users.create') . '?error=email_exists';
-                return $response->withHeader('Location', $url)->withStatus(302);
-            }
+        // --- 1. GET ACTOR ---
+        $user = $request->getAttribute('user');
+        $actorId = $user ? (int)$user['id'] : null;
+
+        // --- REFACTORED: Use DB helpers ---
+        // 1. Check for duplicate email
+        if ($this->findUserByEmail($data['email'])) {
+            $url = $routeParser->urlFor('system.users.create') . '?error=email_exists';
+            return $response->withHeader('Location', $url)->withStatus(302);
         }
         
-        $newId = empty($users) ? 1 : max(array_column($users, 'id')) + 1;
+        // 2. Build the new user array
         $newUser = [
-            'id' => $newId,
+            // 'id' is removed (AUTO_INCREMENT)
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
             'email' => $data['email'],
@@ -121,8 +178,20 @@ class SystemAdminController extends BaseAdminController {
             'favourites' => []
         ];
 
-        $users[] = $newUser;
-        $this->saveUsers($users); // <-- Inherited
+        // 3. Create the user
+        $newId = $this->createNewUser($newUser); // <-- New helper from BaseAdminController
+        
+        // --- 4. LOG ACTIVITY ---
+        $userAfter = $this->findUserById($newId);
+        $this->logEntityChange(
+            $actorId,
+            'create',
+            'user',
+            $newId,
+            null,
+            $userAfter
+        );
+        // --- END LOG ---
 
         return $response->withHeader('Location', $routeParser->urlFor('system.users.index'))->withStatus(302);
     }
@@ -134,16 +203,11 @@ class SystemAdminController extends BaseAdminController {
     {
         $view = $this->viewFromRequest($request);
         $id = (int)$args['id'];
-        $users = $this->getUsers(); // <-- Inherited
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
-        $foundUser = null;
-
-        foreach ($users as $user) {
-            if ($user['id'] === $id) {
-                $foundUser = $user;
-                break;
-            }
-        }
+        
+        // --- REFACTORED: Use DB helper ---
+        $foundUser = $this->findUserById($id);
+        // --- END REFACTOR ---
 
         if (!$foundUser) {
             return $response->withHeader('Location', $routeParser->urlFor('system.users.index'))->withStatus(302);
@@ -166,38 +230,60 @@ class SystemAdminController extends BaseAdminController {
 
     /**
      * Update the user (superadmin version).
+     *
+     * --- FIX: Renamed from 'updateUser' to 'update' to avoid conflict ---
      */
-    public function updateUser(Request $request, Response $response, array $args): Response
+    public function update(Request $request, Response $response, array $args): Response
     {
         $id = (int)$args['id'];
         $data = $request->getParsedBody();
-        $users = $this->getUsers(); // <-- Inherited
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
-        $userUpdated = false;
 
-        foreach ($users as &$user) {
-            if ($user['id'] === $id) {
-                
-                // NO SECURITY CHECKS. Superadmin can change anything.
-                
-                $user['first_name'] = $data['first_name'];
-                $user['last_name'] = $data['last_name'];
-                $user['email'] = $data['email'];
-                $user['role'] = $data['role'];
-                $user['is_active'] = isset($data['is_active']);
-                
-                if (!empty($data['password'])) {
-                    $user['password_hash'] = password_hash($data['password'], PASSWORD_DEFAULT);
-                }
-                
-                $userUpdated = true;
-                break;
-            }
+        // --- 1. GET ACTOR ---
+        $user = $request->getAttribute('user');
+        $actorId = $user ? (int)$user['id'] : null;
+
+        // --- 2. GET "BEFORE" STATE ---
+        $userBefore = $this->findUserById($id);
+        if (!$userBefore) {
+            // User not found
+            return $response->withHeader('Location', $routeParser->urlFor('system.users.index'))->withStatus(302);
         }
-        unset($user);
 
-        if ($userUpdated) {
-            $this->saveUsers($users); // <-- Inherited
+        // 3. Build the data array for the helper
+        $updateData = [
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
+            'email' => $data['email'],
+            'role' => $data['role'], // Superadmin can set any role
+            'is_active' => isset($data['is_active']) ? 1 : 0
+        ];
+        
+        // 4. Only add password if it's not empty
+        if (!empty($data['password'])) {
+            $updateData['password_hash'] = password_hash($data['password'], PASSWORD_DEFAULT);
+        }
+
+        // 5. Call the parent helper
+        try {
+            $this->updateUser($id, $updateData);
+
+            // --- 6. LOG ACTIVITY ---
+            $userAfter = $this->findUserById($id);
+            $this->logEntityChange(
+                $actorId,
+                'update',
+                'user',
+                $id,
+                $userBefore,
+                $userAfter
+            );
+            // --- END LOG ---
+
+        } catch (\Exception $e) {
+            // Handle potential errors, e.g., duplicate email
+            // In a real app, log this: error_log($e->getMessage());
+            // For now, we just redirect. A flash message would be good.
         }
 
         return $response->withHeader('Location', $routeParser->urlFor('system.users.index'))->withStatus(302);

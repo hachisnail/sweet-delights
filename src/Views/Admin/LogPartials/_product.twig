@@ -1,0 +1,158 @@
+{#
+  Receives:
+    - data: product data (after or before)
+    - beforeData: product data (for comparison)
+    - isAfterState: boolean — true if this is the "after" panel (highlight)
+#}
+
+{% set isAfterState = isAfterState is defined ? isAfterState : true %}
+{% set beforeData = beforeData is defined ? beforeData : {} %}
+
+
+<style>
+.highlight-changed {
+  background-color: #fff3cd;
+  color: #8b4513;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+</style>
+
+{% if data %}
+<div class="p-4 space-y-6 bg-white rounded-lg">
+
+  {# --- Product Header --- #}
+  <div class="border-b border-pink-200 pb-3">
+    <h3 class="text-xl font-bold text-[#835234]">
+      {% set nameChanged = isAfterState and (beforeData.name ?? '') != (data.name ?? '') %}
+      <span class="{% if nameChanged %} bg-yellow-50 border-l-4 border-yellow-300 px-2 rounded transition {% endif %}">
+        {{ data.name | default('Unnamed Product') }}
+      </span>
+    </h3>
+    <p class="text-sm text-gray-500">
+      SKU:
+      {% set skuChanged = isAfterState and (beforeData.sku ?? '') != (data.sku ?? '') %}
+      <span class="{% if skuChanged %} bg-yellow-50 border-l-4 border-yellow-300 px-1 rounded transition {% endif %}">
+        {{ data.sku | default('N/A') }}
+      </span>
+    </p>
+  </div>
+
+  {# --- Basic Info Grid --- #}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    {% set categoryChanged = isAfterState and (beforeData.category_id ?? '') != (data.category_id ?? '') %}
+    <div class="p-4 rounded-lg border transition
+      {% if categoryChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Category ID</h4>
+      <p class="text-gray-800 font-medium">{{ data.category_id | default('N/A') }}</p>
+    </div>
+
+    {% set listedChanged = isAfterState and (beforeData.is_listed ?? null) != (data.is_listed ?? null) %}
+    <div class="p-4 rounded-lg border transition
+      {% if listedChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Listed Status</h4>
+      <span class="text-sm font-semibold px-3 py-1 rounded-full
+        {% if data.is_listed %} bg-green-100 text-green-700
+        {% else %} bg-gray-100 text-gray-700
+        {% endif %}
+      ">
+        {{ data.is_listed ? 'Listed' : 'Unlisted' }}
+      </span>
+    </div>
+
+    {% set priceChanged = isAfterState and (beforeData.price ?? 0) != (data.price ?? 0) %}
+    <div class="p-4 rounded-lg border transition
+      {% if priceChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Base Price</h4>
+      <p class="text-gray-900 font-semibold">
+        ₱{{ data.price | default(0) | number_format(2) }}
+      </p>
+    </div>
+
+    {% set stockChanged = isAfterState and (beforeData.stock ?? 0) != (data.stock ?? 0) %}
+    <div class="p-4 rounded-lg border transition
+      {% if stockChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Total Stock</h4>
+      <p class="text-gray-900 font-semibold">{{ data.stock | default('N/A') }}</p>
+    </div>
+
+  </div>
+
+  {# --- Product Description --- #}
+  {% set descChanged = isAfterState and (beforeData.description ?? '') != (data.description ?? '') %}
+  <div class="p-4 rounded-lg border transition
+    {% if descChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+  ">
+    <h4 class="text-md font-semibold text-[#a07445] mb-2">Description</h4>
+    <p class="text-gray-700 whitespace-pre-line">
+      {{ data.description | default('No description.') }}
+    </p>
+  </div>
+
+  {# --- Main Image --- #}
+  {% set imageChanged = isAfterState and (beforeData.image ?? '') != (data.image ?? '') %}
+  <div class="p-4 rounded-lg border transition
+    {% if imageChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+  ">
+    <h4 class="text-md font-semibold text-[#a07445] mb-3">Main Image</h4>
+    {% if data.image %}
+      <img 
+        src="{{ data.image }}" 
+        alt="Main Image" 
+        class="w-40 h-40 object-cover rounded-lg border border-gray-200 bg-white shadow-sm"
+        onerror="this.onerror=null;this.src='/Assets/placeholder-item.png';"
+      >
+    {% else %}
+      <p class="text-gray-500 italic">No main image</p>
+    {% endif %}
+  </div>
+
+  {# --- Variants (Sizes) --- #}
+  <div>
+    <h4 class="text-lg font-semibold text-[#a07445] mb-3">Sizes & Variants</h4>
+
+    {% if data.sizes is defined and data.sizes|length > 0 %}
+      <div class="divide-y divide-gray-100 border border-gray-200 rounded-lg">
+        {% for size in data.sizes %}
+          {% set beforeSize = beforeData.sizes is defined and beforeData.sizes[loop.index0] is defined ? beforeData.sizes[loop.index0] : {} %}
+          {% set variantChanged = isAfterState and (
+            (beforeSize.name ?? '') != (size.name ?? '') or
+            (beforeSize.price ?? 0) != (size.price ?? 0) or
+            (beforeSize.stock ?? 0) != (size.stock ?? 0) or
+            (beforeSize.image ?? '') != (size.image ?? '')
+          ) %}
+
+          <div class="flex flex-col md:flex-row md:items-center gap-4 p-3 transition
+            {% if variantChanged %} bg-yellow-50 border-l-4 border-yellow-300 {% endif %}
+          ">
+            <img 
+              src="{{ size.image | default('/Assets/placeholder-item.png') }}" 
+              alt="{{ size.name }}" 
+              class="w-16 h-16 rounded-lg object-cover border border-gray-200 bg-gray-50"
+              onerror="this.onerror=null;this.src='/Assets/placeholder-item.png';"
+            >
+            <div class="flex-1">
+              <p class="font-medium text-gray-900">{{ size.name | default('Unnamed Variant') }}</p>
+              <p class="text-sm text-gray-500">Stock: {{ size.stock | default(0) }}</p>
+            </div>
+            <div class="text-right">
+              <p class="font-semibold text-gray-900">₱{{ size.price | number_format(2) }}</p>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-500 italic">No size variants.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% else %}
+  <p class="text-gray-500 italic">N/A (e.g., a “create” action)</p>
+{% endif %}

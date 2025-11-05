@@ -44,12 +44,12 @@
            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 w-5 h-5"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>
            <span>Categories</span>
         </a>
-        {# --- Users (Admin) --- #}
+        {# --- Users --- #}
         {% if user.role == 'admin' %}
         <a href="{{ urls.users_admin }}" 
            class="flex items-center gap-3 p-2 rounded {{ active_page == 'users' ? 'bg-[#a07445] font-semibold' : 'hover:bg-[#a07445]' }}">
            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 w-5 h-5"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-           <span>Users (Admin)</span>
+           <span>Users</span>
         </a>
         {% endif %}
         {# --- Reports --- #}

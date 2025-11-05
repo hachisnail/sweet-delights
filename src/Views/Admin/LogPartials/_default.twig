@@ -1,0 +1,16 @@
+{% if data %}
+  <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
+    <div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-2">
+      <h3 class="text-lg font-semibold text-[#835234]">Raw Data</h3>
+      <span class="text-xs text-gray-400 uppercase tracking-wide">
+        {{ isAfterState ?? true ? 'After' : 'Before' }}
+      </span>
+    </div>
+
+    <pre class="text-xs font-mono leading-relaxed text-gray-800 bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-auto whitespace-pre-wrap">
+{{ data | json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}
+    </pre>
+  </div>
+{% else %}
+  <p class="text-gray-500 italic">N/A (e.g., a “create” action)</p>
+{% endif %}

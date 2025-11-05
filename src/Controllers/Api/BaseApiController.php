@@ -10,6 +10,8 @@ class BaseApiController extends BaseAdminController
 {
     public function __construct()
     {
+        // This calls the BaseAdminController's constructor
+        // and sets up the database connection ($this->db)
         parent::__construct();
     }
 
@@ -42,7 +44,7 @@ class BaseApiController extends BaseAdminController
 
     /**
      * Reusable function to sync a user key (like 'cart' or 'favourites')
-     * to both the session and the users.php file.
+     * to both the session and the database.
      */
     protected function syncUserKey(Request $request, Response $response, string $keyToSync): Response
     {
@@ -56,20 +58,13 @@ class BaseApiController extends BaseAdminController
         // 1. Update the session
         $_SESSION['user'][$keyToSync] = $dataToSync;
 
-        // 2. Load users and update the file
-        $users = $this->getUsers();
-
-        $updatedUsers = array_map(function($user) use ($userId, $keyToSync, $dataToSync) {
-            if ($user['id'] === $userId) {
-                $user[$keyToSync] = $dataToSync;
-            }
-            return $user;
-        }, $users);
-
-        // 3. Save to file (using inherited method)
-        $this->saveUsers($updatedUsers);
+        // --- REFACTORED ---
+        // 2. Save to database using the new inherited helper
+        // This is much faster than reading/writing the entire users file.
+        $this->saveUserKey($userId, $keyToSync, $dataToSync);
+        // --- END REFACTOR ---
         
-        // 4. Send success response
+        // 3. Send success response
         $responseData = [
             'status' => 'success',
             $keyToSync => $dataToSync

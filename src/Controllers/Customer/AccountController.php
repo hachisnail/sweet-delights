@@ -3,76 +3,35 @@ namespace SweetDelights\Mayie\Controllers\Customer;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Slim\Views\Twig;
-use SweetDelights\Mayie\Controllers\BaseDataController;
+// use Slim\Views\Twig; // <-- Removed
+// use SweetDelights\Mayie\Controllers\BaseDataController; // <-- Removed
+use SweetDelights\Mayie\Controllers\Admin\BaseAdminController; // <-- Added
 use Slim\Routing\RouteContext;
-class AccountController extends BaseDataController {
+
+// --- FIX: Extend the BaseAdminController ---
+class AccountController extends BaseAdminController {
 
     /**
      * @var string The path to the users data file.
      */
-    private $usersPath;
-    private $ordersPath;
-    private $productsPath;
+    // --- FIX: All data-path properties removed ---
+    // private $usersPath;
+    // private $ordersPath;
+    // private $productsPath;
+
     /**
-     * Constructor to set up data paths.
+     * --- FIX: Constructor now just calls the parent to get DB access ---
      */
     public function __construct()
     {
-        $this->usersPath = __DIR__ . '/../../Data/users.php';
-        $this->ordersPath = __DIR__ . '/../../Data/orders.php'; 
-        $this->productsPath = __DIR__ . '/../../Data/products.php';
+        parent::__construct();
+        // $this->usersPath = __DIR__ . '/../../Data/users.php';
+        // $this->ordersPath = __DIR__ . '/../../Data/orders.php'; 
+        // $this->productsPath = __DIR__ . '/../../Data/products.php';
     }
 
-    // --- Data Helper Functions ---
-
-    /**
-     * Gets all users from the data file.
-     * @return array
-     */
-    private function getUsers(): array
-    {
-        if (!file_exists($this->usersPath)) {
-            return [];
-        }
-        return require $this->usersPath;
-    }
-
-    /**
-     * Saves the entire users array back to the file.
-     * @param array $users The array of users to save.
-     */
-    private function saveUsers(array $users)
-    {
-        // Re-index the array if keys are not sequential (e.g., after deletions)
-        $users = array_values($users);
-        $this->saveData($this->usersPath, $users);
-    }
-
-    private function getOrders(): array
-    {
-        if (!file_exists($this->ordersPath)) { 
-            return []; 
-        }
-        return require $this->ordersPath;
-    }
-
-    private function saveOrders(array $data) 
-    { 
-        $this->saveData($this->ordersPath, $data); 
-    }
-
-    private function getProducts(): array
-    {
-        if (!file_exists($this->productsPath)) { return []; }
-        return require $this->productsPath;
-    }
-    /**
-     * Helper function to write data to a PHP file.
-     * (This logic is copied from your BaseAdminController)
-     * @param string $path The file path to write to.
-     * @param array $data The data to save.
-     */
+    // --- FIX: All local data-helper functions are removed (getUsers, saveUsers, etc.) ---
+    // They are now all inherited from BaseAdminController.
 
 
     // --- Controller Methods ---
@@ -84,29 +43,34 @@ class AccountController extends BaseDataController {
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $redirectUrl = $routeParser->urlFor('account.orders.show', ['id' => $orderId]);
         
-        $allOrders = $this->getOrders();
-        $orderUpdated = false;
+        // --- 1. GET "BEFORE" STATE ---
+        $orderBefore = $this->getOrderById($orderId);
 
-        foreach ($allOrders as &$order) {
-            // Find the correct order
-            if ($order['id'] === $orderId) {
-                
-                // SECURITY CHECKS:
-                // 1. Does this order belong to the logged-in user?
-                // 2. Is the order status "Shipped"?
-                if ($order['user_id'] === $user['id'] && $order['status'] === 'Shipped') {
-                    $order['status'] = 'Delivered';
-                    $orderUpdated = true;
-                }
-                
-                break;
-            }
+        // 2. Validate the action
+        if (!$orderBefore || $orderBefore['user_id'] !== $user['id'] || $orderBefore['status'] !== 'Shipped') {
+            // Either not their order, or not in a 'Shipped' state.
+            return $response->withHeader('Location', $redirectUrl)->withStatus(302);
         }
-        unset($order);
 
-        if ($orderUpdated) {
-            $this->saveOrders($allOrders);
-        }
+        // --- 3. PERFORM UPDATE ---
+        $stmt = $this->db->prepare("
+            UPDATE orders 
+            SET status = 'Delivered' 
+            WHERE id = ? AND user_id = ? AND status = 'Shipped'
+        ");
+        $stmt->execute([$orderId, $user['id']]);
+
+        // --- 4. LOG ACTIVITY ---
+        $orderAfter = $this->getOrderById($orderId); // Get "after" state
+        $this->logEntityChange(
+            $user['id'],    // The customer is the actor
+            'update',
+            'order',
+            $orderId,
+            $orderBefore,
+            $orderAfter
+        );
+        // --- END LOG ---
 
         // Redirect back to the order page
         return $response->withHeader('Location', $redirectUrl)->withStatus(302);
@@ -119,7 +83,8 @@ class AccountController extends BaseDataController {
      */
 
     public function showSettings(Request $request, Response $response): Response {
-        $view = Twig::fromRequest($request);
+        // --- FIX: Use inherited view helper ---
+        $view = $this->viewFromRequest($request);
         $user = $request->getAttribute('user'); // User from session
         $params = $request->getQueryParams();
 
@@ -136,10 +101,14 @@ class AccountController extends BaseDataController {
      * (Unchanged, but fixed a stray semicolon)
      */
     public function showOrders(Request $request, Response $response): Response {
-        $view = Twig::fromRequest($request);
+        // --- FIX: Use inherited view helper ---
+        $view = $this->viewFromRequest($request);
         $user = $request->getAttribute('user');
         
+        // --- FIX: This now calls the inherited getOrders() from the DB ---
         $allOrders = $this->getOrders();
+        
+        // This filter logic is still perfectly valid.
         $userOrders = array_filter($allOrders, function($order) use ($user) {
             return $order['user_id'] === $user['id'];
         });
@@ -156,96 +125,99 @@ class AccountController extends BaseDataController {
 
    public function showOrderDetails(Request $request, Response $response, array $args): Response
     {
-        $view = Twig::fromRequest($request);
+        // --- FIX: Use inherited view helper ---
+        $view = $this->viewFromRequest($request);
         $user = $request->getAttribute('user');
         $orderId = (int)$args['id'];
 
-        $allOrders = $this->getOrders();
-        $foundOrder = null;
-        foreach ($allOrders as $order) {
-            if ($order['id'] === $orderId) {
-                $foundOrder = $order;
-                break;
-            }
-        }   
+        // --- FIX: Use the efficient getOrderById() helper ---
+        $foundOrder = $this->getOrderById($orderId);
 
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
+        // This security check is still perfect
         if (!$foundOrder || $foundOrder['user_id'] !== $user['id']) {
             return $response->withHeader('Location', $routeParser->urlFor('account.orders'))->withStatus(302);
         }
-        // --- NEW LOGIC: INJECT 'id' (using 'sku') ---
+
+        // --- FIX: This now calls the inherited getProducts() from the DB ---
         $allProducts = $this->getProducts();
         
-        // Create a simple lookup map for efficiency [sku => id]
+        // This logic for back-filling the product 'id' from the 'sku' is still
+        // valid and now uses the DB-fetched product list.
         $idMap = [];
         foreach ($allProducts as $product) {
-            // Use sku as the key
             $idMap[$product['sku']] = $product['id']; 
         }
 
-        // Loop through order items and add the id
         if (isset($foundOrder['items']) && is_array($foundOrder['items'])) {
             foreach ($foundOrder['items'] as &$item) {
-                // Use the item's sku (which exists) to find its id
-                if (isset($item['sku']) && isset($idMap[$item['sku']])) {
-                    $item['id'] = $idMap[$item['sku']]; // Add the 'id' field
+                // --- FIX: Use 'product_sku' which comes from the DB ---
+                if (isset($item['product_sku']) && isset($idMap[$item['product_sku']])) {
+                    $item['id'] = $idMap[$item['product_sku']]; 
                 } else {
                     $item['id'] = null; // Product might have been deleted
                 }
             }
-            unset($item); // Unset the reference
+            unset($item);
         }
-        // --- END NEW LOGIC ---
 
         return $view->render($response, 'User/order-details.twig', [
             'title' => 'Order Details #' . $foundOrder['id'],
-            'order' => $foundOrder // This $foundOrder now contains the SKU for each item
+            'order' => $foundOrder
         ]);
-    }
+   }
     /**
      * MODIFIED: Handle the profile update form submission.
      * Now saves to file AND updates session.
      */
     public function updateProfile(Request $request, Response $response): Response {
         $sessionUser = $request->getAttribute('user'); // Get current user from session
-        $data = $request->getParsedBody();        // Get form data
-        $allUsers = $this->getUsers();            // Get all users from file
+        $data = $request->getParsedBody();            // Get form data
+        $actorId = $sessionUser['id'];
+
+        // --- FIX: Use the inherited updateUser() helper ---
         
-        $updatedSessionData = $sessionUser; // Start with current session data
+        // --- 1. GET "BEFORE" STATE ---
+        $userBefore = $this->findUserById($actorId);
 
-        // Find the user in the file array and update them
-        foreach ($allUsers as $index => &$fileUser) {
-            if ($fileUser['id'] === $sessionUser['id']) {
-                
-                // 1. Update the data in the file array
-                $fileUser['first_name'] = $data['first_name'] ?? $fileUser['first_name'];
-                $fileUser['last_name'] = $data['last_name'] ?? $fileUser['last_name'];
-                $fileUser['email'] = $data['email'] ?? $fileUser['email'];
-                $fileUser['contact_number'] = $data['contact_number'] ?? $fileUser['contact_number'];
-                $fileUser['address'] = [
-                    'street' => $data['address_street'] ?? $fileUser['address']['street'],
-                    'city' => $data['address_city'] ?? $fileUser['address']['city'],
-                    'state' => $data['address_state'] ?? $fileUser['address']['state'],
-                    'postal_code' => $data['address_postal_code'] ?? $fileUser['address']['postal_code'],
-                ];
+        // 2. Build the data array for the helper
+        $dataToUpdate = [
+            'first_name' => $data['first_name'] ?? $sessionUser['first_name'],
+            'last_name' => $data['last_name'] ?? $sessionUser['last_name'],
+            'email' => $data['email'] ?? $sessionUser['email'],
+            'contact_number' => $data['contact_number'] ?? $sessionUser['contact_number'],
+            // The updateUser helper will JSON-encode this array
+            'address' => [
+                'street' => $data['address_street'] ?? ($sessionUser['address']['street'] ?? ''),
+                'city' => $data['address_city'] ?? ($sessionUser['address']['city'] ?? ''),
+                'state' => $data['address_state'] ?? ($sessionUser['address']['state'] ?? ''),
+                'postal_code' => $data['address_postal_code'] ?? ($sessionUser['address']['postal_code'] ?? ''),
+            ]
+        ];
 
-                // 2. Prepare the data for the session update
-                // Merge the *updated file data* with the *current session data*
-                // This preserves session-only data like 'cart' and 'favourites'.
-                $updatedSessionData = array_merge($sessionUser, $fileUser);
-                break;
-            }
-        }
-        unset($fileUser); // Unset the reference
+        // 3. Call the helper to update the database
+        $this->updateUser($actorId, $dataToUpdate);
 
-        // 3. Save the modified user array back to the file
-        $this->saveUsers($allUsers);
-
-        // 4. Update the session with the newly saved data
+        // 4. Update the session with the new data
+        // We merge the new data into the existing session to preserve 'cart', etc.
+        $updatedSessionData = array_merge($sessionUser, $dataToUpdate);
         $_SESSION['user'] = $updatedSessionData;
 
-        // 5. Redirect back with a success message
+        // --- 5. LOG ACTIVITY ---
+        $userAfter = $this->findUserById($actorId); // Get "after" state
+        $this->logEntityChange(
+            $actorId,
+            'update',
+            'user',
+            $actorId,
+            $userBefore,
+            $userAfter
+        );
+        // --- END LOG ---
+
+
+        // 6. Redirect back with a success message
         return $response->withHeader('Location', '/account/settings?success=profile')->withStatus(302);
     }
 
@@ -255,26 +227,20 @@ class AccountController extends BaseDataController {
      */
     public function updatePassword(Request $request, Response $response): Response {
         $user = $request->getAttribute('user'); // User from session
+        $actorId = $user['id'];
         $data = $request->getParsedBody();
 
         $currentPassword = $data['current_password'] ?? '';
         $newPassword = $data['new_password'] ?? '';
 
-        // 1. Load all users from the file
-        $allUsers = $this->getUsers();
-        $foundUser = null;
-        $foundUserIndex = -1;
+        // --- FIX: Use findUserById() and updateUser() helpers ---
 
-        foreach ($allUsers as $index => $u) {
-            if ($u['id'] === $user['id']) {
-                $foundUser = $u;
-                $foundUserIndex = $index;
-                break;
-            }
-        }
+        // 1. Get the definitive user record from the DB, not the session
+        // This is our "BEFORE" state
+        $dbUser = $this->findUserById($actorId);
 
         // 2. Check if current password is correct
-        if (!$foundUser || !password_verify($currentPassword, $foundUser['password_hash'])) {
+        if (!$dbUser || !password_verify($currentPassword, $dbUser['password_hash'])) {
             // Failed: Redirect back with an error
             return $response->withHeader('Location', '/account/settings?error=password')->withStatus(302);
         }
@@ -283,13 +249,30 @@ class AccountController extends BaseDataController {
         // Hash the new password
         $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
         
-        // Update the hash in the user array
-        $allUsers[$foundUserIndex]['password_hash'] = $newHash;
-        
-        // 4. Save the updated user array back to the file
-        $this->saveUsers($allUsers);
+        // 4. Call the helper to update only the password
+        $this->updateUser($actorId, [
+            'password_hash' => $newHash
+        ]);
 
-        // 5. Redirect back with a success message
+        // --- 5. LOG ACTIVITY ---
+        // Get "after" state
+        $userAfter = $this->findUserById($actorId);
+
+        // !!! SECURITY: Unset password hashes before logging !!!
+        unset($dbUser['password_hash']);
+        unset($userAfter['password_hash']);
+
+        $this->logEntityChange(
+            $actorId,
+            'update', // Kept generic for security
+            'user',
+            $actorId,
+            $dbUser, // "before" state (hash removed)
+            $userAfter // "after" state (hash removed)
+        );
+        // --- END LOG ---
+
+
         return $response->withHeader('Location', '/account/settings?success=password')->withStatus(302);
     }
 }

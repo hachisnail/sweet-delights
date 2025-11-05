@@ -30,20 +30,28 @@ class ReportsAdminController extends BaseAdminController
         // --- THIS BLOCK IS NOW FIXED ---
         foreach ($filteredOrders as $order) {
             $totalSales += $order['total'];
-            foreach ($order['items'] as $item) {
-                $sku = $item['sku']; // <-- FIX: Use 'sku'
-                $qty = $item['quantity'];
-                if (!isset($itemsSold[$sku])) {
-                    $itemsSold[$sku] = 0;
+            
+            // Check if items exist and is an array before looping
+            if (isset($order['items']) && is_array($order['items'])) {
+                foreach ($order['items'] as $item) {
+                    // --- FIX: Use 'product_sku' which comes from the DB ---
+                    $sku = $item['product_sku'] ?? null; 
+                    if ($sku) { // Only process if SKU exists
+                        $qty = $item['quantity'];
+                        if (!isset($itemsSold[$sku])) {
+                            $itemsSold[$sku] = 0;
+                        }
+                        $itemsSold[$sku] += $qty;
+                    }
                 }
-                $itemsSold[$sku] += $qty;
             }
         }
         // --- END FIX ---
 
         // Build maps using SKU as the key
-        $productNameMap = array_column($this->getProducts(), 'name', 'sku');
-        $productIdMap = array_column($this->getProducts(), 'id', 'sku');
+        $allProducts = $this->getProducts(); // Inherited
+        $productNameMap = array_column($allProducts, 'name', 'sku');
+        $productIdMap = array_column($allProducts, 'id', 'sku');
         
         $bestSellers = [];
         // This loop was already correct
@@ -109,6 +117,10 @@ class ReportsAdminController extends BaseAdminController
     {
         $params = $request->getQueryParams();
 
+        // --- 1. GET ACTOR ---
+        $user = $request->getAttribute('user');
+        $actorId = $user ? (int)$user['id'] : null;
+
         $defaultStart = date('Y-m-d', strtotime('-30 days'));
         $defaultEnd = date('Y-m-d');
         $dateStart = $params['date_start'] ?? $defaultStart;
@@ -116,16 +128,31 @@ class ReportsAdminController extends BaseAdminController
 
         $reportData = $this->generateReportData($dateStart, $dateEnd);
 
+        // --- 2. LOG THE EXPORT ACTION ---
+        $this->logAction(
+            $actorId,
+            'export', // actionType
+            'report', // targetType
+            null,     // targetId
+            [ 
+                'report_type' => 'sales',
+                'date_start' => $dateStart,
+                'date_end' => $dateEnd,
+                'summary' => $reportData['stats'] // Log summary data
+            ]
+        );
+        // --- END LOG ---
+
         // --- Build the CSV String (FIXED) ---
         
-        // 1. Open a temporary memory stream to write the CSV
+        // 3. Open a temporary memory stream to write the CSV
         $stream = fopen('php://memory', 'w');
 
-        // 2. Add headers
+        // 4. Add headers
         fputcsv($stream, ["Sales Report ($dateStart to $dateEnd)"]);
         fputcsv($stream, []); // Blank line
 
-        // 3. Add Summary Data
+        // 5. Add Summary Data
         fputcsv($stream, ["Metric", "Value"]);
         // REMOVED currency symbols and number formatting for a clean CSV
         fputcsv($stream, ["Total Sales", $reportData['stats']['total_sales']]);
@@ -134,7 +161,7 @@ class ReportsAdminController extends BaseAdminController
         
         fputcsv($stream, []); // Blank line
 
-        // 4. Add Best Sellers Data
+        // 6. Add Best Sellers Data
         fputcsv($stream, ["Top 10 Best Sellers"]);
         fputcsv($stream, ["Rank", "Product Name", "Quantity Sold"]);
         foreach ($reportData['best_sellers'] as $index => $item) {
@@ -146,12 +173,12 @@ class ReportsAdminController extends BaseAdminController
         }
         // --- END OF CSV BUILDING ---
 
-        // 5. Rewind the stream and get its contents
+        // 7. Rewind the stream and get its contents
         rewind($stream);
         $csv = stream_get_contents($stream);
         fclose($stream);
 
-        // 6. Set Headers to Force Download
+        // 8. Set Headers to Force Download
         $filename = "sales-report-{$dateStart}-to-{$dateEnd}.csv";
         $response->getBody()->write($csv);
         

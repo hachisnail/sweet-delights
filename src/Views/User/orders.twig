@@ -11,14 +11,12 @@
       <div class="border border-gray-200 rounded-lg p-4 shadow-sm">
         <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-2">
           
-          {# --- THIS IS THE CHANGE --- #}
           <h2 class="text-lg font-semibold">
             <a href="/account/orders/{{ order.id }}" class="text-[#835234] hover:underline">
               Order #{{ order.id }}
             </a>
           </h2>
-          {# --- END CHANGE --- #}
-
+          
           <span class="text-sm font-medium
             {% if order.status == 'Delivered' %}text-green-600
             {% elseif order.status == 'Shipped' %}text-blue-600
@@ -32,18 +30,25 @@
           <p>Total: <span class="font-medium text-gray-700">₱{{ (order.total)|number_format(2) }}</span></p>
         </div>
 
+        <!-- --- FIX: Reworked this section to show images --- -->
         <div class="text-sm text-gray-700 bg-gray-50 p-3 rounded">
-          <strong class="block mb-2">Items:</strong>
-          <ul class="list-disc list-inside space-y-1">
+          <strong class="block mb-3">Items:</strong>
+          <div class="space-y-3">
             {% for item in order.items %}
-              <li>
-                {{ item.name }} 
-                {% if item.selectedSize %}({{ item.selectedSize }}){% endif %}
-                &times; {{ item.quantity }}
-              </li>
+              <div class="flex items-center gap-3">
+                <img src="{{ item.image | default('/Assets/placeholder-item.png') }}" 
+                     alt="{{ item.product_name }}" 
+                     class="w-12 h-12 rounded-md object-cover border border-pink-100 bg-pink-50">
+                <div>
+                  <span class="font-medium text-gray-800">{{ item.product_name }}</span>
+                  {% if item.size %}({{ item.size }}){% endif %}
+                  <span class="text-gray-500">&times; {{ item.quantity }}</span>
+                </div>
+              </div>
             {% endfor %}
-          </ul>
+          </div>
         </div>
+        <!-- --- END FIX --- -->
 
       </div>
     {% else %}

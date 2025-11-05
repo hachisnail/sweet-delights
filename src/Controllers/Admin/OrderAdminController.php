@@ -4,10 +4,16 @@ namespace SweetDelights\Mayie\Controllers\Admin;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Routing\RouteContext;
+use \PDO;
 
 class OrderAdminController extends BaseAdminController
 {
-    // --- All data helpers and __construct are now in BaseAdminController ---
+    // --- All data helpers are now in BaseAdminController ---
+    // --- Add a constructor ---
+    public function __construct()
+    {
+        parent::__construct();
+    }
 
     /**
      * List all orders with filters.
@@ -19,21 +25,25 @@ class OrderAdminController extends BaseAdminController
         
         $filterStatus = $params['status'] ?? '';
         
-        $allOrders = $this->getOrders(); // Inherited
-
-        // Filter by status if provided
+        // --- REFACTORED: Use SQL for filtering and sorting ---
+        $sql = "SELECT * FROM orders";
+        $queryParams = [];
+        
         if ($filterStatus) {
-            $filteredOrders = array_filter($allOrders, fn($order) => $order['status'] === $filterStatus);
-        } else {
-            $filteredOrders = $allOrders;
+            $sql .= " WHERE status = ?";
+            $queryParams[] = $filterStatus;
         }
-
-        // Sort by date, newest first
-        usort($filteredOrders, fn($a, $b) => strtotime($b['date']) <=> strtotime($a['date']));
+        
+        $sql .= " ORDER BY date DESC";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($queryParams);
+        $filteredOrders = $stmt->fetchAll();
+        // --- END REFACTOR ---
 
         return $view->render($response, 'Admin/orders.twig', [
             'title' => 'Manage Orders',
-            'orders' => $filteredOrders,
+            'orders' => $filteredOrders, // <-- Now from our query
             'current_status' => $filterStatus,
             'breadcrumbs' => $this->breadcrumbs($request, [
                 ['name' => 'Orders', 'url' => null]
@@ -51,68 +61,51 @@ class OrderAdminController extends BaseAdminController
         $view = $this->viewFromRequest($request);
         $orderId = (int)$args['id'];
         
-        $allOrders = $this->getOrders(); // Inherited
-        $foundOrder = null;
-        foreach ($allOrders as $order) {
-            if ($order['id'] === $orderId) {
-                $foundOrder = $order;
-                break;
-            }
-        }
+        // --- REFACTORED: Use new helper to get ONE order ---
+        $foundOrder = $this->getOrderById($orderId);
+        // --- END REFACTOR ---
 
         if (!$foundOrder) {
             $routeParser = RouteContext::fromRequest($request)->getRouteParser();
             return $response->withHeader('Location', $routeParser->urlFor('app.orders.index'))->withStatus(302);
         }
 
-        // --- START: ROBUST FALLBACK LOGIC ---
-        // This block handles items with id, sku, or both
+        // --- REFACTORED: Item Hydration ---
+        // This logic now populates 'id' and 'sku' from 'product_sku'
+        // for the Twig templates to use.
         $allProducts = $this->getProducts();
-        $productMapById = array_column($allProducts, null, 'id');
         $productMapBySku = array_column($allProducts, null, 'sku');
 
         if (isset($foundOrder['items']) && is_array($foundOrder['items'])) {
             foreach ($foundOrder['items'] as &$item) {
                 $productData = null;
-
-                if (isset($item['sku'])) { 
-                    // Priority: Look up by SKU
-                    $productData = $productMapBySku[$item['sku']] ?? null;
-                } elseif (isset($item['id'])) { 
-                    // Fallback: Look up by ID
-                    $productData = $productMapById[$item['id']] ?? null;
+                
+                // The DB only stores 'product_sku'
+                if (isset($item['product_sku'])) { 
+                    $productData = $productMapBySku[$item['product_sku']] ?? null;
                 }
 
-                // Now, ensure the item has both id and sku for the template
                 if ($productData) {
-                    // We found the product, so we can populate both keys
+                    // Add 'id' and 'sku' keys for the template to use
                     $item['id'] = $productData['id'];
                     $item['sku'] = $productData['sku'];
                 } else {
-                    // Product was deleted or malformed.
-                    // This is the FIX: We must ensure both keys exist 
-                    // before the loop continues, to prevent errors.
-                    if (!isset($item['id'])) {
-                         $item['id'] = null; // Ensure 'id' key exists
-                    }
-                    if (!isset($item['sku'])) {
-                        $item['sku'] = null; // Ensure 'sku' key exists
-                    }
+                    // Product was deleted
+                    $item['id'] = null;
+                    $item['sku'] = $item['product_sku'] ?? 'unknown';
                 }
             }
             unset($item); // Unset the reference
         }
-        // --- END: ROBUST FALLBACK LOGIC ---
+        // --- END REFACTOR ---
         
-        // --- Get Customer Details ---
-        $allUsers = $this->getUsers(); // Inherited
-        foreach($allUsers as $user) {
-            if ($user['id'] === $foundOrder['user_id']) {
-                $foundOrder['customer_email'] = $user['email'];
-                $foundOrder['customer_contact'] = $user['contact_number'];
-                break;
-            }
+        // --- REFACTORED: Get Customer Details ---
+        $customer = $this->findUserById($foundOrder['user_id']); // <-- Use new helper
+        if ($customer) {
+            $foundOrder['customer_email'] = $customer['email'];
+            $foundOrder['customer_contact'] = $customer['contact_number'];
         }
+        // --- END REFACTOR ---
 
         return $view->render($response, 'Admin/order-details.twig', [
             'title' => "Order #" . $foundOrder['id'],
@@ -135,34 +128,50 @@ class OrderAdminController extends BaseAdminController
         $orderId = (int)$args['id'];
         $data = $request->getParsedBody();
         $newStatus = $data['status'] ?? 'Processing';
+        $routeParser = RouteContext::fromRequest($request)->getRouteParser();
+        $url = $routeParser->urlFor('app.orders.show', ['id' => $orderId]); // Define redirect URL early
         
-        // --- ADD VALIDATION ---
+        // --- 1. GET ACTOR ---
+        $user = $request->getAttribute('user');
+        $actorId = $user ? (int)$user['id'] : null;
+
+        // --- 2. VALIDATION ---
         $allowedAdminStatuses = ['Processing', 'Shipped', 'Cancelled'];
         if (!in_array($newStatus, $allowedAdminStatuses)) {
-            $routeParser = RouteContext::fromRequest($request)->getRouteParser();
-            $url = $routeParser->urlFor('app.orders.show', ['id' => $orderId]);
             return $response->withHeader('Location', $url)->withStatus(302);
         }
-        // --- END VALIDATION ---
-
-        $allOrders = $this->getOrders(); // Inherited
-        $orderUpdated = false;
-
-        foreach ($allOrders as &$order) {
-            if ($order['id'] === $orderId) {
-                $order['status'] = $newStatus;
-                $orderUpdated = true;
-                break;
-            }
-        }
-        unset($order);
-
-        if ($orderUpdated) {
-            $this->saveOrders($allOrders); 
+        
+        // --- 3. GET "BEFORE" STATE ---
+        $orderBefore = $this->getOrderById($orderId);
+        if (!$orderBefore) {
+            // Order doesn't exist, redirect
+            return $response->withHeader('Location', $routeParser->urlFor('app.orders.index'))->withStatus(302);
         }
 
-        $routeParser = RouteContext::fromRequest($request)->getRouteParser();
-        $url = $routeParser->urlFor('app.orders.show', ['id' => $orderId]);
+        // --- 4. CHECK FOR CHANGE ---
+        if ($orderBefore['status'] === $newStatus) {
+            // No change, just redirect back
+            return $response->withHeader('Location', $url)->withStatus(302);
+        }
+
+        // --- 5. UPDATE DATABASE ---
+        $stmt = $this->db->prepare("UPDATE orders SET status = ? WHERE id = ?");
+        $stmt->execute([$newStatus, $orderId]);
+
+        // --- 6. GET "AFTER" STATE ---
+        $orderAfter = $this->getOrderById($orderId);
+
+        // --- 7. LOG THE CHANGE ---
+        $this->logEntityChange(
+            $actorId,
+            'update',
+            'order',
+            $orderId,
+            $orderBefore,
+            $orderAfter
+        );
+
+        // --- 8. REDIRECT ---
         return $response->withHeader('Location', $url)->withStatus(302);
     }
 }

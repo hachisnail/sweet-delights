@@ -1,0 +1,74 @@
+{#
+  Receives:
+  - data: the current (after) category array
+  - beforeData: the previous category array (optional)
+  - isAfterState: boolean, true if this is the "after" panel
+#}
+
+{% set isAfterState = isAfterState ?? true %}
+{% set beforeData = beforeData ?? {} %}
+
+<style>
+.highlight-changed {
+  background-color: #fff3cd;
+  color: #8b4513;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+</style>
+
+
+{% if data %}
+  <div class="space-y-4 text-sm bg-white shadow-sm rounded-xl p-4 border border-gray-100">
+    
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+      <h3 class="text-lg font-semibold text-[#835234]">Category Details</h3>
+      <span class="text-xs text-gray-400 uppercase tracking-wide">
+        {{ isAfterState ? 'After' : 'Before' }}
+      </span>
+    </div>
+
+    <!-- ID -->
+    <div class="flex justify-between">
+      <span class="text-gray-500">ID</span>
+      <span class="font-medium text-gray-900">{{ data.id }}</span>
+    </div>
+
+    <!-- Name -->
+    <div class="flex justify-between">
+      <span class="text-gray-500">Name</span>
+      <span class="font-medium text-gray-900 {{ isAfterState and (beforeData.name ?? '') != (data.name ?? '') ? 'highlight-changed' : '' }}">
+        {{ data.name }}
+      </span>
+    </div>
+
+    <!-- Parent ID -->
+    <div class="flex justify-between">
+      <span class="text-gray-500">Parent</span>
+      <span class="font-medium text-gray-900 {{ isAfterState and (beforeData.parent_id ?? '') != (data.parent_id ?? '') ? 'highlight-changed' : '' }}">
+        {{ data.parent_id is not empty ? data.parent_id : 'None (Top-Level)' }}
+      </span>
+    </div>
+
+    <!-- Slug -->
+    <div class="flex justify-between">
+      <span class="text-gray-500">Slug</span>
+      <span class="font-medium text-gray-900 {{ isAfterState and (beforeData.slug ?? '') != (data.slug ?? '') ? 'highlight-changed' : '' }}">
+        {{ data.slug }}
+      </span>
+    </div>
+
+    <!-- Image File -->
+    <div class="flex justify-between">
+      <span class="text-gray-500">Image File</span>
+      <span class="font-medium text-gray-900 truncate {{ isAfterState and (beforeData.image ?? '') != (data.image ?? '') ? 'highlight-changed' : '' }}">
+        {{ data.image | default('N/A') }}
+      </span>
+    </div>
+
+  </div>
+{% else %}
+  <p class="text-gray-500 italic">N/A (e.g., a “create” action)</p>
+{% endif %}

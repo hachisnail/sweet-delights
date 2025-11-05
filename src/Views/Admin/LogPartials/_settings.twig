@@ -1,0 +1,42 @@
+{#
+  Receives:
+  - data: the current (after) settings array
+  - beforeData: the previous settings array (optional)
+  - isAfterState: boolean, true if this is the "after" panel
+#}
+
+{% set isAfterState = isAfterState ?? true %}
+{% set beforeData = beforeData ?? {} %}
+
+<style>
+.highlight-changed {
+  background-color: #fff3cd;
+  color: #8b4513;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+</style>
+
+
+{% if data %}
+  <div class="space-y-3 text-sm">
+    <!-- Tax Rate -->
+    <div class="flex justify-between">
+      <span class="text-gray-500">Tax Rate</span>
+      <span class="font-medium text-gray-900 {{ isAfterState and (beforeData.tax_rate ?? 0) != (data.tax_rate ?? 0) ? 'highlight-changed' : '' }}">
+        {{ (data.tax_rate * 100) | number_format(2) }}%
+      </span>
+    </div>
+
+    <!-- Shipping Fee -->
+    <div class="flex justify-between">
+      <span class="text-gray-500">Shipping Fee</span>
+      <span class="font-medium text-gray-900 {{ isAfterState and (beforeData.shipping_fee ?? 0) != (data.shipping_fee ?? 0) ? 'highlight-changed' : '' }}">
+        ₱{{ data.shipping_fee | number_format(2) }}
+      </span>
+    </div>
+  </div>
+{% else %}
+  <p class="text-gray-500">N/A</p>
+{% endif %}

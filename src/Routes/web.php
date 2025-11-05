@@ -10,7 +10,6 @@ use SweetDelights\Mayie\Controllers\Public\SearchController;
 
 use SweetDelights\Mayie\Controllers\Customer\AccountController;
 use SweetDelights\Mayie\Controllers\Customer\CheckoutController; 
-use SweetDelights\Mayie\Controllers\UnderConstructionController;
 
 use SweetDelights\Mayie\Controllers\Api\ApiAuthController; 
 use SweetDelights\Mayie\Controllers\Api\ApiCartController;
@@ -154,12 +153,18 @@ return function (App $app) {
 
     // (Super Admin routes are unchanged)
     $app->group('/system', function (RouteCollectorProxy $group) {
-       $group->get('/logs', [SystemAdminController::class, 'viewLogs']);
+       $group->get('/logs', [SystemAdminController::class, 'viewLogs'])->setName('system.logs.index'); // <-- Added name
+       $group->get('/logs/{id:[0-9]+}', [SystemAdminController::class, 'viewLogDetails'])->setName('system.logs.details');
        $group->get('/users', [SystemAdminController::class, 'manageUsers'])->setName('system.users.index');
        $group->get('/users/new', [SystemAdminController::class, 'createUser'])->setName('system.users.create');
        $group->post('/users', [SystemAdminController::class, 'storeUser'])->setName('system.users.store');
        $group->get('/users/{id:[0-9]+}/edit', [SystemAdminController::class, 'editUser'])->setName('system.users.edit');
-       $group->post('/users/{id:[0-9]+}', [SystemAdminController::class, 'updateUser'])->setName('system.users.update');
+       
+       // --- THIS IS THE FIX ---
+       // Changed 'updateUser' to 'update' to match the method name in your controller
+       $group->post('/users/{id:[0-9]+}', [SystemAdminController::class, 'update'])->setName('system.users.update');
+       // --- END OF FIX ---
+
     })->add(new RoleAuthMiddleware(['superadmin']));
 
 };

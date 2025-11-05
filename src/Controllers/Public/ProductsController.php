@@ -3,10 +3,16 @@ namespace SweetDelights\Mayie\Controllers\Public;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Slim\Views\Twig;
+use SweetDelights\Mayie\Controllers\Admin\BaseAdminController;
 
-class ProductsController
+class ProductsController extends BaseAdminController
 {
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
+
     private function buildTree(array $elements, $parentId = null): array
     {
         $branch = [];
@@ -49,9 +55,17 @@ class ProductsController
 
     public function index(Request $request, Response $response): Response
     {
-        $view = Twig::fromRequest($request);
-        $allProducts = require __DIR__ . '/../../Data/products.php';
-        $allCategories = require __DIR__ . '/../../Data/categories.php'; 
+        // --- FIX: Use inherited view helper ---
+        $view = $this->viewFromRequest($request);
+        
+        // --- FIX: Use inherited DB helpers ---
+        $allProducts = $this->getProducts();
+        $allCategories = $this->getCategories(); 
+
+        $allProducts = array_filter($allProducts, function($p) {
+            return isset($p['is_listed']) && $p['is_listed'] == 1;
+        });
+        // --- END NEW ---
 
         // Build category map for product labeling
         $categoryMap = [];
@@ -61,16 +75,7 @@ class ProductsController
 
         // Normalize products
         foreach ($allProducts as &$p) {
-            if (isset($p['sizes']) && is_string($p['sizes'])) {
-                $p['sizes'] = json_decode($p['sizes'], true) ?? [];
-            }
 
-            if (!empty($p['sizes'])) {
-                $prices = array_column($p['sizes'], 'price');
-                $p['price'] = min($prices);
-            } else {
-                $p['price'] = $p['price'] ?? 0;
-            }
 
             if (isset($p['category_id'], $categoryMap[$p['category_id']])) {
                 $p['category_name'] = $categoryMap[$p['category_id']]['name'];
@@ -134,7 +139,7 @@ class ProductsController
         return $view->render($response, 'Public/products.twig', [
             'title' => 'Our Products - FlourEver',
             'products' => $productsToDisplay,
-            'app_url' => $_ENV['APP_URL'] ?? '', // <--- THIS IS THE FIX
+            'app_url' => $_ENV['APP_URL'] ?? '', 
             'all_categories' => $nestedCategories,
             'selected_category' => $selectedCategory,
             'current_category' => $currentCategory,
@@ -143,81 +148,65 @@ class ProductsController
 
     // --- Product Detail ---
     public function show(Request $request, Response $response, array $args): Response
-        {
-            $view = Twig::fromRequest($request);
-            $products = require __DIR__ . '/../../Data/products.php';
-            $allCategories = require __DIR__ . '/../../Data/categories.php'; 
-            
-            $skuOrId = $args['sku']; 
-            
-            $product = null;
-            foreach ($products as $p) {
-                if (isset($p['sku']) && $p['sku'] === $skuOrId) {
-                    $product = $p;
-                    break;
-                }
+    {
+        // --- FIX: Use inherited view helper ---
+        $view = $this->viewFromRequest($request);
+        
+        // --- FIX: Use inherited DB helpers ---
+        $allProducts = $this->getProducts();
+        $allCategories = $this->getProducts();
+        
+        $skuOrId = $args['sku']; 
+        
+        $product = null;
+        foreach ($allProducts as $p) {
+            // --- NEW: Add 'is_listed' check ---
+            if (($p['sku'] === $skuOrId || $p['id'] == $skuOrId) && $p['is_listed'] == 1) {
+                $product = $p;
+                break;
             }
+        }
+        
+        // --- This logic is now combined above ---
+        // if (!$product) { ... }
 
-            if (!$product) {
-                foreach ($products as $p) {
-                    if ($p['id'] == $skuOrId) {
-                        $product = $p;
-                        break;
-                    }
-                }
-            }
-
-            if (!$product) {
-                return $view->render($response->withStatus(404), 'Public/product-detail.twig', [
-                    'title' => 'Product Not Found',
-                    'product' => null,
-                    'error_message' => 'Sorry, we couldn’t find that product. It might have been removed or renamed.',
-                    'app_url' => $_ENV['APP_URL'] ?? '',
-                ]);
-            }
-
-            $categoryMap = [];
-            foreach ($allCategories as $cat) {
-                $categoryMap[$cat['id']] = $cat; 
-            }
-
-            if (isset($product['category_id']) && $product['category_id'] !== null && isset($categoryMap[$product['category_id']])) {
-                
-                $productCategory = $categoryMap[$product['category_id']];
-                
-                if (isset($productCategory['parent_id']) && $productCategory['parent_id'] !== null && isset($categoryMap[$productCategory['parent_id']])) {
-                    $parentCategory = $categoryMap[$productCategory['parent_id']];
-                    $productCategory['parent'] = $parentCategory;
-                }
-                
-                $product['category'] = $productCategory;
-                $product['category_name'] = $productCategory['name'];
-
-            } else {
-                $product['category_name'] = 'Uncategorized';
-                $product['category'] = null;
-            }
-
-
-            if (isset($product['sizes'])) {
-                if (is_string($product['sizes'])) {
-                    $product['sizes'] = json_decode($product['sizes'], true) ?? [];
-                }
-            } else {
-                $product['sizes'] = [];
-            }
-
-            if (is_array($product['sizes']) && count($product['sizes']) > 0) {
-                $prices = array_column($product['sizes'], 'price');
-                if (!empty($prices)) {
-                    $product['price'] = min($prices);
-                }
-            }
-
-            return $view->render($response, 'Public/product-detail.twig', [
-                'title' => $product['name'],
-                'product' => $product, 
+        if (!$product) {
+            return $view->render($response->withStatus(404), 'Public/product-detail.twig', [
+                'title' => 'Product Not Found',
+                'product' => null,
+                'error_message' => 'Sorry, we couldn’t find that product. It might have been unlisted or removed.',
                 'app_url' => $_ENV['APP_URL'] ?? '',
             ]);
         }
+
+        $categoryMap = [];
+        foreach ($allCategories as $cat) {
+            $categoryMap[$cat['id']] = $cat; 
+        }
+
+        if (isset($product['category_id']) && $product['category_id'] !== null && isset($categoryMap[$product['category_id']])) {
+            
+            $productCategory = $categoryMap[$product['category_id']];
+            
+            if (isset($productCategory['parent_id']) && $productCategory['parent_id'] !== null && isset($categoryMap[$productCategory['parent_id']])) {
+                $parentCategory = $categoryMap[$productCategory['parent_id']];
+                $productCategory['parent'] = $parentCategory;
+            }
+            
+            $product['category'] = $productCategory;
+            $product['category_name'] = $productCategory['name'];
+
+        } else {
+            $product['category_name'] = 'Uncategorized';
+            $product['category'] = null;
+        }
+
+
+
+        return $view->render($response, 'Public/product-detail.twig', [
+            'title' => $product['name'],
+            'product' => $product, 
+            'app_url' => $_ENV['APP_URL'] ?? '',
+        ]);
+    }
 }

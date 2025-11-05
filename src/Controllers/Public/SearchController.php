@@ -3,21 +3,31 @@ namespace SweetDelights\Mayie\Controllers\Public;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Slim\Views\Twig; // <-- Required for rendering the page
+// use Slim\Views\Twig; // <-- Removed
+use SweetDelights\Mayie\Controllers\Admin\BaseAdminController; // <-- Added
 
-class SearchController
+// --- FIX: Extend the BaseAdminController ---
+class SearchController extends BaseAdminController
 {
+    // --- FIX: Call the parent constructor to get DB access ---
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
     /**
      * Handles the /search route (full page)
      */
     public function index(Request $request, Response $response): Response
     {
-        $view = Twig::fromRequest($request);
+        // --- FIX: Use inherited view helper ---
+        $view = $this->viewFromRequest($request);
         $params = $request->getQueryParams();
         $query = trim($params['q'] ?? '');
 
-        $allProducts = require __DIR__ . '/../../Data/products.php';
-        $allCategories = require __DIR__ . '/../../Data/categories.php';
+        // --- FIX: Use inherited DB helpers ---
+        $allProducts = $this->getProducts();
+        $allCategories = $this->getCategories();
 
         $foundProducts = [];
         $foundCategories = [];
@@ -55,9 +65,13 @@ class SearchController
                 if (stripos($searchableText, $query) !== false) {
                     // It's a match! Normalize this product for display.
                     
+                    // --- FIX: Remove JSON decode, sizes are already an array ---
+                    /*
                     if (isset($product['sizes']) && is_string($product['sizes'])) {
                         $product['sizes'] = json_decode($product['sizes'], true) ?? [];
                     }
+                    */
+                    
                     if (!empty($product['sizes'])) {
                         $prices = array_column($product['sizes'], 'price');
                         $product['price'] = min($prices);
@@ -81,4 +95,3 @@ class SearchController
         ]);
     }
 }
-

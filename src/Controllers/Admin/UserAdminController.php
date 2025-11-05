@@ -80,24 +80,29 @@ class UserAdminController extends BaseAdminController {
     public function store(Request $request, Response $response): Response
     {
         $data = $request->getParsedBody();
-        $users = $this->getUsers(); // <-- Inherited
+        // $users = $this->getUsers(); // <-- Inherited // <-- REMOVED
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $loggedInUserRole = $request->getAttribute('user')['role'] ?? 'customer';
+
+        // --- 1. GET ACTOR ---
+        $user = $request->getAttribute('user');
+        $actorId = $user ? (int)$user['id'] : null;
 
         if ($data['role'] === 'superadmin' && $loggedInUserRole !== 'superadmin') {
             $data['role'] = 'customer';
         }
 
-        foreach ($users as $user) {
-            if ($user['email'] === $data['email']) {
-                $url = $routeParser->urlFor('app.users.create') . '?error=email_exists';
-                return $response->withHeader('Location', $url)->withStatus(302);
-            }
+        // --- FIX: Use findUserByEmail for a direct database lookup ---
+        $existingUser = $this->findUserByEmail($data['email']);
+        if ($existingUser) {
+            $url = $routeParser->urlFor('app.users.create') . '?error=email_exists';
+            return $response->withHeader('Location', $url)->withStatus(302);
         }
         
-        $newId = empty($users) ? 1 : max(array_column($users, 'id')) + 1;
+        // --- FIX: No longer need to manually calculate ID ---
+        // $newId = empty($users) ? 1 : max(array_column($users, 'id')) + 1;
         $newUser = [
-            'id' => $newId,
+            // 'id' => $newId, // <-- Handled by database (AUTO_INCREMENT)
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
             'email' => $data['email'],
@@ -107,7 +112,7 @@ class UserAdminController extends BaseAdminController {
             ],
             'password_hash' => password_hash($data['password'], PASSWORD_DEFAULT),
             'role' => $data['role'],
-            'is_verified' => true,
+            'is_verified' => true, // Admin-created users are pre-verified
             'is_active' => isset($data['is_active']),
             'verification_token' => null,
             'password_reset_token' => null,
@@ -116,8 +121,20 @@ class UserAdminController extends BaseAdminController {
             'favourites' => []
         ];
 
-        $users[] = $newUser;
-        $this->saveUsers($users); // <-- Inherited
+        // --- FIX: Call the new createNewUser method ---
+        $newId = $this->createNewUser($newUser);
+        
+        // --- LOG ACTIVITY ---
+        $userAfter = $this->findUserById($newId);
+        $this->logEntityChange(
+            $actorId,
+            'create',
+            'user',
+            $newId,
+            null,
+            $userAfter
+        );
+        // --- END LOG ---
 
         return $response->withHeader('Location', $routeParser->urlFor('app.users.index'))->withStatus(302);
     }
@@ -129,18 +146,22 @@ class UserAdminController extends BaseAdminController {
     {
         $view = $this->viewFromRequest($request);
         $id = (int)$args['id'];
-        $users = $this->getUsers(); // <-- Inherited
+        // $users = $this->getUsers(); // <-- No longer need all users
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         
         $loggedInUserRole = $request->getAttribute('user')['role'] ?? 'customer';
-        $foundUser = null;
+        
+        // --- FIX: Use findUserById for a direct database lookup ---
+        $foundUser = $this->findUserById($id);
 
+        /*
         foreach ($users as $user) {
             if ($user['id'] === $id) {
                 $foundUser = $user;
                 break;
             }
         }
+        */
 
         if (!$foundUser) {
             return $response->withHeader('Location', $routeParser->urlFor('app.users.index'))->withStatus(302);
@@ -173,45 +194,72 @@ class UserAdminController extends BaseAdminController {
     {
         $id = (int)$args['id'];
         $data = $request->getParsedBody();
-        $users = $this->getUsers(); // <-- Inherited
+        // $users = $this->getUsers(); // <-- Inherited // <-- REMOVED
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $loggedInUserRole = $request->getAttribute('user')['role'] ?? 'customer';
-        $userUpdated = false;
+        // $userUpdated = false; // <-- REMOVED
 
-        foreach ($users as &$user) {
-            if ($user['id'] === $id) {
-                
-                $isTargetSuperAdmin = $user['role'] === 'superadmin';
-                $isAttemptingPromotion = $data['role'] === 'superadmin';
+        // --- 1. GET ACTOR ---
+        $user = $request->getAttribute('user');
+        $actorId = $user ? (int)$user['id'] : null;
 
-                if ($isAttemptingPromotion && $loggedInUserRole !== 'superadmin') {
-                    $data['role'] = 'customer';
-                }
-                
-                if ($isTargetSuperAdmin && $loggedInUserRole !== 'superadmin') {
-                    $data['role'] = 'superadmin';
-                    $data['is_active'] = $user['is_active'] ? 'on' : null;
-                }
+        // --- 2. GET "BEFORE" STATE ---
+        $userBefore = $this->findUserById($id);
 
-                $user['first_name'] = $data['first_name'];
-                $user['last_name'] = $data['last_name'];
-                $user['email'] = $data['email'];
-                $user['role'] = $data['role'];
-                $user['is_active'] = isset($data['is_active']);
-                
-                if (!empty($data['password'])) {
-                    $user['password_hash'] = password_hash($data['password'], PASSWORD_DEFAULT);
-                }
-                
-                $userUpdated = true;
-                break;
-            }
+        if (!$userBefore) {
+            // User doesn't exist, redirect back
+            return $response->withHeader('Location', $routeParser->urlFor('app.users.index'))->withStatus(302);
         }
-        unset($user);
 
-        if ($userUpdated) {
-            $this->saveUsers($users); // <-- Inherited
+        // --- FIX: Re-implement security logic and build a $updateData array ---
+        
+        $isTargetSuperAdmin = $userBefore['role'] === 'superadmin';
+        $isAttemptingPromotion = $data['role'] === 'superadmin';
+
+        $roleToSet = $data['role'];
+        $isActiveToSet = isset($data['is_active']);
+
+        if ($isAttemptingPromotion && $loggedInUserRole !== 'superadmin') {
+            // Only superadmins can promote others to superadmin
+            $roleToSet = 'customer';
         }
+        
+        if ($isTargetSuperAdmin && $loggedInUserRole !== 'superadmin') {
+            // Only superadmins can edit other superadmins
+            // Revert any changes
+            $roleToSet = 'superadmin';
+            $isActiveToSet = $userBefore['is_active'];
+        }
+
+        // Build the data array for the updateUser method
+        $updateData = [
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
+            'email' => $data['email'],
+            'role' => $roleToSet,
+            'is_active' => $isActiveToSet ? 1 : 0
+        ];
+        
+        if (!empty($data['password'])) {
+            // Only update password if a new one was provided
+            $updateData['password_hash'] = password_hash($data['password'], PASSWORD_DEFAULT);
+        }
+
+        // --- FIX: Call the new updateUser method ---
+        $this->updateUser($id, $updateData);
+
+        // --- 4. GET "AFTER" STATE & LOG ---
+        $userAfter = $this->findUserById($id);
+        $this->logEntityChange(
+            $actorId,
+            'update',
+            'user',
+            $id,
+            $userBefore,
+            $userAfter
+        );
+        // --- END LOG ---
+
 
         return $response->withHeader('Location', $routeParser->urlFor('app.users.index'))->withStatus(302);
     }

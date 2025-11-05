@@ -1,14 +1,37 @@
 {# FILE: Components/header.twig #}
-<header class="sticky top-0 w-full px-10 py-1 bg-[#fee7b5] flex shadow-md shadow-[#cbb890] items-center z-30 flex-wrap">
+<!-- 
+  FIX: px-4 on mobile, lg:px-10 on desktop.
+  h-22 (5.5rem) to match the new top-22 offset.
+-->
+<header class="sticky top-0 w-full px-4 lg:px-10 py-1 bg-[#fee7b5] flex shadow-md shadow-[#cbb890] items-center z-30 flex-wrap h-22">
+  
+  <!-- 
+    FIX: Account Page Burger Button
+    - Added this button on the far left.
+    - It only shows if 'onAccountPage' is true.
+    - It is hidden on large screens ('lg:hidden').
+  -->
+  {% if onAccountPage %}
+  <button id="account-menu-toggle-btn" class="p-2 -ml-2 text-[#835234] hover:text-[#d1a731] lg:hidden" aria-label="Toggle account menu">
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </button>
+  {% endif %}
+
   <img src="/Assets/LogoWithName.png" alt="Sweet Delights Logo" class="h-20 w-20 inline-block mr-3">
 
-  <nav class="hidden md:flex text-[#835234] font-medium font-zen-antique h-fit gap-x-3 text-2xl">
+
+
+  <div class="ml-auto flex gap-x-5 items-center relative">
+
+    <nav class="hidden md:flex text-[#835234] font-medium font-zen-antique h-fit gap-x-3 text-2xl">
     <a href="/" class="hover:text-[#d1a731] cursor-pointer">Home</a>
     <a href="/products" class="hover:text-[#d1a731] cursor-pointer">Products</a>
     <a href="/about" class="hover:text-[#d1a731] cursor-pointer">About Us</a>
   </nav>
-
-  <div class="ml-auto flex gap-x-5 items-center relative">
     
     {# --- 1. DESKTOP SEARCH BAR (WITH WRAPPER) --- #}
     <div class="hidden md:flex relative mr-4">
@@ -114,7 +137,11 @@
       </div>
     </div>
     
-    <button id="mobileMenuBtn" class="md:hidden" aria-label="Toggle mobile menu">
+    <!-- 
+      FIX: Hide the public mobile menu button if we are on an account page.
+      The new 'account-menu-toggle-btn' will be shown instead.
+    -->
+    <button id="mobileMenuBtn" class="md:hidden {{ onAccountPage ? 'hidden' : '' }}" aria-label="Toggle mobile menu">
       <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" stroke="currentColor"
         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
         class="text-[#835234] hover:text-[#d1a731] cursor-pointer">
@@ -134,7 +161,7 @@
       <a href="/products" class="block px-3 py-2 rounded-md text-base font-medium text-[#835234] hover:bg-[#cbb890]">Products</a>
     </nav>
 
-        {# --- 2. MOBILE SEARCH BAR (WITH WRAPPER) --- #}
+     {# --- 2. MOBILE SEARCH BAR (WITH WRAPPER) --- #}
     <div class="relative p-2">
       <form action="/search" method="GET" class="relative">
         <label for="mobileSearch" class="sr-only">Search products or categories</label>

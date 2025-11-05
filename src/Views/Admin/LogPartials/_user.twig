@@ -1,0 +1,85 @@
+{#
+  Receives:
+    - data (the user array)
+    - before (optional — previous state)
+    - afterState (boolean) → true = highlight differences, false = plain view
+#}
+
+{% set isAfterState = afterState is defined ? afterState : true %}
+{% set beforeData = before is defined ? before : {} %}
+
+
+<style>
+.highlight-changed {
+  background-color: #fff3cd;
+  color: #8b4513;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+</style>
+
+{% if data %}
+  <div class="space-y-3 text-sm bg-white p-4 rounded-lg border border-gray-200">
+
+    {# --- Name --- #}
+    {% set nameChanged = isAfterState and (
+      (beforeData.first_name ?? '') ~ (beforeData.last_name ?? '') != (data.first_name ?? '') ~ (data.last_name ?? '')
+    ) %}
+    <div class="flex justify-between py-1 {{ nameChanged ? 'bg-yellow-50 border-l-4 border-yellow-300 px-2 rounded' : '' }}">
+      <span class="text-gray-500">Name</span>
+      <span class="font-medium text-gray-900">
+        {{ data.first_name | default('') }} {{ data.last_name | default('') }}
+      </span>
+    </div>
+
+    {# --- Email --- #}
+    {% set emailChanged = isAfterState and (beforeData.email ?? '') != (data.email ?? '') %}
+    <div class="flex justify-between py-1 {{ emailChanged ? 'bg-yellow-50 border-l-4 border-yellow-300 px-2 rounded' : '' }}">
+      <span class="text-gray-500">Email</span>
+      <span class="font-medium text-gray-900">{{ data.email | default('N/A') }}</span>
+    </div>
+
+    {# --- Role --- #}
+    {% set roleChanged = isAfterState and (beforeData.role ?? '') != (data.role ?? '') %}
+    <div class="flex justify-between py-1 {{ roleChanged ? 'bg-yellow-50 border-l-4 border-yellow-300 px-2 rounded' : '' }}">
+      <span class="text-gray-500">Role</span>
+      <span class="font-medium text-gray-900 uppercase">{{ data.role | default('N/A') }}</span>
+    </div>
+
+    {# --- Active Status --- #}
+    {% set activeChanged = isAfterState and (beforeData.is_active ?? false) != (data.is_active ?? false) %}
+    <div class="flex justify-between py-1 {{ activeChanged ? 'bg-yellow-50 border-l-4 border-yellow-300 px-2 rounded' : '' }}">
+      <span class="text-gray-500">Is Active</span>
+      <span class="font-medium text-gray-900">
+        {{ data.is_active ? 'Yes' : 'No' }}
+      </span>
+    </div>
+
+    {# --- Contact --- #}
+    {% set contactChanged = isAfterState and (beforeData.contact_number ?? '') != (data.contact_number ?? '') %}
+    <div class="flex justify-between py-1 {{ contactChanged ? 'bg-yellow-50 border-l-4 border-yellow-300 px-2 rounded' : '' }}">
+      <span class="text-gray-500">Contact</span>
+      <span class="font-medium text-gray-900">{{ data.contact_number | default('N/A') }}</span>
+    </div>
+
+    {# --- Address --- #}
+    {% set beforeAddress = beforeData.address ?? {} %}
+    {% set addressChanged = isAfterState and (
+      (beforeAddress.street ?? '') != (data.address.street ?? '') or
+      (beforeAddress.city ?? '') != (data.address.city ?? '') or
+      (beforeAddress.state ?? '') != (data.address.state ?? '') or
+      (beforeAddress.postal_code ?? '') != (data.address.postal_code ?? '')
+    ) %}
+    <div class="pt-2 border-t border-gray-100 {{ addressChanged ? 'bg-yellow-50 border-l-4 border-yellow-300 px-2 rounded' : '' }}">
+      <span class="text-gray-500">Address</span>
+      <span class="font-medium text-gray-900 block text-right">
+        {{ data.address.street | default('N/A') }}<br>
+        {{ data.address.city | default('') }}, {{ data.address.state | default('') }} {{ data.address.postal_code | default('') }}
+      </span>
+    </div>
+
+  </div>
+{% else %}
+  <p class="text-gray-500 italic">N/A (e.g., a “create” action)</p>
+{% endif %}

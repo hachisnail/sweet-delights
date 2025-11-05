@@ -6,78 +6,87 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use Slim\Routing\RouteContext;
 use SweetDelights\Mayie\Services\MailService; 
+use SweetDelights\Mayie\Controllers\Admin\BaseAdminController;
 
-class ApiAuthController extends BaseApiController { 
-
-    // --- REMOVED: __construct, getUsers, saveUsers ---
-    // They are all inherited from BaseApiController
-    
-    // --- LOGIN & LOGOUT (Modified) ---
+class ApiAuthController extends BaseAdminController
+{ 
+    // --- LOGIN & LOGOUT ---
 
     /**
-     * Show the login page. (Unchanged)
+     * Show the login page.
      */
-    public function showLogin(Request $request, Response $response): Response {
+    public function showLogin(Request $request, Response $response): Response
+    {
         $view = Twig::fromRequest($request);
         $params = $request->getQueryParams();
 
         return $view->render($response, 'Public/login.twig', [
-             'title'      => 'Login',
-             'error'      => $params['error'] ?? null,
-             'hideHeader' => true 
+            'title'       => 'Login',
+            'error'       => $params['error'] ?? null,
+            'hideHeader'  => true
         ]);
     }
 
     /**
-     * Handle the login form submission. (MODIFIED)
+     * Handle login form submission.
      */
-    public function login(Request $request, Response $response): Response {
+    public function login(Request $request, Response $response): Response
+    {
         $data = $request->getParsedBody();
         $email = $data['email'] ?? '';
         $password = $data['password'] ?? '';
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
+        $ipAddress = $request->getServerParams()['REMOTE_ADDR'] ?? 'unknown';
 
-        $users = $this->getUsers(); // <-- Uses inherited method
-
-        $foundUser = null;
-        foreach ($users as $user) {
-            if ($user['email'] === $email) {
-                $foundUser = $user;
-                break;
-            }
-        }
+        $foundUser = $this->findUserByEmail($email);
 
         if ($foundUser && password_verify($password, $foundUser['password_hash'])) {
-            
-            // --- NEW VERIFICATION CHECK ---
-            if (!$foundUser['is_verified']) {
-                // User exists, password is correct, but not verified
-                return $response
-                    ->withHeader('Location', '/login?error=not_verified')
-                    ->withStatus(302);
-            }
-            // --- END CHECK ---
 
-            // --- ADD THIS CHECK ---
-            if (!$foundUser['is_active']) {
-                return $response
-                    ->withHeader('Location', '/login?error=disabled')
-                    ->withStatus(302);
+            // --- VERIFICATION CHECK ---
+            if (!$foundUser['is_verified']) {
+                $this->logAction(
+                    $foundUser['id'],
+                    'login_fail',
+                    'user',
+                    $foundUser['id'],
+                    ['reason' => 'not_verified', 'ip' => $ipAddress]
+                );
+                return $response->withHeader('Location', '/login?error=not_verified')->withStatus(302);
             }
-            // --- END ADD ---
+
+            // --- ACTIVE CHECK ---
+            if (!$foundUser['is_active']) {
+                $this->logAction(
+                    $foundUser['id'],
+                    'login_fail',
+                    'user',
+                    $foundUser['id'],
+                    ['reason' => 'disabled', 'ip' => $ipAddress]
+                );
+                return $response->withHeader('Location', '/login?error=disabled')->withStatus(302);
+            }
 
             // SUCCESS: Store user data in session
             $_SESSION['user'] = [
-                'id' => $foundUser['id'],
-                'first_name' => $foundUser['first_name'],
-                'last_name' => $foundUser['last_name'],
-                'email' => $foundUser['email'],
+                'id'             => $foundUser['id'],
+                'first_name'     => $foundUser['first_name'],
+                'last_name'      => $foundUser['last_name'],
+                'email'          => $foundUser['email'],
                 'contact_number' => $foundUser['contact_number'],
-                'address' => $foundUser['address'],
-                'role' => $foundUser['role'],
-                'cart' => $foundUser['cart'] ?? [],
-                'favourites' => $foundUser['favourites'] ?? []
+                'address'        => $foundUser['address'],
+                'role'           => $foundUser['role'],
+                'cart'           => $foundUser['cart'],
+                'favourites'     => $foundUser['favourites']
             ];
+
+            // Log successful login
+            $this->logAction(
+                $foundUser['id'],
+                'login_success',
+                'user',
+                $foundUser['id'],
+                ['ip' => $ipAddress]
+            );
 
             if (in_array($foundUser['role'], ['admin', 'superadmin'])) {
                 return $response->withHeader('Location', '/app/dashboard')->withStatus(302);
@@ -85,14 +94,33 @@ class ApiAuthController extends BaseApiController {
             return $response->withHeader('Location', '/')->withStatus(302);
         }
 
-        // FAILED: Redirect back to login with an error flag
+        // FAILED LOGIN
+        $this->logAction(
+            $foundUser['id'] ?? null,
+            'login_fail',
+            'user',
+            $foundUser['id'] ?? null,
+            ['reason' => 'invalid_credentials', 'attempted_email' => $email, 'ip' => $ipAddress]
+        );
+
         return $response->withHeader('Location', '/login?error=invalid')->withStatus(302);
     }
 
     /**
-     * Log the user out. (Unchanged)
+     * Log the user out.
      */
-    public function logout(Request $request, Response $response): Response {
+    public function logout(Request $request, Response $response): Response
+    {
+        if (isset($_SESSION['user']['id'])) {
+            $this->logAction(
+                $_SESSION['user']['id'],
+                'logout',
+                'user',
+                $_SESSION['user']['id'],
+                null
+            );
+        }
+
         $_SESSION = [];
         if (ini_get("session.use_cookies")) {
             $params = session_get_cookie_params();
@@ -101,126 +129,174 @@ class ApiAuthController extends BaseApiController {
                 $params["secure"], $params["httponly"]
             );
         }
+
         session_destroy();
         return $response->withHeader('Location', '/')->withStatus(302);
     }
 
-    // --- REGISTRATION & VERIFICATION (All New) ---
+    // --- REGISTRATION & VERIFICATION ---
 
-    /**
-     * Show the registration page.
-     */
-    public function showRegister(Request $request, Response $response): Response {
+    public function showRegister(Request $request, Response $response): Response
+    {
         $view = Twig::fromRequest($request);
         return $view->render($response, 'Public/register.twig', [
-             'title'      => 'Create Account',
-             'hideHeader' => true,
-             'error'      => $request->getQueryParams()['error'] ?? null
+            'title'      => 'Create Account',
+            'hideHeader' => true,
+            'error'      => $request->getQueryParams()['error'] ?? null
         ]);
     }
 
-    /**
-     * Handle the registration form submission.
-     */
-    public function register(Request $request, Response $response): Response {
+    public function register(Request $request, Response $response): Response
+    {
         $data = $request->getParsedBody();
-        $users = $this->getUsers(); // <-- Uses inherited method
-        $routeParser = RouteContext::fromRequest($request)->getRouteParser();
+        $ipAddress = $request->getServerParams()['REMOTE_ADDR'] ?? 'unknown';
 
-        // 1. Validate data
+        // Password match check
         if ($data['password'] !== $data['confirm_password']) {
             return $response->withHeader('Location', '/register?error=password_match')->withStatus(302);
         }
 
-        // 2. Check for duplicate email
-        foreach ($users as $user) {
-            if ($user['email'] === $data['email']) {
-                return $response->withHeader('Location', '/register?error=email_exists')->withStatus(302);
-            }
+        // Duplicate email check
+        if ($this->findUserByEmail($data['email'])) {
+            return $response->withHeader('Location', '/register?error=email_exists')->withStatus(302);
         }
 
-        // 3. Create new user
-        $newId = empty($users) ? 1 : max(array_column($users, 'id')) + 1;
-        $token = bin2hex(random_bytes(32)); // Unique verification token
+        // Determine if this is the first user
+        $countStmt = $this->db->query("SELECT COUNT(*) FROM users");
+        $userCount = $countStmt->fetchColumn();
 
+        $role = 'customer';
+        $isVerified = false;
+        $token = bin2hex(random_bytes(32));
+
+        if ($userCount == 0) {
+            $role = 'superadmin';
+            $isVerified = true;
+            $token = null;
+        }
+
+        // Build new user
         $newUser = [
-            'id' => $newId,
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
-            'email' => $data['email'],
-            'contact_number' => '', // Empty by default
-            'address' => [ 
-                'street' => '',
-                'city' => '',
-                'state' => '',
-                'postal_code' => '',
-            ],
-            'password_hash' => password_hash($data['password'], PASSWORD_DEFAULT),
-            'role' => 'customer', // Default role
-            'is_verified' => false,
-            'is_active' => true, // <-- NEW: Set to active by default
-            'verification_token' => $token,
-            'password_reset_token' => null, // <-- NEW
-            'password_reset_expires' => null, // <-- NEW
-            'cart' => [],
-            'favourites' => []
+            'first_name'             => $data['first_name'],
+            'last_name'              => $data['last_name'],
+            'email'                  => $data['email'],
+            'contact_number'         => '',
+            'address'                => ['street' => '', 'city' => '', 'state' => '', 'postal_code' => ''],
+            'password_hash'          => password_hash($data['password'], PASSWORD_DEFAULT),
+            'role'                   => $role,
+            'is_verified'            => $isVerified,
+            'is_active'              => true,
+            'verification_token'     => $token,
+            'password_reset_token'   => null,
+            'password_reset_expires' => null,
+            'cart'                   => [],
+            'favourites'             => []
         ];
 
-        // 4. Send verification email
+        $newUserId = $this->createNewUser($newUser);
+
+        // Log registration with "after" state
+        $this->logAction(
+            $newUserId,
+            'register',
+            'user',
+            $newUserId,
+            [
+                'before' => null,
+                'after'  => [
+                    'email'       => $newUser['email'],
+                    'role'        => $newUser['role'],
+                    'is_verified' => $newUser['is_verified'],
+                    'is_active'   => $newUser['is_active']
+                ],
+                'meta' => [
+                    'ip' => $ipAddress,
+                    'registration_type' => ($role === 'superadmin' ? 'first_user' : 'customer_signup')
+                ]
+            ]
+        );
+
+        if ($role === 'superadmin') {
+            // Auto-login the first superadmin
+            $_SESSION['user'] = [
+                'id'             => $newUserId,
+                'first_name'     => $newUser['first_name'],
+                'last_name'      => $newUser['last_name'],
+                'email'          => $newUser['email'],
+                'contact_number' => $newUser['contact_number'],
+                'address'        => $newUser['address'],
+                'role'           => $newUser['role'],
+                'cart'           => $newUser['cart'],
+                'favourites'     => $newUser['favourites']
+            ];
+
+            return $response->withHeader('Location', '/app/dashboard')->withStatus(302);
+        }
+
+        // Customer registration path
         $view = Twig::fromRequest($request);
         $mailService = new MailService($view);
         $emailSent = $mailService->sendVerificationEmail($newUser, $token);
 
         if (!$emailSent) {
-            // This is a server error, don't save the user
-             return $response->withHeader('Location', '/register?error=email_failed')->withStatus(302);
+            return $response->withHeader('Location', '/register?error=email_failed')->withStatus(302);
         }
 
-        // 5. Save user to file
-        $users[] = $newUser;
-        $this->saveUsers($users); // <-- Uses inherited method
-
-        // 6. Redirect to a "please verify" message page
         return $response->withHeader('Location', '/verify-message')->withStatus(302);
     }
 
-    /**
-     * Show the "Please check your email" message.
-     */
-    public function showVerificationMessage(Request $request, Response $response): Response {
+    public function showVerificationMessage(Request $request, Response $response): Response
+    {
         $view = Twig::fromRequest($request);
         return $view->render($response, 'Public/verify-message.twig', [
-             'title'      => 'Check Your Email',
-             'hideHeader' => true 
+            'title'      => 'Check Your Email',
+            'hideHeader' => true
         ]);
     }
 
-    /**
-     * Handle the email verification link click.
-     */
-    public function verifyEmail(Request $request, Response $response): Response {
+   public function verifyEmail(Request $request, Response $response): Response
+    {
         $token = $request->getQueryParams()['token'] ?? '';
         if (empty($token)) {
             $response->getBody()->write('Invalid token.');
             return $response->withStatus(400);
         }
 
-        $users = $this->getUsers(); // <-- Uses inherited method
-        $userFound = false;
-        
-        foreach ($users as &$user) {
-            if ($user['verification_token'] === $token) {
-                $user['is_verified'] = true;
-                $user['verification_token'] = null; // Token is now used, remove it
-                $userFound = true;
-                break;
-            }
-        }
-        unset($user);
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE verification_token = ?");
+        $stmt->execute([$token]);
+        $userToVerify = $stmt->fetch();
 
-        if ($userFound) {
-            $this->saveUsers($users); // <-- Uses inherited method
-            // Redirect to login with a success message
+        if (!$userToVerify) {
+            $response->getBody()->write('Invalid token.');
+            return $response->withStatus(400);
+        }
+
+        $userId = $userToVerify['id'];
+
+        // Before/after logging for verification
+        $before = [
+            'is_verified' => $userToVerify['is_verified'],
+            'verification_token' => $userToVerify['verification_token']
+        ];
+
+        if ($this->verifyUserEmail($token)) {
+            $after = [
+                'is_verified' => true,
+                'verification_token' => null
+            ];
+
+            $this->logAction(
+                $userId,
+                'verify_email',
+                'user',
+                $userId,
+                [
+                    'before' => $before,
+                    'after'  => $after,
+                    'meta'   => ['ip' => $request->getServerParams()['REMOTE_ADDR'] ?? 'unknown']
+                ]
+            );
+
             return $response->withHeader('Location', '/login?error=verified')->withStatus(302);
         }
 
@@ -228,134 +304,140 @@ class ApiAuthController extends BaseApiController {
         return $response->withStatus(400);
     }
 
+    // --- PASSWORD RESET ---
 
-    public function showForgotPassword(Request $request, Response $response): Response {
+    public function showForgotPassword(Request $request, Response $response): Response
+    {
         $view = Twig::fromRequest($request);
         return $view->render($response, 'Public/forgot-password.twig', [
-             'title'      => 'Forgot Password',
-             'hideHeader' => true,
-             'success'    => $request->getQueryParams()['success'] ?? null
+            'title'      => 'Forgot Password',
+            'hideHeader' => true,
+            'success'    => $request->getQueryParams()['success'] ?? null
         ]);
     }
 
-    /**
-     * Handle the "Forgot Password" submission.
-     */
-    public function handleForgotPassword(Request $request, Response $response): Response {
+    public function handleForgotPassword(Request $request, Response $response): Response
+    {
         $data = $request->getParsedBody();
         $email = $data['email'] ?? '';
-        $users = $this->getUsers(); // <-- Uses inherited method
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
-        $userFound = false;
+        $ipAddress = $request->getServerParams()['REMOTE_ADDR'] ?? 'unknown';
 
-        foreach ($users as &$user) {
-            if ($user['email'] === $email) {
-                // Generate a token and expiry
-                $token = bin2hex(random_bytes(32));
-                $expires = time() + 3600; // 1 hour from now
-
-                $user['password_reset_token'] = $token;
-                $user['password_reset_expires'] = $expires;
-                $userFound = $user; // Store the user data to pass to the mailer
-                break;
-            }
-        }
-        unset($user);
+        $userFound = $this->findUserByEmail($email);
 
         if ($userFound) {
-            // Save the token to the users file
-            $this->saveUsers($users); // <-- Uses inherited method
+            $token = bin2hex(random_bytes(32));
+            $expires = time() + 3600;
 
-            // Send the email
+            $this->saveUserResetToken($userFound['id'], $token, $expires);
+
+            $this->logAction(
+                $userFound['id'],
+                'request_password_reset',
+                'user',
+                $userFound['id'],
+                ['ip' => $ipAddress]
+            );
+
             $view = Twig::fromRequest($request);
             $mailService = new MailService($view);
             $mailService->sendPasswordResetEmail($userFound, $token);
         }
 
-        // IMPORTANT: Always show a success message, even if the email wasn't found.
-        // This prevents attackers from guessing which emails are in your system.
         return $response->withHeader('Location', '/forgot-password?success=1')->withStatus(302);
     }
 
-    /**
-     * Show the "Reset Password" form (to enter new password).
-     */
-    public function showResetPassword(Request $request, Response $response): Response {
+    public function showResetPassword(Request $request, Response $response): Response
+    {
         $token = $request->getQueryParams()['token'] ?? '';
-        $users = $this->getUsers(); // <-- Uses inherited method
         $validToken = false;
         $error = null;
 
         if (empty($token)) {
             $error = 'invalid';
         } else {
-            foreach ($users as $user) {
-                if (($user['password_reset_token'] ?? null) === $token) {
-                    // Token found, now check expiry
-                    if (time() > ($user['password_reset_expires'] ?? 0)) {
-                        $error = 'expired';
-                    } else {
-                        $validToken = true;
-                    }
-                    break;
+            $stmt = $this->db->prepare("SELECT * FROM users WHERE password_reset_token = ?");
+            $stmt->execute([$token]);
+            $user = $stmt->fetch();
+
+            if ($user) {
+                if (time() > ($user['password_reset_expires'] ?? 0)) {
+                    $error = 'expired';
+                } else {
+                    $validToken = true;
                 }
-            }
-            if (!$validToken && !$error) {
+            } else {
                 $error = 'invalid';
             }
         }
-        
+
         $view = Twig::fromRequest($request);
         return $view->render($response, 'Public/reset-password.twig', [
-             'title'      => 'Reset Your Password',
-             'hideHeader' => true,
-             'token'      => $token,
-             'error'      => $error
+            'title'      => 'Reset Your Password',
+            'hideHeader' => true,
+            'token'      => $token,
+            'error'      => $error
         ]);
     }
 
-    /**
-     * Handle the "Reset Password" form submission.
-     */
-    public function handleResetPassword(Request $request, Response $response): Response {
+    public function handleResetPassword(Request $request, Response $response): Response
+    {
         $data = $request->getParsedBody();
         $token = $data['token'] ?? '';
         $password = $data['password'] ?? '';
         $confirm = $data['confirm_password'] ?? '';
-        $routeParser = RouteContext::fromRequest($request)->getRouteParser();
+        $ipAddress = $request->getServerParams()['REMOTE_ADDR'] ?? 'unknown';
 
         if ($password !== $confirm) {
             return $response->withHeader('Location', '/reset-password?token=' . $token . '&error=match')->withStatus(302);
         }
 
-        $users = $this->getUsers(); // <-- Uses inherited method
-        $userUpdated = false;
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE password_reset_token = ?");
+        $stmt->execute([$token]);
+        $user = $stmt->fetch();
 
-        foreach ($users as &$user) {
-            if (($user['password_reset_token'] ?? null) === $token) {
-                // Token found, check expiry
-                if (time() > ($user['password_reset_expires'] ?? 0)) {
-                    return $response->withHeader('Location', '/reset-password?token=' . $token . '&error=expired')->withStatus(302);
-                }
-
-                // Token is valid! Update the user.
-                $user['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
-                $user['password_reset_token'] = null; // Invalidate token
-                $user['password_reset_expires'] = null;
-                $userUpdated = true;
-                break;
-            }
-        }
-        unset($user);
-
-        if ($userUpdated) {
-            $this->saveUsers($users); // <-- Uses inherited method
-            // Success! Redirect to login with a message.
-            return $response->withHeader('Location', '/login?error=reset_success')->withStatus(302);
+        if (!$user) {
+            return $response->withHeader('Location', '/reset-password?token=' . $token . '&error=invalid')->withStatus(302);
         }
 
-        // Token was not found
-        return $response->withHeader('Location', '/reset-password?token=' . $token . '&error=invalid')->withStatus(302);
+        if (time() > ($user['password_reset_expires'] ?? 0)) {
+            return $response->withHeader('Location', '/reset-password?token=' . $token . '&error=expired')->withStatus(302);
+        }
+
+        // --- Before/After log for password reset ---
+        $before = [
+            'password_hash' => '***old_hash***',
+            'password_reset_token' => $user['password_reset_token'],
+            'password_reset_expires' => $user['password_reset_expires']
+        ];
+
+        $newHash = password_hash($password, PASSWORD_DEFAULT);
+        $updateStmt = $this->db->prepare("
+            UPDATE users 
+            SET password_hash = ?, password_reset_token = NULL, password_reset_expires = NULL 
+            WHERE id = ?
+        ");
+        $updateStmt->execute([$newHash, $user['id']]);
+
+        $after = [
+            'password_hash' => '***new_hash***',
+            'password_reset_token' => null,
+            'password_reset_expires' => null
+        ];
+
+        $this->logAction(
+            $user['id'],
+            'password_reset_success',
+            'user',
+            $user['id'],
+            [
+                'before' => $before,
+                'after'  => $after,
+                'meta'   => ['ip' => $ipAddress]
+            ]
+        );
+
+        return $response->withHeader('Location', '/login?error=reset_success')->withStatus(302);
     }
-}
 
+}
