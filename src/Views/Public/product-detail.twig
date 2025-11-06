@@ -4,7 +4,8 @@
 
 {% if product %}
 
-  <div class="snap-start pt-20 ">
+<div class="snap-start pt-[6.5rem] md:pt-[7rem] min-h-screen">
+
 
     <div class="max-w-4xl mx-auto px-6 mb-4">
       <div class="flex items-center gap-x-2 text-sm text-[#A69273] font-semibold">
@@ -38,14 +39,16 @@
 
 
     {# This is all your existing code for a found product #}
-    <div class="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-lg border border-pink-100 "
-         data-product-id="{{ product.id }}"
-         data-product-sku="{{ product.sku }}"
-         data-product-name="{{ product.name }}"
-         data-product-price="{{ product.price }}" {# This is now the base/starting price #}
-         data-product-image="{{ product.image }}"
-         data-product-stock="{{ product.stock }}"
-         data-product-sizes='{{ product.sizes|json_encode|raw }}'>
+{% set productMargin = related_products is defined and related_products|length > 0 ? 'mb-6 md:mb-10' : 'mb-16 md:mb-20' %}
+
+<div class="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-lg border border-pink-100 {{ productMargin }}"
+     data-product-id="{{ product.id }}"
+     data-product-sku="{{ product.sku }}"
+     data-product-name="{{ product.name }}"
+     data-product-price="{{ product.price }}"
+     data-product-image="{{ product.image }}"
+     data-product-stock="{{ product.stock }}"
+     data-product-sizes='{{ product.sizes|json_encode|raw }}'>
 
       <div class="flex flex-col md:flex-row gap-8">
         <div class="md:w-1/2 flex justify-center">
@@ -134,7 +137,35 @@
           </div>
         </div>
       </div>
-    </div>
+
+      {% if related_products is defined and related_products|length > 0 %}
+        <div class="max-w-5xl mx-auto px-6 mt-10 mb-16">
+          <h2 class="text-2xl font-bold text-[#835234] mb-6 text-center">
+            Frequently Bought Together
+          </h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            {% for related in related_products %}
+              <a href="/products/{{ related.slug | default(related.sku) }}" 
+                class="bg-white rounded-xl shadow-md hover:shadow-lg transition p-4 border border-pink-100 flex flex-col">
+                
+                <img src="{{ related.image | default('/Assets/placeholder-item.png') }}"
+                    alt="{{ related.name }}"
+                    class="w-full h-40 object-cover rounded-md mb-3">
+                
+                <h3 class="text-lg font-semibold text-[#835234] truncate">{{ related.name }}</h3>
+                <p class="text-gray-600 text-sm mb-2">{{ related.category_name | default('') }}</p>
+                <p class="text-pink-700 font-bold mt-auto">
+                  ₱{{ related.price|number_format(2, '.', ',') }}
+                </p>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+
+
   </div>
 
   <style>

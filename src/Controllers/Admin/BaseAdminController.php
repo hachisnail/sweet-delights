@@ -349,6 +349,37 @@ class BaseAdminController
         return $log;
     }
 
+    /**
+     * Update product co-purchase associations.
+     * 
+     * Called when an order is successfully placed (after order_items insertion).
+     * 
+     * @param array $purchasedSkus  Array of product SKUs from the same order.
+     * @return void
+     */
+    protected function updateProductAssociations(array $purchasedSkus): void
+    {
+        if (count($purchasedSkus) < 2) return;
+
+        sort($purchasedSkus); // avoid duplicate reversed pairs
+
+        $insertStmt = $this->db->prepare("
+            INSERT INTO product_associations (product_sku_1, product_sku_2, support_count)
+            VALUES (:sku1, :sku2, 1)
+            ON DUPLICATE KEY UPDATE
+                support_count = support_count + 1,
+                last_purchased_at = CURRENT_TIMESTAMP
+        ");
+
+        foreach ($purchasedSkus as $i => $sku1) {
+            for ($j = $i + 1; $j < count($purchasedSkus); $j++) {
+                $sku2 = $purchasedSkus[$j];
+                $insertStmt->execute([':sku1' => $sku1, ':sku2' => $sku2]);
+            }
+        }
+    }
+
+
     // --- USER-SPECIFIC HELPERS (The missing methods) ---
 
     /**

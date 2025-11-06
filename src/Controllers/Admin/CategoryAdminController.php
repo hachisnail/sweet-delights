@@ -308,163 +308,182 @@ public function create(Request $request, Response $response): Response
         ]);
     }
 
-    public function update(Request $request, Response $response, array $args): Response
-    {
-        $id = (int)$args['id'];
-        $data = $request->getParsedBody();
-        $allCategories = $this->getCategories(); // Get all categories for cycle check/SKU regen
-        $routeParser = RouteContext::fromRequest($request)->getRouteParser();
-        
-        // --- NEW: Get Actor ID ---
-        $user = $request->getAttribute('user');
-        $actorId = $user ? (int)$user['id'] : null;
+public function update(Request $request, Response $response, array $args): Response
+{
+    $id = (int)$args['id'];
+    $data = $request->getParsedBody();
+    $allCategories = $this->getCategories(); // All categories for cycle check and SKU regen
+    $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
-        $newParentId = !empty($data['parent_id']) ? (int)$data['parent_id'] : null;
+    $user = $request->getAttribute('user');
+    $actorId = $user ? (int)$user['id'] : null;
 
-        // --- Cycle Check ---
-        if ($newParentId !== null) {
-            if ($newParentId === $id) { // Can't be its own parent
-                $url = $routeParser->urlFor('app.categories.index') . '?error=cycle&id=' . $id;
-                return $response->withHeader('Location', $url)->withStatus(302);
-            }
-            
-            $descendantIds = $this->getDescendantIds($allCategories, $id);
-            if (in_array($newParentId, $descendantIds)) { // Can't be a child of its own descendant
-                $url = $routeParser->urlFor('app.categories.index') . '?error=cycle&id=' . $id;
-                return $response->withHeader('Location', $url)->withStatus(302);
-            }
+    $newParentId = !empty($data['parent_id']) ? (int)$data['parent_id'] : null;
+
+    // --- Cycle Check ---
+    if ($newParentId !== null) {
+        if ($newParentId === $id) { 
+            $url = $routeParser->urlFor('app.categories.index') . '?error=cycle&id=' . $id;
+            return $response->withHeader('Location', $url)->withStatus(302);
         }
-        
-        $slug = $this->createSlug($data['name']);
-        
-        // --- Handle Image ---
-        // --- CAPTURE BEFORE STATE (for image handling AND logging) ---
-        $oldCategory = $this->findCategoryById($id);
-        $finalImage = $oldCategory['image'] ?? null; // Start with the existing image
 
-        $uploadedFilename = $this->uploadCategoryPicture($id, $request);
-        
-        if ($uploadedFilename !== null) {
-            // New image was uploaded, use it
-            $finalImage = $uploadedFilename;
-        } elseif (isset($data['delete_image']) && $data['delete_image'] === '1' && $finalImage) {
-            // User checked 'delete'
-            $imagePath = $this->uploadDir . $finalImage;
-            if (file_exists($imagePath)) {
-                unlink($imagePath);
-            }
-            $finalImage = null;
+        $descendantIds = $this->getDescendantIds($allCategories, $id);
+        if (in_array($newParentId, $descendantIds)) {
+            $url = $routeParser->urlFor('app.categories.index') . '?error=cycle&id=' . $id;
+            return $response->withHeader('Location', $url)->withStatus(302);
         }
-        // --- End Image Handling ---
-        
-        $this->db->beginTransaction();
-        try {
-            // 1. Update the category itself
-            $stmt = $this->db->prepare("UPDATE categories SET name = ?, parent_id = ?, slug = ?, image = ? WHERE id = ?");
-            $stmt->execute([$data['name'], $newParentId, $slug, $finalImage, $id]);
+    }
 
-            // 2. --- START: REGENERATE PRODUCT SKUS ---
-            $allCategoryIdsToUpdate = array_merge([$id], $this->getDescendantIds($allCategories, $id));
+    $slug = $this->createSlug($data['name']);
+    $oldCategory = $this->findCategoryById($id);
+
+    $finalImage = $oldCategory['image'] ?? null;
+
+    // Handle image upload/delete
+    $uploadedFilename = $this->uploadCategoryPicture($id, $request);
+    if ($uploadedFilename !== null) {
+        $finalImage = $uploadedFilename;
+    } elseif (isset($data['delete_image']) && $data['delete_image'] === '1' && $finalImage) {
+        $imagePath = $this->uploadDir . $finalImage;
+        if (file_exists($imagePath)) {
+            unlink($imagePath);
+        }
+        $finalImage = null;
+    }
+
+    $this->db->beginTransaction();
+    try {
+        // --- 1. Update category ---
+        $stmt = $this->db->prepare("UPDATE categories SET name = ?, parent_id = ?, slug = ?, image = ? WHERE id = ?");
+        $stmt->execute([$data['name'], $newParentId, $slug, $finalImage, $id]);
+
+        // --- 2. Update all products under this category and its descendants ---
+        $allCategoryIdsToUpdate = array_merge([$id], $this->getDescendantIds($allCategories, $id));
+        if (!empty($allCategoryIdsToUpdate)) {
+
+            // Prepare placeholders for SQL IN
+            $placeholders = implode(',', array_fill(0, count($allCategoryIdsToUpdate), '?'));
             
-            if (!empty($allCategoryIdsToUpdate)) {
-                // Get all categories *again* to ensure we have the new parent data
-                $updatedCategories = $this->getCategories(); 
-                
-                // Create a placeholder string like ?,?,?
-                $placeholders = implode(',', array_fill(0, count($allCategoryIdsToUpdate), '?'));
-                
-                $productStmt = $this->db->prepare("SELECT id, name, category_id, sku FROM products WHERE category_id IN ($placeholders)");
-                $productStmt->execute($allCategoryIdsToUpdate);
-                $allProductsToUpdate = $productStmt->fetchAll();
-                
-                $updateSkuStmt = $this->db->prepare("UPDATE products SET sku = ? WHERE id = ?");
+            // Fetch products
+            $productStmt = $this->db->prepare("SELECT id, name, category_id, sku FROM products WHERE category_id IN ($placeholders)");
+            $productStmt->execute($allCategoryIdsToUpdate);
+            $allProductsToUpdate = $productStmt->fetchAll();
 
-                foreach ($allProductsToUpdate as $product) {
-                    $newSku = $this->generateSku(
-                        $product['name'], 
-                        $product['id'], 
-                        (int)$product['category_id'], 
-                        $updatedCategories // Pass the up-to-date category list
-                    );
-                    
-                    if ($product['sku'] !== $newSku) {
-                        $updateSkuStmt->execute([$newSku, $product['id']]);
-                    }
+            $updateProductSkuStmt = $this->db->prepare("UPDATE products SET sku = ? WHERE id = ?");
+            $updateAssocStmt1 = $this->db->prepare("UPDATE product_associations SET product_sku_1 = ? WHERE product_sku_1 = ?");
+            $updateAssocStmt2 = $this->db->prepare("UPDATE product_associations SET product_sku_2 = ? WHERE product_sku_2 = ?");
+
+            $updatedCategories = $this->getCategories(); // Get latest category info
+
+            foreach ($allProductsToUpdate as $product) {
+                $oldSku = $product['sku'];
+                $newSku = $this->generateSku(
+                    $product['name'],
+                    $product['id'],
+                    (int)$product['category_id'],
+                    $updatedCategories
+                );
+
+                if ($oldSku !== $newSku) {
+                    // Update product SKU
+                    $updateProductSkuStmt->execute([$newSku, $product['id']]);
+
+                    // Update associations
+                    $updateAssocStmt1->execute([$newSku, $oldSku]);
+                    $updateAssocStmt2->execute([$newSku, $oldSku]);
                 }
             }
-            // --- END: REGENERATE PRODUCT SKUS ---
-
-            // --- LOG ACTIVITY (Placed before commit) ---
-            $newCategory = $this->findCategoryById($id); // Refetch
-            $this->logEntityChange(
-                $actorId,
-                'update',          // actionType
-                'category',        // entityType
-                $id,               // entityId
-                $oldCategory,      // before
-                $newCategory       // after
-            );
-            // --- END LOG ---
-
-            $this->db->commit();
-            
-        } catch (\Exception $e) {
-            $this->db->rollBack();
-            // error_log("Category update error: " . $e->getMessage());
-            return $response->withHeader('Location', $routeParser->urlFor('app.categories.index') . '?error=unknown')->withStatus(302);
         }
-        
+
+        // --- 3. Log category update ---
+        $newCategory = $this->findCategoryById($id);
+        $this->logEntityChange(
+            $actorId,
+            'update',
+            'category',
+            $id,
+            $oldCategory,
+            $newCategory
+        );
+
+        $this->db->commit();
+    } catch (\Exception $e) {
+        $this->db->rollBack();
+        error_log("Category update error: " . $e->getMessage());
+        return $response->withHeader('Location', $routeParser->urlFor('app.categories.index') . '?error=unknown')->withStatus(302);
+    }
+
+    return $response->withHeader('Location', $routeParser->urlFor('app.categories.index'))->withStatus(302);
+}
+
+
+public function delete(Request $request, Response $response, array $args): Response
+{
+    $id = (int)$args['id'];
+    $routeParser = RouteContext::fromRequest($request)->getRouteParser();
+
+    // --- Actor ID ---
+    $user = $request->getAttribute('user');
+    $actorId = $user ? (int)$user['id'] : null;
+
+    // --- Capture before state ---
+    $categoryToDelete = $this->findCategoryById($id);
+
+    if (!$categoryToDelete) {
         return $response->withHeader('Location', $routeParser->urlFor('app.categories.index'))->withStatus(302);
     }
 
-    public function delete(Request $request, Response $response, array $args): Response
-    {
-        $id = (int)$args['id'];
-        $routeParser = RouteContext::fromRequest($request)->getRouteParser();
-        
-        // --- NEW: Get Actor ID ---
-        $user = $request->getAttribute('user');
-        $actorId = $user ? (int)$user['id'] : null;
+    $this->db->beginTransaction();
+    try {
+        // --- Get all products in this category ---
+        $productStmt = $this->db->prepare("SELECT id, sku FROM products WHERE category_id = ?");
+        $productStmt->execute([$id]);
+        $products = $productStmt->fetchAll();
 
-        // --- CAPTURE BEFORE STATE ---
-        $categoryToDelete = $this->findCategoryById($id); // Get category info *before* deleting
-
-        // --- CHECK IF CATEGORY IS IN USE ---
-        $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM products WHERE category_id = ?");
-        $stmt->execute([$id]);
-        if ($stmt->fetch()['count'] > 0) {
-            $url = $routeParser->urlFor('app.categories.index') . '?error=in_use&id=' . $id;
-            return $response->withHeader('Location', $url)->withStatus(302);
+        // --- Delete product associations ---
+        if (!empty($products)) {
+            $deleteAssocStmt = $this->db->prepare("DELETE FROM product_associations WHERE product_sku = ?");
+            foreach ($products as $product) {
+                $deleteAssocStmt->execute([$product['sku']]);
+            }
         }
-        // --- END CHECK ---
 
-        // --- Delete from DB ---
-        // The `ON DELETE SET NULL` foreign key on `categories.parent_id`
-        // will automatically handle moving orphans to the top level.
-        $deleteStmt = $this->db->prepare("DELETE FROM categories WHERE id = ?");
-        $deleteStmt->execute([$id]);
-
-        // --- LOG ACTIVITY ---
-        if ($categoryToDelete) { // Only log if we found it first
-            $this->logEntityChange(
-                $actorId,
-                'delete',          // actionType
-                'category',        // entityType
-                $id,               // entityId
-                $categoryToDelete, // before
-                null               // after
-            );
+        // --- Optionally delete products themselves ---
+        if (!empty($products)) {
+            $deleteProductsStmt = $this->db->prepare("DELETE FROM products WHERE category_id = ?");
+            $deleteProductsStmt->execute([$id]);
         }
-        // --- END LOG ---
+
+        // --- Delete category ---
+        $deleteCategoryStmt = $this->db->prepare("DELETE FROM categories WHERE id = ?");
+        $deleteCategoryStmt->execute([$id]);
+
+        // --- Logging ---
+        $this->logEntityChange(
+            $actorId,
+            'delete',
+            'category',
+            $id,
+            $categoryToDelete,
+            null
+        );
 
         // --- Delete image file ---
-        if ($categoryToDelete && !empty($categoryToDelete['image'])) {
+        if (!empty($categoryToDelete['image'])) {
             $imagePath = $this->uploadDir . $categoryToDelete['image'];
             if (file_exists($imagePath)) {
                 unlink($imagePath);
             }
         }
-        
-        return $response->withHeader('Location', $routeParser->urlFor('app.categories.index'))->withStatus(302);
+
+        $this->db->commit();
+
+    } catch (\Exception $e) {
+        $this->db->rollBack();
+        return $response->withHeader('Location', $routeParser->urlFor('app.categories.index') . '?error=unknown')->withStatus(302);
     }
+
+    return $response->withHeader('Location', $routeParser->urlFor('app.categories.index'))->withStatus(302);
+}
+
 }

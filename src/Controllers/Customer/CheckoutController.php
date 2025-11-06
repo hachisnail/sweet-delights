@@ -166,13 +166,12 @@ class CheckoutController extends BaseAdminController {
             // --- 7. Create order_items Records ---
             $itemStmt = $this->db->prepare(
                 "INSERT INTO order_items (order_id, sku, product_name, size, price, quantity, image)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)"
+                VALUES (?, ?, ?, ?, ?, ?, ?)"
             );
 
             $productImageStmt = $this->db->prepare("SELECT image FROM products WHERE sku = ?");
 
             foreach ($cart as $item) {
-
                 $productImageStmt->execute([$item['sku']]);
                 $productData = $productImageStmt->fetch();
                 $productImage = $productData ? $productData['image'] : null;
@@ -187,20 +186,23 @@ class CheckoutController extends BaseAdminController {
                     $productImage
                 ]);
             }
-            
+
             // --- 8. LOG ACTIVITY (Inside transaction) ---
             $orderAfter = $this->getOrderById($newOrderId);
             $this->logEntityChange(
-                $user['id'],    // The customer is the actor
-                'create',       // actionType
-                'order',        // entityType
-                $newOrderId,    // entityId
-                null,           // before
-                $orderAfter    // after
+                $user['id'],
+                'create',
+                'order',
+                $newOrderId,
+                null,
+                $orderAfter
             );
-            // --- END LOG ---
 
-            // --- 9. NEW: Commit Transaction (Releases all locks) ---
+            // --- 8.5. UPDATE MARKET-BASKET ASSOCIATIONS ---
+            $purchasedSkus = array_column($cart, 'sku');
+            $this->updateProductAssociations($purchasedSkus);
+
+            // --- 9. NEW: Commit Transaction ---
             $this->db->commit();
 
         } catch (\Exception $e) {

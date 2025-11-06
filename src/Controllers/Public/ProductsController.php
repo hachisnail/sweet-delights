@@ -146,67 +146,98 @@ class ProductsController extends BaseAdminController
         ]);
     }
 
+private function getRelatedProductsBySKU(string $sku, int $limit = 4): array
+{
+    // Make sure limit is always safe integer
+    $limit = max(1, (int)$limit);
+
+    $sql = "
+        SELECT p.*
+        FROM products p
+        INNER JOIN product_associations pa 
+            ON (
+                (p.sku = pa.product_sku_2 AND pa.product_sku_1 = :sku1)
+                OR
+                (p.sku = pa.product_sku_1 AND pa.product_sku_2 = :sku2)
+            )
+        WHERE p.sku != :sku3
+        ORDER BY pa.support_count DESC
+        LIMIT $limit
+    ";
+
+    $stmt = $this->db->prepare($sql);
+    $stmt->bindValue(':sku1', $sku, \PDO::PARAM_STR);
+    $stmt->bindValue(':sku2', $sku, \PDO::PARAM_STR);
+    $stmt->bindValue(':sku3', $sku, \PDO::PARAM_STR);
+
+    $stmt->execute();
+
+    return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+}
+
+
+
+
     // --- Product Detail ---
-    public function show(Request $request, Response $response, array $args): Response
-    {
-        // --- FIX: Use inherited view helper ---
-        $view = $this->viewFromRequest($request);
-        
-        // --- FIX: Use inherited DB helpers ---
-        $allProducts = $this->getProducts();
-        $allCategories = $this->getProducts();
-        
-        $skuOrId = $args['sku']; 
-        
-        $product = null;
-        foreach ($allProducts as $p) {
-            // --- NEW: Add 'is_listed' check ---
-            if (($p['sku'] === $skuOrId || $p['id'] == $skuOrId) && $p['is_listed'] == 1) {
-                $product = $p;
-                break;
-            }
-        }
-        
-        // --- This logic is now combined above ---
-        // if (!$product) { ... }
-
-        if (!$product) {
-            return $view->render($response->withStatus(404), 'Public/product-detail.twig', [
-                'title' => 'Product Not Found',
-                'product' => null,
-                'error_message' => 'Sorry, we couldn’t find that product. It might have been unlisted or removed.',
-                'app_url' => $_ENV['APP_URL'] ?? '',
-            ]);
-        }
-
-        $categoryMap = [];
-        foreach ($allCategories as $cat) {
-            $categoryMap[$cat['id']] = $cat; 
-        }
-
-        if (isset($product['category_id']) && $product['category_id'] !== null && isset($categoryMap[$product['category_id']])) {
-            
-            $productCategory = $categoryMap[$product['category_id']];
-            
-            if (isset($productCategory['parent_id']) && $productCategory['parent_id'] !== null && isset($categoryMap[$productCategory['parent_id']])) {
-                $parentCategory = $categoryMap[$productCategory['parent_id']];
-                $productCategory['parent'] = $parentCategory;
-            }
-            
-            $product['category'] = $productCategory;
-            $product['category_name'] = $productCategory['name'];
-
-        } else {
-            $product['category_name'] = 'Uncategorized';
-            $product['category'] = null;
-        }
+public function show(Request $request, Response $response, array $args): Response
+{
+$view = $this->viewFromRequest($request);
+$allProducts = $this->getProducts();
+$allCategories = $this->getCategories();
 
 
+$skuOrId = $args['sku'];
+$product = null;
 
-        return $view->render($response, 'Public/product-detail.twig', [
-            'title' => $product['name'],
-            'product' => $product, 
-            'app_url' => $_ENV['APP_URL'] ?? '',
-        ]);
-    }
+
+foreach ($allProducts as $p) {
+if (($p['sku'] === $skuOrId || $p['id'] == $skuOrId) && $p['is_listed'] == 1) {
+$product = $p;
+break;
+}
+}
+
+
+if (!$product) {
+return $view->render($response->withStatus(404), 'Public/product-detail.twig', [
+'title' => 'Product Not Found',
+'product' => null,
+'error_message' => 'Sorry, we couldn’t find that product. It might have been unlisted or removed.',
+'app_url' => $_ENV['APP_URL'] ?? '',
+]);
+}
+
+
+// --- Attach category info ---
+$categoryMap = [];
+foreach ($allCategories as $cat) {
+$categoryMap[$cat['id']] = $cat;
+}
+
+
+if (isset($product['category_id']) && $product['category_id'] !== null && isset($categoryMap[$product['category_id']])) {
+$productCategory = $categoryMap[$product['category_id']];
+if (isset($productCategory['parent_id']) && $productCategory['parent_id'] !== null && isset($categoryMap[$productCategory['parent_id']])) {
+$productCategory['parent'] = $categoryMap[$productCategory['parent_id']];
+}
+$product['category'] = $productCategory;
+$product['category_name'] = $productCategory['name'];
+} else {
+$product['category_name'] = 'Uncategorized';
+$product['category'] = null;
+}
+
+
+// --- Fetch related products ---
+$relatedProducts = $this->getRelatedProductsBySKU($product['sku']);
+
+
+return $view->render($response, 'Public/product-detail.twig', [
+'title' => $product['name'],
+'product' => $product,
+'related_products' => $relatedProducts,
+'app_url' => $_ENV['APP_URL'] ?? '',
+]);
+}
+
 }
