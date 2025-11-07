@@ -13,7 +13,7 @@ if (file_exists($envPath . '.env')) {
     $dotenv = Dotenv::createImmutable($envPath);
     $dotenv->load(); 
 } else {
-    error_log('.env file not found.');
+    // error_log('.env file not found.');
 }
 
 $appEnv = $_ENV['ENV'] ?? 'production';

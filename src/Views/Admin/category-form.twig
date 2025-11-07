@@ -110,7 +110,8 @@
         {% endif %}
         
         {# --- IMAGE UPLOAD (Works for both modes) --- #}
-        <div id="image-upload-group">
+<div id="image-upload-group" class="{% if form_mode == 'edit' and category.parent_id is not null %}hidden{% endif %}">
+
             <label for="image" class="block text-sm font-medium text-[#835234] mb-1">
                 {% if form_mode == 'edit' %}Category Image (Upload to replace){% else %}Category Image (Optional for New Top-Level){% endif %}
             </label>
