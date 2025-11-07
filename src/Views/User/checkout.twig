@@ -18,7 +18,7 @@
         <div>
             <h1 class="text-3xl font-bold text-[#835234] mb-8">Checkout</h1>
 
-            {# --- NEW: ERROR BLOCKS --- #}
+            {# --- ERROR BLOCKS --- #}
             {% if error == 'stock' %}
                 <div class="mb-6 p-4 rounded-lg bg-red-100 text-red-800 border border-red-200">
                     <strong>Update Required:</strong> One or more items in your cart have insufficient stock. Please <a href="/cart" class="font-bold underline">return to your cart</a> to adjust quantities.
@@ -37,6 +37,7 @@
 
             <form id="checkoutForm" action="/checkout/process" method="POST">
                 
+                {# --- SHIPPING DETAILS --- #}
                 <div class="bg-white p-6 rounded-2xl shadow border border-pink-100 mb-8">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-xl font-semibold text-[#a07445]">Shipping Details</h2>
@@ -54,14 +55,58 @@
                     </div>
                 </div>
 
+                {# --- SHIPPING METHOD --- #}
+                <div class="bg-white p-6 rounded-2xl shadow border border-pink-100 mb-8">
+                    <h2 class="text-xl font-semibold text-[#a07445] mb-4">Shipping Method</h2>
+                    <div class="space-y-3">
+                        <div class="flex items-center p-4 border border-gray-300 rounded-lg has-[:checked]:border-pink-500 has-[:checked]:bg-pink-50">
+                            <input id="shipping_delivery" type="radio" name="shipping_method" value="delivery" 
+                                   class="h-4 w-4 text-pink-600 border-gray-300 focus:ring-pink-500" checked>
+                            <label for="shipping_delivery" class="ml-3 block text-sm font-medium text-gray-800 w-full flex justify-between">
+                                <span>Delivery</span>
+                                <span class="font-bold">₱{{ config.shipping_fee|number_format(2) }}</span>
+                            </label>
+                        </div>
+                        <div class="flex items-center p-4 border border-gray-300 rounded-lg has-[:checked]:border-pink-500 has-[:checked]:bg-pink-50">
+                            <input id="shipping_pickup" type="radio" name="shipping_method" value="pickup" 
+                                   class="h-4 w-4 text-pink-600 border-gray-300 focus:ring-pink-500">
+                            <label for="shipping_pickup" class="ml-3 block text-sm font-medium text-gray-800 w-full flex justify-between">
+                                <span>In-Store Pickup</span>
+                                <span class="font-bold">Free</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+
+                {# --- PAYMENT METHOD --- #}
                 <div class="bg-white p-6 rounded-2xl shadow border border-pink-100">
                     <h2 class="text-xl font-semibold text-[#a07445] mb-4">Payment Method</h2>
-                    <p class="text-sm text-gray-600 mb-4">This is a mock payment form. Any details will work.</p>
                     
-                    <div class="space-y-4">
+                    <div class="space-y-3 mb-6">
+                        {# Option 1: Credit Card #}
+                        <div class="flex items-center p-4 border border-gray-300 rounded-lg has-[:checked]:border-pink-500 has-[:checked]:bg-pink-50">
+                            <input id="pay_card" type="radio" name="payment_method" value="card" 
+                                   class="h-4 w-4 text-pink-600 border-gray-300 focus:ring-pink-500" checked>
+                            <label for="pay_card" class="ml-3 block text-sm font-medium text-gray-800 w-full">
+                                Credit / Debit Card
+                            </label>
+                        </div>
+                        {# Option 2: Cash on Delivery #}
+                        <div class="flex items-center p-4 border border-gray-300 rounded-lg has-[:checked]:border-pink-500 has-[:checked]:bg-pink-50 transition-opacity">
+                            <input id="pay_cod" type="radio" name="payment_method" value="cod" 
+                                   class="h-4 w-4 text-pink-600 border-gray-300 focus:ring-pink-500">
+                            <label for="pay_cod" class="ml-3 block text-sm font-medium text-gray-800 w-full">
+                                Cash on Delivery (COD)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    {# This block will be hidden/shown by JS #}
+                    <div id="card-details-block" class="space-y-4">
+                        <p class="text-sm text-gray-600">This is a mock payment form. Any details will work.</p>
                         <div>
                             <label for="card_number" class="block text-sm font-medium text-gray-700">Card Number</label>
-                            {# --- MODIFIED INPUT --- #}
                             <input type="text" id="card_number" name="card_number" 
                                    placeholder="4242-4242-4242-4242" 
                                    required 
@@ -72,7 +117,6 @@
                         <div class="grid grid-cols-3 gap-4">
                             <div>
                                 <label for="card_expiry" class="block text-sm font-medium text-gray-700">MM / YY</label>
-                                {# --- MODIFIED INPUT --- #}
                                 <input type="text" id="card_expiry" name="card_expiry" 
                                        placeholder="12 / 28" 
                                        required 
@@ -82,7 +126,6 @@
                             </div>
                             <div class="col-span-2">
                                 <label for="card_cvc" class="block text-sm font-medium text-gray-700">CVC</label>
-                                {# --- MODIFIED INPUT --- #}
                                 <input type="text" id="card_cvc" name="card_cvc" 
                                        placeholder="123" 
                                        required 
@@ -99,9 +142,16 @@
         </div>
 
         <div class="lg:pt-16">
-            <div class="bg-white p-6 rounded-2xl shadow border border-pink-100 sticky top-10">
+            {# --- ORDER SUMMARY --- #}
+            <div id="order-summary-box" 
+                 class="bg-white p-6 rounded-2xl shadow border border-pink-100 sticky top-10"
+                 data-subtotal="{{ totals.subtotal }}"
+                 data-tax="{{ totals.tax }}"
+                 data-shipping-fee="{{ totals.shipping }}"
+            >
                 <h2 class="text-xl font-semibold text-[#a07445] mb-6">Order Summary</h2>
 
+                {# --- Cart Items --- #}
                 <div class="space-y-4 mb-6 max-h-64 overflow-y-auto pr-2">
                     {% for item in cart %}
                         <div class="flex items-center gap-4">
@@ -127,22 +177,27 @@
                     </div>
                     <div class="flex justify-between text-gray-700">
                         <span>Shipping</span>
-                        <span class="font-medium">₱{{ totals.shipping|number_format(2) }}</span>
+                        <span id="summary-shipping" class="font-medium">₱{{ totals.shipping|number_format(2) }}</span>
                     </div>
                     
                     <div class="flex justify-between text-xl font-bold text-[#835234] mt-2 pt-2 border-t border-pink-300">
                         <span>Total</span>
-                        <span>₱{{ totals.total|number_format(2) }}</span>
+                        <span id="summary-total">₱{{ totals.total|number_format(2) }}</span>
                     </div>
                 </div>
 
                 <button 
                     type="submit" 
                     form="checkoutForm" 
+                    id="checkout-button" 
                     class="w-full px-6 py-3 mt-8 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-xl transition text-lg disabled:bg-gray-400"
                     {{ error ? 'disabled' : '' }}
                 >
-                    {{ error ? 'Update Required' : 'Pay Now' }}
+                    {% if error %}
+                        Update Required
+                    {% else %}
+                        Pay Now (₱{{ totals.total|number_format(2) }})
+                    {% endif %}
                 </button>
 
             </div>
@@ -151,68 +206,131 @@
     </div>
 </div>
 
-{# --- NEW SCRIPT BLOCK FOR CARD FORMATTING --- #}
+{# --- SCRIPT BLOCK --- #}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Card Formatting Scripts ---
     const cardNumberInput = document.getElementById('card_number');
     const cardExpiryInput = document.getElementById('card_expiry');
     const cardCvcInput = document.getElementById('card_cvc');
 
     if (cardNumberInput) {
         cardNumberInput.addEventListener('input', (e) => {
-            // 1. Get raw value, remove all non-digits
             let rawValue = e.target.value.replace(/\D/g, '');
-
-            // 2. Limit to 16 digits
-            if (rawValue.length > 16) {
-                rawValue = rawValue.substring(0, 16);
-            }
-
-            // 3. Add dashes every 4 characters
-            const formattedValue = rawValue.match(/.{1,4}/g)?.join('-') || '';
-            
-            // 4. Set the new value
-            e.target.value = formattedValue;
+            if (rawValue.length > 16) rawValue = rawValue.substring(0, 16);
+            e.target.value = rawValue.match(/.{1,4}/g)?.join('-') || '';
         });
     }
 
     if (cardExpiryInput) {
         cardExpiryInput.addEventListener('input', (e) => {
-            // 1. Get raw value, remove all non-digits
             let rawValue = e.target.value.replace(/\D/g, '');
-
-            // 2. Limit to 4 digits (MMYY)
-            if (rawValue.length > 4) {
-                rawValue = rawValue.substring(0, 4);
-            }
-
-            // 3. Add " / "
+            if (rawValue.length > 4) rawValue = rawValue.substring(0, 4);
             let formattedValue = rawValue;
             if (rawValue.length > 2) {
                 formattedValue = `${rawValue.substring(0, 2)} / ${rawValue.substring(2)}`;
             }
-            
-            // 4. Set the new value
             e.target.value = formattedValue;
         });
     }
 
     if (cardCvcInput) {
         cardCvcInput.addEventListener('input', (e) => {
-            // 1. Get raw value, remove all non-digits
             let rawValue = e.target.value.replace(/\D/g, '');
-            
-            // 2. Limit to 4 digits (Amex)
-            if (rawValue.length > 4) {
-                rawValue = rawValue.substring(0, 4);
-            }
-            
-            // 3. Set the new value (no formatting)
+            if (rawValue.length > 4) rawValue = rawValue.substring(0, 4);
             e.target.value = rawValue;
         });
     }
+
+
+    // --- Payment & Shipping Toggles ---
+
+    // Helper to format currency
+    function formatCurrency(value) {
+        return `₱${parseFloat(value).toLocaleString('en-US', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+        })}`;
+    }
+
+    // --- 1. Payment Method Toggle ---
+    const paymentRadios = document.querySelectorAll('input[name="payment_method"]');
+    const cardDetailsBlock = document.getElementById('card-details-block');
+    const cardInputs = cardDetailsBlock.querySelectorAll('input');
+
+    function togglePaymentMethod() {
+        const selectedPayment = document.querySelector('input[name="payment_method"]:checked').value;
+
+        if (selectedPayment === 'cod') {
+            cardDetailsBlock.style.display = 'none';
+            cardInputs.forEach(input => input.required = false);
+        } else {
+            cardDetailsBlock.style.display = 'block';
+            cardInputs.forEach(input => input.required = true);
+        }
+    }
+    paymentRadios.forEach(radio => radio.addEventListener('change', togglePaymentMethod));
+    togglePaymentMethod(); // Run on page load
+
+
+    // --- 2. Shipping Method Toggle ---
+    
+    // Get all required elements
+    const shippingRadios = document.querySelectorAll('input[name="shipping_method"]');
+    const summaryBox = document.getElementById('order-summary-box');
+    const summaryShippingEl = document.getElementById('summary-shipping');
+    const summaryTotalEl = document.getElementById('summary-total');
+    
+    const payButton = document.getElementById('checkout-button');
+    const codRadio = document.getElementById('pay_cod');
+    const cardRadio = document.getElementById('pay_card');
+    const codRadioContainer = codRadio.closest('div'); // Gets the parent div for styling
+
+    // Get base values from data attributes
+    const subtotal = parseFloat(summaryBox.dataset.subtotal);
+    const tax = parseFloat(summaryBox.dataset.tax);
+    const baseShippingFee = parseFloat(summaryBox.dataset.shippingFee);
+
+    function updateOrderSummary() {
+        const selectedShipping = document.querySelector('input[name="shipping_method"]:checked').value;
+        
+        let newShippingFee = 0;
+        if (selectedShipping === 'delivery') {
+            newShippingFee = baseShippingFee;
+        }
+
+        const newTotal = subtotal + tax + newShippingFee;
+        const formattedTotal = formatCurrency(newTotal);
+
+        // 1. Update the summary box text
+        summaryShippingEl.innerText = formatCurrency(newShippingFee);
+        summaryTotalEl.innerText = formattedTotal;
+
+        // 2. Update the button text
+        if (payButton && !payButton.disabled) {
+            payButton.innerText = `Pay Now (${formattedTotal})`;
+        }
+
+        // 3. Enable/Disable COD based on shipping
+        if (selectedShipping === 'pickup') {
+            codRadio.disabled = true;
+            codRadioContainer.classList.add('opacity-50', 'cursor-not-allowed');
+
+            // If COD was selected, switch to Card
+            if (codRadio.checked) {
+                cardRadio.checked = true;
+                togglePaymentMethod(); 
+            }
+        } else { // 'delivery'
+            codRadio.disabled = false;
+            codRadioContainer.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+    
+    // Add listeners
+    shippingRadios.forEach(radio => radio.addEventListener('change', updateOrderSummary));
+    
 });
 </script>
-{# --- END NEW SCRIPT BLOCK --- #}
 
 {% endblock %}

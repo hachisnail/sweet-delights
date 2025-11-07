@@ -5,7 +5,7 @@
 {% block content %}
 <div class="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-lg border border-pink-100">
  
- {# --- Header & Back Link --- #}
+ {# --- Header & Back Link (Unchanged) --- #}
  <div class="flex items-center justify-between mb-8">
   <div>
    <h1 class="text-3xl font-bold text-[#835234]">Order #{{ order.id }}</h1>
@@ -16,7 +16,7 @@
   </a>
  </div>
 
- {# --- Status & Shipping Info Grid --- #}
+ {# --- Status & Shipping Info Grid (MODIFIED) --- #}
  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
   <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
    <h2 class="text-lg font-semibold text-[#a07445] mb-3">Order Status</h2>
@@ -36,31 +36,52 @@
      <p class="text-xs text-gray-500 mt-2">Click here to confirm you have received your items.</p>
     </form>
    {% endif %}
+   
+   {# --- NEW: Payment Method --- #}
+   <h3 class="text-lg font-semibold text-[#a07445] mt-4 mb-2">Payment Method</h3>
+   <div class="text-gray-700">
+       {% if order.payment_method == 'cod' %}
+           <p class="font-medium">Cash on Delivery (COD)</p>
+       {% else %}
+           <p class="font-medium">Credit / Debit Card</p>
+       {% endif %}
+   </div>
+   {# --- END NEW --- #}
+
   </div>
   <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-   <h2 class="text-lg font-semibold text-[#a07445] mb-3">Shipping Address</h2>
-   <div class="text-gray-700 not-italic">
-    <p class="font-medium">{{ order.customer_name }}</p>
-    <p>{{ order.address.street }}</p>
-    <p>{{ order.address.city }}, {{ order.address.state }} {{ order.address.postal_code }}</p>
-   </div>
+   <h2 class="text-lg font-semibold text-[#a07445] mb-3">Shipping Method</h2>
+   
+   {# --- NEW: Conditional Logic --- #}
+   {% if order.shipping_method == 'pickup' %}
+     <div class="text-gray-700">
+       <p class="font-medium text-lg">In-Store Pickup</p>
+       <p class="text-sm">This order was collected from the store.</p>
+     </div>
+   {% else %}
+     <p class="text-lg font-medium text-gray-700 mb-2">Delivery Address</p>
+     <div class="text-gray-700 not-italic">
+       <p class="font-medium">{{ order.customer_name }}</p>
+       <p>{{ order.address.street }}</p>
+       <p>{{ order.address.city }}, {{ order.address.state }} {{ order.address.postal_code }}</p>
+     </div>
+   {% endif %}
+   {# --- END NEW --- #}
+   
   </div>
  </div>
 
- {# --- Items List --- #}
+ {# --- Items List (Unchanged) --- #}
  <h2 class="text-2xl font-semibold text-[#a07445] mb-4">Items in this Order</h2>
  <div class="space-y-4 border-t border-b border-gray-200 py-4">
-  
   {% for item in order.items %}
    <a href="{{ item.sku ? '/products/' ~ item.sku : '#' }}" 
     class="flex items-center gap-4 p-2 rounded-lg transition {{ item.sku ? 'hover:bg-pink-50' : 'cursor-default' }}">
     
-    <!-- --- FIX: Added a fallback image and an onerror event --- -->
     <img src="{{ item.image | default('/Assets/placeholder-item.png') }}" 
          alt="{{ item.product_name }}" 
          class="w-20 h-20 rounded-lg object-cover border border-pink-100 bg-pink-50"
          onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
-    <!-- --- END FIX --- -->
 
     <div class="flex-1">
      <p class="text-lg font-semibold text-gray-800">{{ item.product_name }}</p>
@@ -75,13 +96,11 @@
 
    </a>
   {% endfor %}
-
  </div>
 
- {# --- Totals --- #}
+ {# --- Totals (Unchanged) --- #}
  <div class="flex justify-end mt-6">
   <div class="w-full max-w-sm space-y-2">
-   
    <div class="flex justify-between text-gray-700">
     <span>Subtotal</span>
     <span class="font-medium">₱{{ order.subtotal|number_format(2) }}</span>
@@ -99,7 +118,7 @@
     <span>₱{{ (order.total)|number_format(2) }}</span>
    </div>
   </div>
- </div>
+ D </div>
 
 </div>
 {% endblock %}

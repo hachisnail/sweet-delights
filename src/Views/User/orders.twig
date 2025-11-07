@@ -28,9 +28,21 @@
         <div class="text-sm text-gray-500 mb-3">
           <p>Date: {{ order.date }}</p>
           <p>Total: <span class="font-medium text-gray-700">₱{{ (order.total)|number_format(2) }}</span></p>
+          
+          {# --- NEW/MODIFIED --- #}
+          <p>Shipping: 
+            <span class="font-medium text-gray-700">
+              {% if order.shipping_method == 'pickup' %}
+                In-Store Pickup
+              {% else %}
+                Delivery
+              {% endif %}
+            </span>
+          </p>
+          {# --- END NEW/MODIFIED --- #}
+
         </div>
 
-        <!-- --- FIX: Reworked this section to show images --- -->
         <div class="text-sm text-gray-700 bg-gray-50 p-3 rounded">
           <strong class="block mb-3">Items:</strong>
           <div class="space-y-3">
@@ -48,9 +60,7 @@
             {% endfor %}
           </div>
         </div>
-        <!-- --- END FIX --- -->
-
-      </div>
+        </div>
     {% else %}
       <p class="text-gray-500">You have not placed any orders yet.</p>
     {% endfor %}

@@ -3,36 +3,25 @@ namespace SweetDelights\Mayie\Controllers\Customer;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-// use Slim\Views\Twig; // <-- Removed
-// use SweetDelights\Mayie\Controllers\BaseDataController; // <-- Removed
-use SweetDelights\Mayie\Controllers\Admin\BaseAdminController; // <-- Added
+use SweetDelights\Mayie\Controllers\Admin\BaseAdminController;
 use Slim\Routing\RouteContext;
 
 
-// --- FIX: Extend the BaseAdminController ---
 class CheckoutController extends BaseAdminController {
-
-    // --- FIX: All data-path properties and file-helpers removed ---
-    // (e.g., $usersPath, $productsPath, getProducts(), saveProducts(), etc.)
-    // They are all now inherited from BaseAdminController.
 
     public function __construct()
     {
-        // --- FIX: Constructor just calls the parent to get DB access ---
         parent::__construct();
     }
 
     /**
      * Show the checkout page.
-     * (Unchanged)
      */
     public function showCheckout(Request $request, Response $response): Response {
-        // --- FIX: Use inherited view helper ---
         $view = $this->viewFromRequest($request);
         $user = $request->getAttribute('user');
         $cart = $user['cart'] ?? [];
         
-        // --- FIX: This now calls the inherited getConfig() from the DB ---
         $config = $this->getConfig(); 
 
         if (empty($cart)) {
@@ -40,13 +29,12 @@ class CheckoutController extends BaseAdminController {
             return $response->withHeader('Location', $routeParser->urlFor('products.index'))->withStatus(302);
         }
 
-        // --- MODIFIED: Use config for totals ---
         $subtotal = 0;
         foreach ($cart as $item) {
             $subtotal += $item['price'] * $item['quantity'];
         }
         $tax = $subtotal * ($config['tax_rate'] ?? 0);
-        $shipping = $config['shipping_fee'] ?? 0;
+        $shipping = $config['shipping_fee'] ?? 0; // Default shipping fee
         $total = $subtotal + $tax + $shipping;
 
         return $view->render($response, 'User/checkout.twig', [
@@ -66,34 +54,31 @@ class CheckoutController extends BaseAdminController {
 
     /**
      * Process the checkout:
-     * 1. Validate Address
-     * 2. Start DB Transaction (replaces file lock)
-     * 3. Validate stock (with row-level locking)
-     * 4. Reduce stock
-     * 5. Create order
-     * 6. Create order_items
-     * 7. Log Activity
-     * 8. Commit Transaction
-     * 9. Clear cart
+     * (Steps omitted for brevity)
      */
     public function processCheckout(Request $request, Response $response): Response {
         $user = $request->getAttribute('user');
         $cart = $user['cart'] ?? [];
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $config = $this->getConfig();
+        
+        // --- 1. Get Form Data ---
+        $parsedBody = $request->getParsedBody();
+        $shippingMethod = $parsedBody['shipping_method'] ?? 'delivery';
+        $paymentMethod = $parsedBody['payment_method'] ?? 'card';
 
-        // --- 1. Validate Address (Unchanged) ---
+        // --- 2. Validate Address ---
         $addr = $user['address'];
         if (empty($addr['street']) || empty($addr['city']) || empty($addr['state']) || empty($addr['postal_code'])) {
             return $response->withHeader('Location', '/checkout?error=address')->withStatus(302);
         }
 
-        // --- 2. NEW: Start Database Transaction (Replaces flock) ---
-        $newOrderId = null; // Initialize here
+        // --- 3. Start Database Transaction ---
+        $newOrderId = null;
         try {
             $this->db->beginTransaction();
 
-            // --- 3. Validate Stock (Now inside transaction) ---
+            // --- 4. Validate Stock ---
             $stockErrors = [];
             foreach ($cart as $item) {
                 // Find the product_id from the SKU
@@ -119,14 +104,13 @@ class CheckoutController extends BaseAdminController {
             }
 
             if (!empty($stockErrors)) {
-                // This will trigger the catch block and roll back the transaction
                 throw new \Exception('Stock validation failed: ' . implode(', ', $stockErrors));
             }
 
-            // --- 4. Mock Payment (Always Succeeds) ---
-            // (No change)
+            // --- 5. Mock Payment Validation (if 'card') ---
+            // (Frontend JS handles 'required' attributes)
 
-            // --- 5. Reduce Stock (Still inside transaction) ---
+            // --- 6. Reduce Stock ---
             foreach ($cart as $item) {
                 // We need the product_id again to be safe
                 $productStmt = $this->db->prepare("SELECT id FROM products WHERE sku = ?");
@@ -139,34 +123,39 @@ class CheckoutController extends BaseAdminController {
                 $updateStmt->execute([$item['quantity'], $product['id'], $item['selectedSize']]);
             }
 
-            // --- 6. Create Order Record ---
+            // --- 7. RECALCULATE Totals & Create Order Record ---
             $subtotal = array_reduce($cart, fn($sum, $item) => $sum + ($item['price'] * $item['quantity']), 0);
             $tax = $subtotal * ($config['tax_rate'] ?? 0);
-            $shipping = $config['shipping_fee'] ?? 0;
+            
+            $shipping = ($shippingMethod === 'pickup') ? 0 : ($config['shipping_fee'] ?? 0);
+            
             $total = $subtotal + $tax + $shipping;
 
             $orderStmt = $this->db->prepare(
-                "INSERT INTO orders (user_id, customer_name, address, date, status, subtotal, tax, shipping_fee, total)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO orders (user_id, customer_name, address, shipping_method, date, payment_method, status, subtotal, tax, shipping_fee, total)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             $orderStmt->execute([
                 $user['id'],
                 $user['first_name'] . ' ' . $user['last_name'],
-                json_encode($user['address']), // Store address as JSON
+                json_encode($user['address']),
+                $shippingMethod, 
                 date('Y-m-d H:i:s'),
+                $paymentMethod, 
                 'Processing',
                 $subtotal,
                 $tax,
-                $shipping,
+                $shipping, 
                 $total
             ]);
-            // --- FIX: Get ID from database, don't calculate it ---
             $newOrderId = (int)$this->db->lastInsertId();
 
-            // --- 7. Create order_items Records ---
+            // --- 8. Create order_items Records ---
+            
+            // --- FIX 1: Changed $this.db to $this->db ---
             $itemStmt = $this->db->prepare(
                 "INSERT INTO order_items (order_id, sku, product_name, size, price, quantity, image)
-                VALUES (?, ?, ?, ?, ?, ?, ?)"
+                 VALUES (?, ?, ?, ?, ?, ?, ?)"
             );
 
             $productImageStmt = $this->db->prepare("SELECT image FROM products WHERE sku = ?");
@@ -187,7 +176,7 @@ class CheckoutController extends BaseAdminController {
                 ]);
             }
 
-            // --- 8. LOG ACTIVITY (Inside transaction) ---
+            // --- 9. LOG ACTIVITY ---
             $orderAfter = $this->getOrderById($newOrderId);
             $this->logEntityChange(
                 $user['id'],
@@ -198,43 +187,39 @@ class CheckoutController extends BaseAdminController {
                 $orderAfter
             );
 
-            // --- 8.5. UPDATE MARKET-BASKET ASSOCIATIONS ---
+            // --- 10. UPDATE MARKET-BASKET ASSOCIATIONS ---
             $purchasedSkus = array_column($cart, 'sku');
             $this->updateProductAssociations($purchasedSkus);
 
-            // --- 9. NEW: Commit Transaction ---
+            // --- 11. Commit Transaction ---
             $this->db->commit();
 
         } catch (\Exception $e) {
-            // --- NEW: Rollback Transaction on *any* failure ---
+            // --- Rollback Transaction on *any* failure ---
             $this->db->rollBack();
-            error_log('Checkout Failed: ' . $e->getMessage()); // Log the error
+            error_log('Checkout Failed: ' . $e->getMessage()); 
 
-            // Redirect back with an error
             if (str_contains($e->getMessage(), 'Stock validation failed')) {
                 return $response->withHeader('Location', '/checkout?error=stock')->withStatus(302);
             }
-            // Generic error for lock failure or other DB issues
             return $response->withHeader('Location', '/checkout?error=lock')->withStatus(302);
         }
 
-        // --- 10. Clear Cart (Only happens on success) ---
-        // --- FIX: Use the inherited saveUserKey helper ---
+        // --- 12. Clear Cart (Only happens on success) ---
+        
+        // --- FIX 2: Changed $this.saveUserKey to $this->saveUserKey ---
         $this->saveUserKey($user['id'], 'cart', []);
         $_SESSION['user']['cart'] = []; // Update session immediately
 
-        // --- 11. Redirect to Success Page ---
-        // --- FIX: Corrected syntax error ( _ -> . ) ---
+        // --- 13. Redirect to Success Page ---
         $successUrl = $routeParser->urlFor('checkout.success') . '?order_id=' . $newOrderId;
         return $response->withHeader('Location', $successUrl)->withStatus(302);
     }
 
     /**
      * Shows the "Order Successful" page.
-     * (Unchanged)
      */
     public function showSuccess(Request $request, Response $response): Response {
-        // --- FIX: Use inherited view helper ---
         $view = $this->viewFromRequest($request);
         $orderId = $request->getQueryParams()['order_id'] ?? null;
 

@@ -2405,6 +2405,16 @@
       background-color: var(--color-gray-400);
     }
   }
+  .has-\[\:checked\]\:border-pink-500 {
+    &:has(*:is(:checked)) {
+      border-color: var(--color-pink-500);
+    }
+  }
+  .has-\[\:checked\]\:bg-pink-50 {
+    &:has(*:is(:checked)) {
+      background-color: var(--color-pink-50);
+    }
+  }
   .sm\:w-auto {
     @media (width >= 40rem) {
       width: auto;
