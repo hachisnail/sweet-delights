@@ -52,13 +52,14 @@
 
       <div class="flex flex-col md:flex-row gap-8">
         <div class="md:w-1/2 flex justify-center">
-          {#  --- START: UPDATED IMAGE --- #}
-          <img src="{{ product.image }}" alt="{{ product.name }}"
-               id="mainProductImage" {#  ADDED ID #}
-               class="rounded-xl w-full max-w-sm object-cover shadow-md shadow-gray-400"
-               onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
-          {#  --- END: UPDATED IMAGE --- #}
+          <div class="w-full max-w-sm h-96 bg-white rounded-xl shadow-md shadow-gray-400 flex items-center justify-center overflow-hidden">
+            <img src="{{ product.image }}" alt="{{ product.name }}"
+                id="mainProductImage"
+                class="object-contain w-full h-full"
+                onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+          </div>
         </div>
+
 
         <div class="md:w-1/2 flex flex-col ">
           <div>
