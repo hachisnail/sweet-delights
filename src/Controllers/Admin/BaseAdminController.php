@@ -117,7 +117,7 @@ class BaseAdminController
 
         // 4. Hydrate the order objects
         foreach ($orders as &$order) {
-            $order['address'] = json_decode($order['address'], true) ?? [];
+            $order['address'] = $this->safeJsonDecode($order['address']);
             $order['items'] = $itemsByOrderId[$order['id']] ?? [];
         }
 
@@ -129,9 +129,9 @@ class BaseAdminController
         
         // Decode JSON strings back into arrays
         return array_map(function($user) {
-            $user['address'] = json_decode($user['address'], true) ?? [];
-            $user['cart'] = json_decode($user['cart'], true) ?? [];
-            $user['favourites'] = json_decode($user['favourites'], true) ?? [];
+            $user['address'] = $this->safeJsonDecode($user['address']);
+            $user['cart'] = $this->safeJsonDecode($user['cart']);
+            $user['favourites'] = $this->safeJsonDecode($user['favourites']);
             $user['is_verified'] = (bool)$user['is_verified'];
             $user['is_active'] = (bool)$user['is_active'];
             return $user;
@@ -145,6 +145,16 @@ class BaseAdminController
             $config[$row['setting_key']] = is_numeric($row['setting_value']) ? (float)$row['setting_value'] : $row['setting_value'];
         }
         return $config;
+    }
+
+    /**
+     * Safe JSON decode that avoids deprecation warnings (PHP 8.1+).
+     */
+    protected function safeJsonDecode($value): array
+    {
+        return is_string($value) && $value !== ''
+            ? (json_decode($value, true) ?: [])
+            : [];
     }
 
     /**
@@ -223,7 +233,7 @@ class BaseAdminController
         $processedLogs = array_map(function($log) {
             
             // 1. Decode the JSON 'details' field
-            $log['details'] = json_decode($log['details'], true) ?? [];
+            $log['details'] = $this->safeJsonDecode($log['details']);
 
             // 2. Create a friendly "actor_name"
             if (!empty($log['first_name'])) {
@@ -282,7 +292,7 @@ class BaseAdminController
         }
     }
 
-        /**
+    /**
      * Helper wrapper for logging entity before/after changes in a structured format.
      *
      * @param int|null $actorId
@@ -332,7 +342,7 @@ class BaseAdminController
         }
 
         // Process the log just like in getLogs()
-        $log['details'] = json_decode($log['details'], true) ?? [];
+        $log['details'] = $this->safeJsonDecode($log['details']);
 
         if (!empty($log['first_name'])) {
             $log['actor_name'] = $log['first_name'] . ' ' . $log['last_name'];
@@ -351,10 +361,8 @@ class BaseAdminController
 
     /**
      * Update product co-purchase associations.
-     * 
-     * Called when an order is successfully placed (after order_items insertion).
-     * 
-     * @param array $purchasedSkus  Array of product SKUs from the same order.
+     * * Called when an order is successfully placed (after order_items insertion).
+     * * @param array $purchasedSkus  Array of product SKUs from the same order.
      * @return void
      */
     protected function updateProductAssociations(array $purchasedSkus): void
@@ -392,9 +400,9 @@ class BaseAdminController
 
         if ($user) {
             // Decode JSON fields
-            $user['address'] = json_decode($user['address'], true) ?? [];
-            $user['cart'] = json_decode($user['cart'], true) ?? [];
-            $user['favourites'] = json_decode($user['favourites'], true) ?? [];
+            $user['address'] = $this->safeJsonDecode($user['address']);
+            $user['cart'] = $this->safeJsonDecode($user['cart']);
+            $user['favourites'] = $this->safeJsonDecode($user['favourites']);
         }
         
         return $user ?: null;
@@ -410,9 +418,9 @@ class BaseAdminController
 
         if ($user) {
             // Decode JSON fields
-            $user['address'] = json_decode($user['address'], true) ?? [];
-            $user['cart'] = json_decode($user['cart'], true) ?? [];
-            $user['favourites'] = json_decode($user['favourites'], true) ?? [];
+            $user['address'] = $this->safeJsonDecode($user['address']);
+            $user['cart'] = $this->safeJsonDecode($user['cart']);
+            $user['favourites'] = $this->safeJsonDecode($user['favourites']);
         }
         
         return $user ?: null;
@@ -438,7 +446,7 @@ class BaseAdminController
         $items = $itemStmt->fetchAll();
 
         // 3. Hydrate the order
-        $order['address'] = json_decode($order['address'], true) ?? [];
+        $order['address'] = $this->safeJsonDecode($order['address']);
         $order['items'] = [];
         foreach ($items as $item) {
             // Cast types for safety
