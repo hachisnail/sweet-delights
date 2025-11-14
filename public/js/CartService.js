@@ -215,29 +215,37 @@ if (index === -1) {
       this.cartCountEl.classList.toggle(faded, totalQty === 0);
     }
   }
-
 _renderSidebar() {
   const items = this.inMemoryCart;
   if (!this.cartItemsContainer) return;
 
   this.cartItemsContainer.innerHTML = "";
 
+  // -----------------------------
+  // Empty Cart
+  // -----------------------------
   if (items.length === 0) {
-    this.cartItemsContainer.innerHTML = `<p class="text-gray-500">Your cart is empty.</p>`;
+    this.cartItemsContainer.innerHTML =
+      `<p class="text-gray-500">Your cart is empty.</p>`;
     return;
   }
 
+  // -----------------------------
+  // Render Items
+  // -----------------------------
   items.forEach((item, index) => {
     const a = document.createElement("a");
     a.href = `/products/${item.sku}`;
     a.className = "flex flex-col border-b pb-3 mb-3 group no-underline";
 
-    // --- PRICE & DISCOUNT ---
-    let priceHtml = "";
-    let discountHtml = "";
-
+    // -----------------------------
+    // Price & Discount
+    // -----------------------------
     const originalPrice = parseFloat(item.original_price);
     const finalPrice = parseFloat(item.price);
+
+    let priceHtml = "";
+    let discountHtml = "";
 
     if (!isNaN(originalPrice) && originalPrice > finalPrice) {
       priceHtml = `
@@ -250,6 +258,7 @@ _renderSidebar() {
       } else if (item.discount_type === "fixed") {
         discountHtml = `<p class="text-xs text-red-600">(₱${parseFloat(item.discount_value).toFixed(2)} OFF)</p>`;
       }
+
     } else {
       priceHtml = `
         <p class="text-sm text-gray-500">₱${finalPrice.toFixed(2)}</p>
@@ -257,13 +266,15 @@ _renderSidebar() {
     }
 
     const itemTotalPrice = (finalPrice * item.quantity).toFixed(2);
-    // --- END PRICE & DISCOUNT ---
 
+    // -----------------------------
+    // Item Template
+    // -----------------------------
     a.innerHTML = `
       <div class="flex gap-3 items-center">
         <img src="${item.image}" alt="${item.name}"
-              onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';"
-              class="w-16 h-16 object-cover rounded-lg shadow-sm shadow-pink-200">
+             onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';"
+             class="w-16 h-16 object-cover rounded-lg shadow-sm shadow-pink-200">
 
         <div class="flex-1">
           <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
@@ -274,7 +285,7 @@ _renderSidebar() {
 
         <button class="removeItem text-red-500 hover:text-red-700 font-bold cursor-pointer">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none"
-                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+               stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
             <path d="M3 6h18"/>
             <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -294,7 +305,9 @@ _renderSidebar() {
       </div>
     `;
 
-    // --- EVENTS ---
+    // -----------------------------
+    // Events
+    // -----------------------------
 
     // Remove item
     a.querySelector(".removeItem").addEventListener("click", (e) => {
@@ -326,7 +339,7 @@ _renderSidebar() {
       this.updateQuantity(index, item.quantity - 1);
     });
 
-    // Manual input change
+    // Manual input
     a.querySelector(".cartQty").addEventListener("change", (e) => {
       const value = parseInt(e.target.value) || 0;
       this.updateQuantity(index, value);
@@ -335,5 +348,6 @@ _renderSidebar() {
     this.cartItemsContainer.appendChild(a);
   });
 }
+
 
 }
