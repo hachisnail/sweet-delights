@@ -188,12 +188,15 @@
                 <div class="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent"></div>
               </a>
 
-              <a href="?category={{ cat.slug | url_encode }}"
-                 class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44] text-white font-zen-antique text-lg rounded-full overflow-hidden
-                         shadow-md hover:shadow-xl transition-all duration-300 group/button flex items-center justify-center">
-                
+            {# --- NEW <a> TAG --- #}
+            <a href="?category={{ cat.slug | url_encode }}"
+              title="{{ cat.name }}" {# <--- ADDED THIS TITLE #}
+              class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44] text-white font-zen-antique text-lg rounded-full overflow-hidden
+                      shadow-md hover:shadow-xl transition-all duration-300 group/button flex items-center"> {# <--- REMOVED justify-center #}
+
+
                 <span class="absolute inset-0 bg-white opacity-25 scale-x-0 origin-left group-hover/button:scale-x-100 transition-transform duration-500 ease-in-out"></span>
-                <span class="relative z-10">{{ cat.name }}</span>
+                <span class="relative z-10 w-full truncate text-center px-2">{{ cat.name }}</span>
               </a>
             </div>
           {% endfor %}
