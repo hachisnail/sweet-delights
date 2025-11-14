@@ -2,13 +2,91 @@
 
 {% block content %}
 
-{# --- NEW: ACTIVE DISCOUNTS BANNER --- #}
+<style>
+/* --- New Carousel Styles --- */
+.discount-carousel {
+  position: relative;
+  width: 100%;
+  max-width: 64rem; /* max-w-6xl */
+  margin: 0 auto;
+  height: 14rem; /* 224px - a good banner height */
+  overflow: hidden;
+  border-radius: 1.5rem; /* rounded-3xl */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border: 1px solid #EADBCB;
+}
+
+.discount-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background-size: cover;
+  background-position: center;
+  transition: opacity 0.7s ease-in-out;
+  opacity: 0;
+  z-index: 1;
+  text-decoration: none;
+}
+
+.discount-slide.active {
+  opacity: 1;
+  z-index: 2;
+}
+
+/* Dark overlay for text readability */
+.discount-slide::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.6) 100%);
+  z-index: 3;
+}
+
+.discount-content {
+  position: relative;
+  z-index: 4;
+  text-align: center;
+  color: white;
+}
+
+.discount-dots {
+  position: absolute;
+  bottom: 1rem; /* 16px */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem; /* 8px */
+  z-index: 5;
+}
+
+.discount-dot {
+  width: 0.75rem; /* 12px */
+  height: 0.75rem; /* 12px */
+  border-radius: 99px;
+  background-color: white;
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.discount-dot.active {
+  opacity: 1;
+}
+/* --- End Carousel Styles --- */
+</style>
+
+{# --- NEW: ACTIVE DISCOUNTS BANNER (CAROUSEL) --- #}
 {% if active_discounts is defined and active_discounts|length > 0 %}
 <section class="w-full pt-32 pb-10 bg-[#FFF8F2] snap-start">
-    <div class="max-w-6xl mx-auto">
-        <h2 class="text-3xl font-zen-antique text-[#A96B44] mb-4 text-center">Current Offers</h2>
-        <div class="flex gap-4 overflow-x-auto pb-4 px-4">
-        
+    <div class="max-w-6xl mx-auto px-4">
+        {# <h2 class="text-3xl font-zen-antique text-[#A96B44] mb-4 text-center">Current Offers</h2> #}
+
+        <div id="discountCarousel" class="discount-carousel">
+            
+            <div class="discount-slides-container">
             {% for discount in active_discounts %}
                 {# --- DEFINE VARS based on scope --- #}
                 {% set item_name = discount.item_name %}
@@ -21,43 +99,41 @@
                     {# Category discount #}
                     {% set item_link = app_url ~ '/products?category=' ~ discount.item_sku %}
                     {% if item_image %}
-                        {# Prepend the asset path for category images #}
                         {% set item_image = '/Assets/Categories/' ~ item_image %}
+                    {% else %}
+                        {# Fallback image for categories with no image #}
+                        {% set item_image = '/Assets/placeholder-item.png' %}
                     {% endif %}
                 {% endif %}
                 {# --- END DEFINE VARS --- #}
 
                 <a href="{{ item_link }}" 
-                   class="flex-shrink-0 w-64 bg-white rounded-xl shadow-md hover:shadow-lg transition-transform transform hover:-translate-y-1 border border-[#EADBCB] overflow-hidden group">
+                   class="discount-slide {{ loop.first ? 'active' : '' }}" 
+                   style="background-image: url('{{ item_image | default('/Assets/placeholder-item.png') }}');"
+                   data-index="{{ loop.index0 }}">
                     
-                    <div class="relative w-full h-32 bg-gray-50">
-                        <img src="{{ item_image }}" alt="{{ item_name }}"
-                             class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-105"
-                             onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
-                        
-                        {# --- Add a tag to show what kind of sale it is --- #}
-                        <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-semibold
-                            {% if discount.discount_scope == 'product' %} bg-blue-100 text-blue-800 {% else %} bg-green-100 text-green-800 {% endif %}">
-                            {{ discount.discount_scope|capitalize }} Sale
-                        </span>
-                    </div>
-                    
-                    <div class="p-3">
-                        <h3 class="font-semibold text-md text-[#835234] truncate">{{ item_name }}</h3>
-                        <span class="block text-lg font-bold text-red-600">
+                    <div class="discount-content">
+                        <span class="block text-2xl md:text-3xl font-bold text-yellow-300 drop-shadow-md">
                             {% if discount.discount_type == 'percent' %}
                                 {{ discount.discount_value|number_format(0) }}% OFF
                             {% else %}
                                 ₱{{ discount.discount_value|number_format(2) }} OFF
                             {% endif %}
                         </span>
+                        <h3 class="text-xl md:text-2xl font-semibold mt-1 drop-shadow-md">{{ item_name }}</h3>
                         {% if discount.end_date %}
-                            <p class="text-xs text-gray-500">Sale ends {{ discount.end_date|date("M j") }}</p>
+                            <p class="text-sm opacity-90 mt-2">Sale ends {{ discount.end_date|date("M j") }}</p>
                         {% endif %}
                     </div>
                 </a>
             {% endfor %}
-            
+            </div>
+
+            <div class="discount-dots">
+            {% for discount in active_discounts %}
+                <button class="discount-dot {{ loop.first ? 'active' : '' }}" data-index="{{ loop.index0 }}"></button>
+            {% endfor %}
+            </div>
         </div>
     </div>
 </section>
@@ -65,27 +141,22 @@
 {# --- END: ACTIVE DISCOUNTS BANNER --- #}
 
 
-<div class="px-6 pb-6 pt-20 flex flex-col items-center snap-start {% if active_discounts is empty %}pt-30{% endif %} bg-[#FFF8F2]">
+{# --- MODIFIED: Main content div with correct padding --- #}
+<div class="p-6 flex flex-col items-center snap-start {% if active_discounts is empty %}pt-32{% else %}pt-10{% endif %} bg-[#FFF8F2]">
 
-  {# --- CATEGORY SECTION --- #}
-  <section class="flex flex-col items-center justify-center pt-10 pb-10">
+  {# --- CATEGORY SECTION (Unchanged) --- #}
+  <section class="flex flex-col items-center justify-center pb-10">
     <div class="w-fit items-center flex flex-col gap-y-3">
-
-      {# --- 1. DYNAMIC HEADER (Always shows) --- #}
       <h1 class="font-zen-antique text-3xl lg:text-6xl text-[#A96B44] font-400 text-shadow-sm text-shadow-[#8c8989]">
         {{ selected_category.name | default('Explore Our Categories') }}
       </h1>
-
-      {# --- 2. DYNAMIC BREADCRUMB OR DIVIDER (Always shows) --- #}
       {% if selected_category %}
-        {# Show breadcrumb when a category is selected #}
         <div class="flex items-center gap-x-2 text-sm text-[#A69273] font-semibold">
           <a href="/products" class="hover:text-[#A96B44] hover:underline">All Categories</a>
           <span>/</span>
           <span class="text-[#A96B44]">{{ selected_category.name }}</span>
         </div>
       {% else %}
-        {# Show original boba tea divider on main page #}
         <div class="flex items-center">
           <div class="flex flex-col gap-y-2 justify-center items-end mr-3">
             <div class="w-30 lg:w-60 bg-[#A69273] h-[0.1rem] rounded-full"></div>
@@ -99,21 +170,14 @@
         </div>
       {% endif %}
 
-      {# --- 3. CONSOLIDATED CATEGORY CARD GRID --- #}
-      
-      {# Determine which list of categories to show #}
       {% if selected_category %}
         {% set categories_to_display = selected_category.children %}
       {% else %}
-        {# 'all_categories' from the controller is already the top-level #}
         {% set categories_to_display = all_categories %}
       {% endif %}
 
-      {# Only render the grid container if there's something to show #}
       {% if categories_to_display is defined and categories_to_display|length > 0 %}
         <div class="min-h-90 w-full gap-6 flex flex-wrap justify-center items-center mt-8">
-          
-          {# Loop and display the cards #}
           {% for cat in categories_to_display %}
             {% set image_src = cat.image ? '/Assets/Categories/' ~ cat.image : '/Assets/Categories/' ~ cat.slug ~ '.png' %}
             
@@ -136,57 +200,42 @@
               </a>
             </div>
           {% endfor %}
-
         </div>
       {% endif %}
-      
     </div>
   </section>
 
-  {# --- PRODUCT GRID --- #}
+  {# --- PRODUCT GRID (Unchanged from last fix) --- #}
   <section class="mt-10 snap-start">
     <h1 class="text-3xl font-zen-antique text-[#A96B44] mb-6 text-center">Our Treats</h1>
 
-    <!-- 
-      FIX: 
-      - Replaced 'md:grid-cols-4' with 'md:grid-cols-3 lg:grid-cols-4'
-      - This makes cards larger on standard desktop screens (3 columns)
-      - and only goes to 4 columns on very wide screens.
-    -->
     <div id="products-grid" class="w-full max-w-8xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       
       {% if products is empty %}
         <p class="text-center text-gray-500 col-span-full">No products found.</p>
       {% else %}
         {% for product in products %}
-
-        <!-- --- CARD START --- -->
-        <!-- FIX: Added 'flex flex-col' to make the card a vertical flex container -->
         <a href="{{ app_url }}/products/{{ product.sku | default(product.id) }}"
            class="min-w-70 flex flex-col bg-white rounded-2xl shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 border border-[#EADBCB] overflow-hidden">
 
-          <!-- Image (no change) -->
           <div class="relative w-full h-48">
             <img src="{{ product.image }}" alt="{{ product.name }}"
                  class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-in-out hover:scale-105"
                  onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
           </div>
 
-          <!-- Content Wrapper -->
-          <!-- FIX: Added 'flex flex-col flex-grow' to make this section fill the remaining height -->
           <div class="p-4 flex flex-col grow">
             
-            <!-- Main content (name, price, sizes) -->
             <div>
               <h2 class="font-semibold text-lg text-[#835234] truncate">{{ product.name }}</h2>
-{# --- MODIFIED: Price Block --- #}
-            <div class="mb-1">
+              
+              {# --- Price Block (Already updated) --- #}
+              <div class="mb-1">
                 {% set base_price = product.price %}
                 {% set base_original_price = product.original_price | default(product.price) %}
                 {% set starts_at = (product.sizes is defined and product.sizes|length > 0) ? "Starts at " : "" %}
 
                 {% if base_original_price > base_price %}
-                    {# On Sale #}
                     <p class="font-bold text-red-600 text-lg">
                         {{ starts_at }}₱{{ base_price|number_format(2) }}
                     </p>
@@ -194,13 +243,12 @@
                         ₱{{ base_original_price|number_format(2) }}
                     </p>
                 {% else %}
-                    {# Not on Sale #}
                     <p class="font-bold text-[#A69273] text-lg">
                         {{ starts_at }}₱{{ base_price|number_format(2) }}
                     </p>
                 {% endif %}
-            </div>
-            {# --- END: Price Block --- #}
+              </div>
+              {# --- END: Price Block --- #}
 
               {% if product.sizes is defined and product.sizes|length > 0 %}
               <div class="flex flex-wrap gap-1 mb-2">
@@ -213,8 +261,6 @@
               {% endif %}
             </div>
             
-            <!-- Category Tag Wrapper -->
-            <!-- FIX: Added 'mt-auto' to push this block to the bottom of the card -->
             <div class="mt-auto pt-2">
               <span class="inline-block px-3 py-1 text-xs bg-[#FDE7D6] text-[#A96B44] rounded-full">
                 {{ product.category_name }}
@@ -222,14 +268,59 @@
             </div>
 
           </div>
-          <!-- End Content Wrapper -->
-
         </a>
-        <!-- --- CARD END --- -->
         {% endfor %}
       {% endif %}
     </div>
   </section>
 
 </div>
+
+{# --- NEW JAVASCRIPT for Carousel --- #}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const carousel = document.getElementById('discountCarousel');
+    if (!carousel) return;
+
+    const slides = carousel.querySelectorAll('.discount-slide');
+    const dots = carousel.querySelectorAll('.discount-dot');
+    let currentIndex = 0;
+    let slideInterval;
+
+    function showSlide(index) {
+        // Remove active class from all
+        slides.forEach(slide => slide.classList.remove('active'));
+        dots.forEach(dot => dot.classList.remove('active'));
+
+        // Add active class to the new slide and dot
+        slides[index].classList.add('active');
+        dots[index].classList.add('active');
+        currentIndex = index;
+    }
+
+    function nextSlide() {
+        let nextIndex = (currentIndex + 1) % slides.length;
+        showSlide(nextIndex);
+    }
+
+    // Dot navigation
+    dots.forEach(dot => {
+        dot.addEventListener('click', (e) => {
+            // Stop the link from firing
+            e.preventDefault(); 
+            e.stopPropagation();
+
+            const index = parseInt(dot.dataset.index, 10);
+            showSlide(index);
+            
+            // Reset interval on manual click
+            clearInterval(slideInterval);
+            slideInterval = setInterval(nextSlide, 5000); // Restart timer
+        });
+    });
+
+    // Auto-slide
+    slideInterval = setInterval(nextSlide, 5000); // Change slide every 5 seconds
+});
+</script>
 {% endblock %}
