@@ -78,7 +78,10 @@
 /* --- End Carousel Styles --- */
 </style>
 
-{# --- NEW: ACTIVE DISCOUNTS BANNER (CAROUSEL) --- #}
+
+
+{# --- MODIFIED: Main content div with correct padding --- #}
+<div class="p-6 flex flex-col items-center snap-start {% if active_discounts is empty %}pt-32{% else %}pt-10{% endif %} bg-[#FFF8F2]">
 {% if active_discounts is defined and active_discounts|length > 0 %}
 <section class="w-full pt-32 pb-10 bg-[#FFF8F2] snap-start">
     <div class="max-w-6xl mx-auto px-4">
@@ -138,12 +141,6 @@
     </div>
 </section>
 {% endif %}
-{# --- END: ACTIVE DISCOUNTS BANNER --- #}
-
-
-{# --- MODIFIED: Main content div with correct padding --- #}
-<div class="p-6 flex flex-col items-center snap-start {% if active_discounts is empty %}pt-32{% else %}pt-10{% endif %} bg-[#FFF8F2]">
-
   {# --- CATEGORY SECTION (Unchanged) --- #}
   <section class="flex flex-col items-center justify-center pb-10">
     <div class="w-fit items-center flex flex-col gap-y-3">
