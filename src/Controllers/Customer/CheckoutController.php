@@ -6,7 +6,6 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use SweetDelights\Mayie\Controllers\Admin\BaseAdminController;
 use Slim\Routing\RouteContext;
 
-
 class CheckoutController extends BaseAdminController {
 
     public function __construct()
@@ -29,23 +28,27 @@ class CheckoutController extends BaseAdminController {
             return $response->withHeader('Location', $routeParser->urlFor('products.index'))->withStatus(302);
         }
 
-        // --- NEW: Calculate Discounts ---
+        // --- Calculate Discounts ---
         $subtotal = 0;
         $totalDiscount = 0;
         $cartWithDetails = [];
         
+        // This query is already correct
         $productStmt = $this->db->prepare("SELECT id, category_id FROM products WHERE sku = ?");
 
         foreach ($cart as $item) {
-            // 1. Find product_id from SKU
+            // 1. Find product_id and category_id
             $productStmt->execute([$item['sku']]);
             $product = $productStmt->fetch();
             $productId = $product ? (int)$product['id'] : null;
             $categoryId = ($product && $product['category_id']) ? (int)$product['category_id'] : null;
+            
+            // 2. Find best active discount
             $discount = $this->findActiveDiscount($productId, $categoryId);
 
             $item['discount_type'] = $discount ? $discount['discount_type'] : null;
             $item['discount_value'] = $discount ? (float)$discount['discount_value'] : 0;
+            
             // 3. Calculate prices
             $item['original_price'] = (float)$item['price'];
             $item['discount_amount'] = 0;
@@ -58,7 +61,6 @@ class CheckoutController extends BaseAdminController {
                     $item['discount_amount'] = (float)$discount['discount_value'];
                 }
 
-                // Ensure discount isn't more than the item price
                 if ($item['discount_amount'] > $item['original_price']) {
                     $item['discount_amount'] = $item['original_price'];
                 }
@@ -75,17 +77,16 @@ class CheckoutController extends BaseAdminController {
         
         $discountedSubtotal = $subtotal - $totalDiscount;
         $tax = $discountedSubtotal * ($config['tax_rate'] ?? 0);
-        $shipping = $config['shipping_fee'] ?? 0; // Default shipping fee
+        $shipping = $config['shipping_fee'] ?? 0;
         $total = $discountedSubtotal + $tax + $shipping;
-        // --- END NEW ---
 
         return $view->render($response, 'User/checkout.twig', [
             'title' => 'Checkout',
             'user' => $user,
-            'cart' => $cartWithDetails, // Pass the new detailed cart
+            'cart' => $cartWithDetails,
             'totals' => [
                 'subtotal' => $subtotal,
-                'total_discount' => $totalDiscount, // Pass new discount total
+                'total_discount' => $totalDiscount,
                 'tax' => $tax,
                 'shipping' => $shipping,
                 'total' => $total
@@ -96,8 +97,7 @@ class CheckoutController extends BaseAdminController {
     }
 
     /**
-     * Process the checkout:
-     * (Steps omitted for brevity)
+     * Process the checkout
      */
     public function processCheckout(Request $request, Response $response): Response {
         $user = $request->getAttribute('user');
@@ -105,18 +105,15 @@ class CheckoutController extends BaseAdminController {
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $config = $this->getConfig();
         
-        // --- 1. Get Form Data ---
         $parsedBody = $request->getParsedBody();
         $shippingMethod = $parsedBody['shipping_method'] ?? 'delivery';
         $paymentMethod = $parsedBody['payment_method'] ?? 'card';
 
-        // --- 2. Validate Address ---
         $addr = $user['address'];
         if (empty($addr['street']) || empty($addr['city']) || empty($addr['state']) || empty($addr['postal_code'])) {
             return $response->withHeader('Location', '/checkout?error=address')->withStatus(302);
         }
 
-        // --- 3. Start Database Transaction ---
         $newOrderId = null;
         try {
             $this->db->beginTransaction();
@@ -148,11 +145,8 @@ class CheckoutController extends BaseAdminController {
                 throw new \Exception('Stock validation failed: ' . implode(', ', $stockErrors));
             }
 
-            // --- 5. Mock Payment Validation (if 'card') ---
-            // (Frontend JS handles 'required' attributes)
-
             // --- 6. Reduce Stock ---
-            $productStmtForStock->closeCursor(); // Close previous cursor
+            $productStmtForStock->closeCursor();
             $productStmtForStock = $this->db->prepare("SELECT id FROM products WHERE sku = ?");
             foreach ($cart as $item) {
                 $productStmtForStock->execute([$item['sku']]);
@@ -165,24 +159,25 @@ class CheckoutController extends BaseAdminController {
             }
             $productStmtForStock->closeCursor();
 
-            // --- 7. RECALCULATE Totals & Create Order Record (WITH DISCOUNTS) ---
+            // --- 7. RECALCULATE Totals (SERVER-SIDE) ---
             
-            // --- NEW: Securely recalculate all totals on the server ---
             $subtotal = 0;
             $totalDiscount = 0;
             $cartWithDetails = [];
             
-            $productStmt = $this->db->prepare("SELECT id, image FROM products WHERE sku = ?");
+            // --- FIX 1: This query MUST select category_id ---
+            $productStmt = $this->db->prepare("SELECT id, category_id, image FROM products WHERE sku = ?");
 
             foreach ($cart as $item) {
-                // 1. Find product_id from SKU
                 $productStmt->execute([$item['sku']]);
                 $product = $productStmt->fetch();
                 $productId = $product ? (int)$product['id'] : null;
-                $item['image'] = $product ? $product['image'] : $item['image']; // Get image now
+                // --- FIX 2: Get category_id for the discount check ---
+                $categoryId = ($product && $product['category_id']) ? (int)$product['category_id'] : null;
+                $item['image'] = $product ? $product['image'] : $item['image'];
 
-                // 2. Find active discount
-                $discount = $productId ? $this->getActiveDiscountForProduct($productId) : null;
+                // --- FIX 3: Call the correct discount function ---
+                $discount = $this->findActiveDiscount($productId, $categoryId);
 
                 // 3. Calculate prices
                 $item['original_price'] = (float)$item['price'];
@@ -192,7 +187,7 @@ class CheckoutController extends BaseAdminController {
                 if ($discount) {
                     if ($discount['discount_type'] === 'percent') {
                         $item['discount_amount'] = $item['original_price'] * ((float)$discount['discount_value'] / 100);
-                    } else { // 'fixed'
+                    } else {
                         $item['discount_amount'] = (float)$discount['discount_value'];
                     }
                     if ($item['discount_amount'] > $item['original_price']) {
@@ -213,11 +208,8 @@ class CheckoutController extends BaseAdminController {
             $tax = $discountedSubtotal * ($config['tax_rate'] ?? 0);
             $shipping = ($shippingMethod === 'pickup') ? 0 : ($config['shipping_fee'] ?? 0);
             $total = $discountedSubtotal + $tax + $shipping;
-            // --- END NEW RECALCULATION ---
-
 
             $orderStmt = $this->db->prepare(
-                // Added total_discount column
                 "INSERT INTO orders (user_id, customer_name, address, shipping_method, date, payment_method, status, subtotal, total_discount, tax, shipping_fee, total)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
@@ -229,57 +221,47 @@ class CheckoutController extends BaseAdminController {
                 date('Y-m-d H:i:s'),
                 $paymentMethod, 
                 'Processing',
-                $subtotal,        // Original subtotal
-                $totalDiscount,   // Total discount
+                $subtotal,
+                $totalDiscount,
                 $tax,
                 $shipping, 
-                $total            // Final total
+                $total
             ]);
             $newOrderId = (int)$this->db->lastInsertId();
 
             // --- 8. Create order_items Records ---
-            
-            // Updated to include original_price and discount_amount
             $itemStmt = $this->db->prepare(
                 "INSERT INTO order_items (order_id, sku, product_name, size, price, original_price, discount_amount, quantity, image)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
 
-            // We already have $cartWithDetails from Step 7
             foreach ($cartWithDetails as $item) {
                 $itemStmt->execute([
                     $newOrderId,
                     $item['sku'],
                     $item['name'],
                     $item['selectedSize'],
-                    $item['final_price'],      // The final (discounted) price
-                    $item['original_price'], // The original price
-                    $item['discount_amount'],  // The discount applied
+                    $item['final_price'],
+                    $item['original_price'],
+                    $item['discount_amount'],
                     $item['quantity'],
-                    $item['image'] ?? null       // Use image fetched in step 7
+                    $item['image'] ?? null
                 ]);
             }
 
-            // --- 9. LOG ACTIVITY ---
+            // ... (rest of the function: logging, associations, commit, etc. is correct) ...
+            
             $orderAfter = $this->getOrderById($newOrderId);
             $this->logEntityChange(
-                $user['id'],
-                'create',
-                'order',
-                $newOrderId,
-                null,
-                $orderAfter
+                $user['id'], 'create', 'order', $newOrderId, null, $orderAfter
             );
 
-            // --- 10. UPDATE MARKET-BASKET ASSOCIATIONS ---
             $purchasedSkus = array_column($cart, 'sku');
             $this->updateProductAssociations($purchasedSkus);
 
-            // --- 11. Commit Transaction ---
             $this->db->commit();
 
         } catch (\Exception $e) {
-            // --- Rollback Transaction on *any* failure ---
             $this->db->rollBack();
             error_log('Checkout Failed: ' . $e->getMessage()); 
 
@@ -289,11 +271,9 @@ class CheckoutController extends BaseAdminController {
             return $response->withHeader('Location', '/checkout?error=lock')->withStatus(302);
         }
 
-        // --- 12. Clear Cart (Only happens on success) ---
         $this->saveUserKey($user['id'], 'cart', []);
-        $_SESSION['user']['cart'] = []; // Update session immediately
+        $_SESSION['user']['cart'] = [];
 
-        // --- 13. Redirect to Success Page ---
         $successUrl = $routeParser->urlFor('checkout.success') . '?order_id=' . $newOrderId;
         return $response->withHeader('Location', $successUrl)->withStatus(302);
     }
@@ -302,7 +282,6 @@ class CheckoutController extends BaseAdminController {
      * Shows the "Order Successful" page.
      */
     public function showSuccess(Request $request, Response $response): Response {
-        // ... (This method remains unchanged) ...
         $view = $this->viewFromRequest($request);
         $orderId = $request->getQueryParams()['order_id'] ?? null;
 
@@ -317,53 +296,44 @@ class CheckoutController extends BaseAdminController {
         ]);
     }
 
-
     /**
-     * --- NEW HELPER FUNCTION ---
-     * Finds a single, active discount for a product.
+     * Finds the best active discount for a product.
+     * Checks for a product-specific discount first, then for a category discount.
      */
-/**
- * Finds the best active discount for a product.
- * Checks for a product-specific discount first, then for a category discount.
- */
-/**
- * Finds the best active discount for a product.
- * Checks for a product-specific discount first, then for a category discount.
- */
-private function findActiveDiscount(?int $productId, ?int $categoryId): ?array
-{
-    // 1. Check for product-specific discount
-    if ($productId) {
-        $stmt = $this->db->prepare("
-            SELECT * FROM product_discounts
-            WHERE product_id = ? AND active = 1
-              AND (start_date IS NULL OR start_date <= NOW())
-              AND (end_date IS NULL OR end_date >= NOW())
-            ORDER BY id DESC LIMIT 1
-        ");
-        $stmt->execute([$productId]);
-        $discount = $stmt->fetch();
-        if ($discount) {
-            return $discount;
+    private function findActiveDiscount(?int $productId, ?int $categoryId): ?array
+    {
+        // 1. Check for product-specific discount
+        if ($productId) {
+            $stmt = $this->db->prepare("
+                SELECT * FROM product_discounts
+                WHERE product_id = ? AND active = 1
+                  AND (start_date IS NULL OR start_date <= NOW())
+                  AND (end_date IS NULL OR end_date >= NOW())
+                ORDER BY id DESC LIMIT 1
+            ");
+            $stmt->execute([$productId]);
+            $discount = $stmt->fetch();
+            if ($discount) {
+                return $discount;
+            }
         }
-    }
 
-    // 2. Check for category-specific discount
-    if ($categoryId) {
-        $stmt = $this->db->prepare("
-            SELECT * FROM product_discounts
-            WHERE category_id = ? AND active = 1
-              AND (start_date IS NULL OR start_date <= NOW())
-              AND (end_date IS NULL OR end_date >= NOW())
-            ORDER BY id DESC LIMIT 1
-        ");
-        $stmt->execute([$categoryId]);
-        $discount = $stmt->fetch();
-        if ($discount) {
-            return $discount;
+        // 2. Check for category-specific discount
+        if ($categoryId) {
+            $stmt = $this->db->prepare("
+                SELECT * FROM product_discounts
+                WHERE category_id = ? AND active = 1
+                  AND (start_date IS NULL OR start_date <= NOW())
+                  AND (end_date IS NULL OR end_date >= NOW())
+                ORDER BY id DESC LIMIT 1
+            ");
+            $stmt->execute([$categoryId]);
+            $discount = $stmt->fetch();
+            if ($discount) {
+                return $discount;
+            }
         }
-    }
 
-    return null;
-}
+        return null;
+    }
 }
