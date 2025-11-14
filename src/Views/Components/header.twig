@@ -1,16 +1,5 @@
-{# FILE: Components/header.twig #}
-<!-- 
-  FIX: px-4 on mobile, lg:px-10 on desktop.
-  h-22 (5.5rem) to match the new top-22 offset.
--->
 <header class="sticky top-0 w-full px-4 lg:px-10 py-1 bg-[#fee7b5] flex shadow-md shadow-[#cbb890] items-center z-30 flex-wrap h-22">
   
-  <!-- 
-    FIX: Account Page Burger Button
-    - Added this button on the far left.
-    - It only shows if 'onAccountPage' is true.
-    - It is hidden on large screens ('lg:hidden').
-  -->
   {% if onAccountPage %}
   <button id="account-menu-toggle-btn" class="p-2 -ml-2 text-[#835234] hover:text-[#d1a731] lg:hidden" aria-label="Toggle account menu">
     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -110,7 +99,11 @@
         {% if user %}
           <div class="py-2">
             <div class="px-4 py-2 text-sm text-gray-500 border-b">
-              Welcome, {{ user.name }}!
+                <span>
+                  Welcome, 
+                  <b>{{ user.first_name | default('Admin')  }}!</b>
+                
+                </span>
             </div>
             
             {% if user.role in ['admin', 'superadmin'] %}
