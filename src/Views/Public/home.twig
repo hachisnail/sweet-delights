@@ -1,5 +1,52 @@
 {% extends "Layouts/public.twig" %}
 
+{# --- NEW: Macro to render a single discount card --- #}
+{% macro renderDiscountCard(discount) %}
+    
+    {# 1. Determine the correct URL #}
+    {% set url = discount.discount_scope == 'product' ? '/products/' ~ discount.item_sku : '/products?category=' ~ discount.item_sku %}
+    
+    {# 2. Determine the correct image path #}
+    {% set image_src = '/Assets/placeholder-item.png' %} {# Default #}
+    
+    {% if discount.discount_scope == 'product' and discount.item_image %}
+        {# Product images are typically stored with their full relative path #}
+        {% set image_src = discount.item_image %}
+    {% elseif discount.discount_scope == 'category' %}
+        {# Category images follow the logic from your category grid #}
+        {% set image_src = discount.item_image ? '/Assets/Categories/' ~ discount.item_image : '/Assets/Categories/' ~ discount.item_sku ~ '.png' %}
+    {% endif %}
+
+    {# 3. Render the card #}
+    <a href="{{ url }}" class="block bg-white rounded-lg shadow-md overflow-hidden group h-full">
+        <div class="relative h-48">
+            <img src="{{ image_src }}" alt="{{ discount.item_name }}" 
+                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
+                 onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+            
+            <span class="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
+                {% if discount.discount_type == 'percent' %}
+                    {{ discount.discount_value | number_format(0) }}% OFF
+                {% else %}
+                    ₱{{ discount.discount_value | number_format(2) }} OFF
+                {% endif %}
+            </span>
+        </div>
+        <div class="p-4">
+            <p class="text-sm text-gray-500 capitalize">{{ discount.discount_scope }} Offer</p>
+            <h3 class="text-lg font-semibold text-[#835234] truncate group-hover:underline">{{ discount.item_name }}</h3>
+            <p class="text-xs text-gray-400 mt-2">
+                {% if discount.end_date %}
+                    Ends: {{ discount.end_date | date('M d, Y') }}
+                {% else %}
+                    Ongoing Deal
+                {% endif %}
+            </p>
+        </div>
+    </a>
+{% endmacro %}
+
+
 {% block content %}
 
 {# --- HERO SECTION --- #}
@@ -30,6 +77,29 @@
 </section>
 
 
+{# --- ACTIVE DISCOUNTS CAROUSEL --- #}
+{% if active_discounts is not empty %}
+    <section class="py-16 bg-[#fff1e1]">
+        <div class="w-full max-w-7xl mx-auto px-6">
+            <h2 class="font-zen-antique text-3xl lg:text-6xl text-[#835234] text-shadow-sm text-shadow-[#d1bfa5] text-center mb-10">
+                Sweet Deals Right Now
+            </h2>
+            
+            <div class="swiper discountSwiper">
+                <div class="swiper-wrapper">
+                    {% for discount in active_discounts %}
+                        <div class="swiper-slide h-auto">
+                            {{ _self.renderDiscountCard(discount) }} {# Call the macro #}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="swiper-pagination mt-6 relative"></div>
+            </div>
+        </div>
+    </section>
+{% endif %}
+
+
 {# --- EXPLORE OUR CATEGORIES SECTION --- #}
 <section class="flex flex-col min-h-screen items-center justify-center snap-start pt-30 bg-[#FFF9F2]">
   <div class="w-fit flex flex-col items-center gap-y-4">
@@ -58,7 +128,6 @@
 
         <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border border-[#e4d3be] shadow-md shadow-[#d4c2a8] bg-white flex flex-col items-center justify-end group hover:scale-[1.02] transition-transform duration-500">
 
-          <!-- Image -->
           <a href="/products?category={{ cat.slug }}" class="absolute inset-0">
             <img 
               src="{{ image_src }}" 
@@ -67,14 +136,11 @@
               onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
           </a>
 
-          <!-- Floating Button -->
           <a href="/products?category={{ cat.slug }}"
              class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44] text-white font-semibold rounded-full overflow-hidden group/button shadow-md hover:shadow-lg transition-all duration-300 border border-[#835234]">
             
-            <!-- Fill Effect (left → right) -->
             <span class="absolute inset-0 bg-[#fff1e1] opacity-30 scale-x-0 origin-left group-hover/button:scale-x-100 transition-transform duration-500 ease-in-out"></span>
 
-            <!-- Label -->
             <span class="relative z-10 flex items-center justify-center h-full tracking-wide">
               {{ cat.name }}
             </span>
@@ -90,5 +156,153 @@
     </div>
   </div>
 </section>
+
+
+{# --- DISCOUNT POPUP --- #}
+
+<div id="modalOverlay" class="fixed inset-0 bg-black/80 z-40 hidden" aria-hidden="true"></div>
+
+<div id="discountModal" 
+     class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 w-full max-w-lg overflow-hidden hidden transform transition-all">
+    
+    <div class="relative">
+        <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+            </svg>
+        </button>
+
+        <div class="flex flex-col items-center p-8 pt-12">
+            <h2 class="text-3xl font-bold font-zen-antique text-[#A96B44] mb-6">
+                Sweet Deals Inside!
+            </h2>
+            
+            {% if active_discounts is not empty %}
+                <div class="swiper modalDiscountSwiper w-full">
+                    <div class="swiper-wrapper">
+                        {% for discount in active_discounts %}
+                            <div class="swiper-slide h-auto pb-10"> {# pb-10 to make room for pagination #}
+                                {{ _self.renderDiscountCard(discount) }} {# Re-using your macro #}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="swiper-pagination modal-swiper-pagination mt-6 relative"></div>
+                </div>
+            {% else %}
+                <img src="/Assets/BobaTea.svg" alt="Special Offer" class="w-24 h-24 mb-4">
+                <p class="text-lg text-gray-600 text-center mb-6">
+                    No active deals right now, but our treats are always fresh!
+                </p>
+                <a href="/products"
+                   class="w-full text-center bg-[#A96B44] shadow-md shadow-[#8c8989]/50 text-white px-6 py-3 rounded-full font-semibold hover:scale-105 transition-transform">
+                    Find Your Treat
+                </a>
+            {% endif %}
+
+            <div class="mt-6 flex items-center">
+                <input type="checkbox" id="dontShowAgain" class="w-4 h-4 text-[#A96B44] border-gray-300 rounded focus:ring-[#A96B44]">
+                <label for="dontShowAgain" class="ml-2 block text-sm text-gray-700">
+                    Don't show this again for 12 hours
+                </label>
+            </div>
+        </div>
+        </div>
+</div>
+<link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css" />
+<script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // --- Modal & Popup Logic ---
+        const modal = document.getElementById('discountModal');
+        const overlay = document.getElementById('modalOverlay');
+        const closeButton = document.getElementById('closeModalBtn');
+        const dontShowCheckbox = document.getElementById('dontShowAgain');
+        
+        const storageKey = 'hideDiscountPopupTimestamp';
+        const twelveHoursInMs = 12 * 60 * 60 * 1000;
+        
+        let modalSwiper = null; // Variable to hold the modal swiper instance
+
+        const showModal = () => {
+            modal.classList.remove('hidden');
+            overlay.classList.remove('hidden');
+            
+            // --- NEW: Initialize modal swiper ---
+            // We do this here because Swiper needs the element to be visible
+            // We check !modalSwiper to ensure it only initializes ONCE.
+            if (!modalSwiper && {{ active_discounts | length > 0 }}) { 
+                modalSwiper = new Swiper(".modalDiscountSwiper", {
+                    slidesPerView: 1,
+                    spaceBetween: 10,
+                    pagination: {
+                        el: ".modal-swiper-pagination", // Use the unique class
+                        clickable: true,
+                    },
+                    autoplay: {
+                        delay: 3000,
+                        disableOnInteraction: false,
+                    },
+                    loop: {{ (active_discounts | length > 1) ? 'true' : 'false' }} // Loop if more than 1
+                });
+            }
+        };
+
+        const hideModal = () => {
+            modal.classList.add('hidden');
+            overlay.classList.add('hidden');
+            
+            // Stop autoplay when modal is hidden (good practice)
+            if (modalSwiper && modalSwiper.autoplay) {
+                 modalSwiper.autoplay.stop();
+            }
+            
+            if (dontShowCheckbox.checked) {
+                const hideUntil = Date.now() + twelveHoursInMs;
+                localStorage.setItem(storageKey, hideUntil.toString());
+            }
+        };
+
+        // Check if we should show the modal on page load
+        const hideUntilTimestamp = localStorage.getItem(storageKey);
+        
+        if (!hideUntilTimestamp || Date.now() > parseInt(hideUntilTimestamp, 10)) {
+            setTimeout(showModal, 500); 
+        }
+
+        // Add event listeners
+        closeButton.addEventListener('click', hideModal);
+        overlay.addEventListener('click', hideModal);
+
+        
+        // --- Initialize Swiper for MAIN PAGE Discount Carousel ---
+        // (This one runs on page load as before)
+        new Swiper(".discountSwiper", {
+            slidesPerView: 1,
+            spaceBetween: 10,
+            pagination: {
+                el: ".swiper-pagination",
+                clickable: true,
+            },
+            breakpoints: {
+                640: {
+                    slidesPerView: 2,
+                    spaceBetween: 20,
+                },
+                1024: {
+                    slidesPerView: 4,
+                    spaceBetween: 30,
+                },
+            },
+            autoplay: {
+                delay: 4000,
+                disableOnInteraction: false,
+            },
+            loop: {{ (active_discounts | length > 4) ? 'true' : 'false' }}
+        });
+    });
+</script>
+
 
 {% endblock %}
