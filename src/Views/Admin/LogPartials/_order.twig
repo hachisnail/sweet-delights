@@ -22,7 +22,7 @@
 {% if data %}
 <div class="p-4 space-y-6 bg-white rounded-lg">
 
-  {# --- Header --- #}
+  {# --- Header (Unchanged) --- #}
   <div class="border-b border-pink-200 pb-3">
     <h3 class="text-xl font-bold text-[#835234]">
       Order #{{ data.id is defined ? data.id : '—' }}
@@ -32,7 +32,7 @@
     </p>
   </div>
 
-  {# --- Order Info Grid --- #}
+  {# --- Order Info Grid (Unchanged) --- #}
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
     {# --- Customer --- #}
@@ -65,7 +65,7 @@
 
   </div>
 
-  {# --- Items --- #}
+  {# --- Items (MODIFIED) --- #}
   <div>
     <h4 class="text-lg font-semibold text-[#a07445] mb-3">Items</h4>
 
@@ -76,9 +76,11 @@
             ? (beforeData.items|filter(i => i.product_name == item.product_name)|first)
             : null
           %}
+          {# --- MODIFIED: Added original_price to change check --- #}
           {% set itemChanged = isAfterState and matchedBefore and (
               matchedBefore.quantity != item.quantity
               or matchedBefore.price != item.price
+              or matchedBefore.original_price != item.original_price
               or matchedBefore.size != item.size
           ) %}
           <div class="flex items-center gap-4 p-3 transition
@@ -97,12 +99,20 @@
               {% endif %}
               <p class="text-sm text-gray-500">Qty: {{ item.quantity }}</p>
             </div>
+            
+            {# --- MODIFIED: Price block to show discount --- #}
             <div class="text-right">
               <p class="text-gray-900 font-semibold">
                 ₱{{ (item.price * item.quantity)|number_format(2) }}
               </p>
-              <p class="text-xs text-gray-500">(₱{{ item.price|number_format(2) }} each)</p>
+              {% if item.original_price is defined and item.original_price > item.price %}
+                <p class="text-xs text-gray-500">(<span class="font-bold text-red-600">₱{{ item.price|number_format(2) }}</span> <span class="line-through">₱{{ item.original_price|number_format(2) }}</span> each)</p>
+              {% else %}
+                <p class="text-xs text-gray-500">(₱{{ item.price|number_format(2) }} each)</p>
+              {% endif %}
             </div>
+            {# --- END MODIFIED --- #}
+
           </div>
         {% endfor %}
       </div>
@@ -111,8 +121,9 @@
     {% endif %}
   </div>
 
-  {# --- Totals --- #}
+  {# --- Totals (MODIFIED) --- #}
   {% set subtotalChanged = isAfterState and (beforeData.subtotal != data.subtotal) %}
+  {% set discountChanged = isAfterState and (beforeData.total_discount ?? 0) != (data.total_discount ?? 0) %}
   {% set taxChanged = isAfterState and (beforeData.tax != data.tax) %}
   {% set shippingChanged = isAfterState and (beforeData.shipping_fee != data.shipping_fee) %}
   {% set totalChanged = isAfterState and (beforeData.total != data.total) %}
@@ -122,6 +133,16 @@
       <span>Subtotal</span>
       <span>₱{{ data.subtotal is defined ? (data.subtotal|number_format(2)) : '0.00' }}</span>
     </div>
+
+    {# --- NEW: Discount Line --- #}
+    {% if (data.total_discount ?? 0) > 0 or (isAfterState and discountChanged) %}
+      <div class="flex justify-between text-red-600 {% if isAfterState and discountChanged %} bg-yellow-50 border-l-4 border-yellow-300 px-2 {% endif %}">
+        <span>Discounts</span>
+        <span>- ₱{{ data.total_discount is defined ? (data.total_discount|number_format(2)) : '0.00' }}</span>
+      </div>
+    {% endif %}
+    {# --- END NEW --- #}
+
     <div class="flex justify-between text-gray-700 {% if isAfterState and taxChanged %} bg-yellow-50 border-l-4 border-yellow-300 px-2 {% endif %}">
       <span>Tax</span>
       <span>₱{{ data.tax is defined ? (data.tax|number_format(2)) : '0.00' }}</span>

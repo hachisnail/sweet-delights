@@ -1,7 +1,71 @@
 {% extends "Layouts/public.twig" %}
 
 {% block content %}
-<div class="p-6 flex flex-col items-center snap-start pt-30 bg-[#FFF8F2]">
+
+{# --- NEW: ACTIVE DISCOUNTS BANNER --- #}
+{% if active_discounts is defined and active_discounts|length > 0 %}
+<section class="w-full pt-32 pb-10 bg-[#FFF8F2] snap-start">
+    <div class="max-w-6xl mx-auto">
+        <h2 class="text-3xl font-zen-antique text-[#A96B44] mb-4 text-center">Current Offers</h2>
+        <div class="flex gap-4 overflow-x-auto pb-4 px-4">
+        
+            {% for discount in active_discounts %}
+                {# --- DEFINE VARS based on scope --- #}
+                {% set item_name = discount.item_name %}
+                {% set item_image = discount.item_image %}
+                {% set item_link = "" %}
+
+                {% if discount.discount_scope == 'product' %}
+                    {% set item_link = app_url ~ '/products/' ~ discount.item_sku %}
+                {% else %}
+                    {# Category discount #}
+                    {% set item_link = app_url ~ '/products?category=' ~ discount.item_sku %}
+                    {% if item_image %}
+                        {# Prepend the asset path for category images #}
+                        {% set item_image = '/Assets/Categories/' ~ item_image %}
+                    {% endif %}
+                {% endif %}
+                {# --- END DEFINE VARS --- #}
+
+                <a href="{{ item_link }}" 
+                   class="flex-shrink-0 w-64 bg-white rounded-xl shadow-md hover:shadow-lg transition-transform transform hover:-translate-y-1 border border-[#EADBCB] overflow-hidden group">
+                    
+                    <div class="relative w-full h-32 bg-gray-50">
+                        <img src="{{ item_image }}" alt="{{ item_name }}"
+                             class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-105"
+                             onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+                        
+                        {# --- Add a tag to show what kind of sale it is --- #}
+                        <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-semibold
+                            {% if discount.discount_scope == 'product' %} bg-blue-100 text-blue-800 {% else %} bg-green-100 text-green-800 {% endif %}">
+                            {{ discount.discount_scope|capitalize }} Sale
+                        </span>
+                    </div>
+                    
+                    <div class="p-3">
+                        <h3 class="font-semibold text-md text-[#835234] truncate">{{ item_name }}</h3>
+                        <span class="block text-lg font-bold text-red-600">
+                            {% if discount.discount_type == 'percent' %}
+                                {{ discount.discount_value|number_format(0) }}% OFF
+                            {% else %}
+                                ₱{{ discount.discount_value|number_format(2) }} OFF
+                            {% endif %}
+                        </span>
+                        {% if discount.end_date %}
+                            <p class="text-xs text-gray-500">Sale ends {{ discount.end_date|date("M j") }}</p>
+                        {% endif %}
+                    </div>
+                </a>
+            {% endfor %}
+            
+        </div>
+    </div>
+</section>
+{% endif %}
+{# --- END: ACTIVE DISCOUNTS BANNER --- #}
+
+
+<div class="px-6 pb-6 pt-20 flex flex-col items-center snap-start {% if active_discounts is empty %}pt-30{% endif %} bg-[#FFF8F2]">
 
   {# --- CATEGORY SECTION --- #}
   <section class="flex flex-col items-center justify-center pt-10 pb-10">
@@ -115,13 +179,28 @@
             <!-- Main content (name, price, sizes) -->
             <div>
               <h2 class="font-semibold text-lg text-[#835234] truncate">{{ product.name }}</h2>
-              <p class="text-[#A69273] mb-1">
-                {% if product.sizes is defined and product.sizes|length > 0 %}
-                  Starts at ₱{{ product.price|number_format(2, '.', ',') }}
+{# --- MODIFIED: Price Block --- #}
+            <div class="mb-1">
+                {% set base_price = product.price %}
+                {% set base_original_price = product.original_price | default(product.price) %}
+                {% set starts_at = (product.sizes is defined and product.sizes|length > 0) ? "Starts at " : "" %}
+
+                {% if base_original_price > base_price %}
+                    {# On Sale #}
+                    <p class="font-bold text-red-600 text-lg">
+                        {{ starts_at }}₱{{ base_price|number_format(2) }}
+                    </p>
+                    <p class="text-sm text-gray-500 line-through">
+                        ₱{{ base_original_price|number_format(2) }}
+                    </p>
                 {% else %}
-                  ₱{{ product.price|number_format(2, '.', ',') }}
+                    {# Not on Sale #}
+                    <p class="font-bold text-[#A69273] text-lg">
+                        {{ starts_at }}₱{{ base_price|number_format(2) }}
+                    </p>
                 {% endif %}
-              </p>
+            </div>
+            {# --- END: Price Block --- #}
 
               {% if product.sizes is defined and product.sizes|length > 0 %}
               <div class="flex flex-wrap gap-1 mb-2">

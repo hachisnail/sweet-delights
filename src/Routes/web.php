@@ -26,6 +26,8 @@ use SweetDelights\Mayie\Controllers\Admin\SettingsAdminController;
 
 use SweetDelights\Mayie\Controllers\Admin\CategoryAdminController; 
 use SweetDelights\Mayie\Controllers\Admin\ProductAdminController; 
+use SweetDelights\Mayie\Controllers\Admin\ProductDiscountAdminController;
+
 
 use SweetDelights\Mayie\Middleware\RoleAuthMiddleware;
 
@@ -147,6 +149,17 @@ return function (App $app) {
               
         $group->post('/products/{id}/delete', [ProductAdminController::class, 'delete'])
               ->setName('app.products.delete');
+
+
+
+    // Product Discounts
+    $group->get('/product-discounts', [ProductDiscountAdminController::class, 'index'])->setName('admin.discounts');
+    $group->get('/product-discounts/new', [ProductDiscountAdminController::class, 'create'])->setName('admin.discount.create');
+    $group->post('/product-discounts', [ProductDiscountAdminController::class, 'store'])->setName('admin.discount.store');
+    $group->get('/product-discounts/{id:[0-9]+}/edit', [ProductDiscountAdminController::class, 'edit'])->setName('admin.discount.edit');
+    $group->post('/product-discounts/{id:[0-9]+}', [ProductDiscountAdminController::class, 'update'])->setName('admin.discount.update');
+    $group->post('/product-discounts/{id:[0-9]+}/delete', [ProductDiscountAdminController::class, 'delete'])->setName('admin.discount.delete');
+
 
     })->add(new RoleAuthMiddleware(['admin', 'superadmin']));
 

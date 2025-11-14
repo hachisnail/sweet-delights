@@ -145,7 +145,8 @@
             {# --- ORDER SUMMARY --- #}
             <div id="order-summary-box" 
                  class="bg-white p-6 rounded-2xl shadow border border-pink-100 sticky top-10"
-                 data-subtotal="{{ totals.subtotal }}"
+                 {# --- MODIFIED: data-subtotal is now the discounted subtotal --- #}
+                 data-subtotal="{{ totals.subtotal - totals.total_discount }}"
                  data-tax="{{ totals.tax }}"
                  data-shipping-fee="{{ totals.shipping }}"
             >
@@ -159,17 +160,45 @@
                             <div class="flex-1">
                                 <p class="font-semibold text-gray-800">{{ item.name }}</p>
                                 <p class="text-sm text-gray-500">{{ item.selectedSize }} &times; {{ item.quantity }}</p>
+                                {# --- NEW: Show discount type --- #}
+                                {% if item.discount_type == 'percent' %}
+                                    <p class="text-xs font-medium text-red-600">({{ item.discount_value|number_format(0) }}% OFF)</p>
+                                {% elseif item.discount_type == 'fixed' %}
+                                    <p class="text-xs font-medium text-red-600">(₱{{ item.discount_value|number_format(2) }} OFF)</p>
+                                {% endif %}
+                                {# --- END NEW --- #}
                             </div>
-                            <p class="font-medium text-gray-900">₱{{ (item.price * item.quantity)|number_format(2) }}</p>
+
+                            {# --- MODIFIED: Show final price and original price if discounted --- #}
+                            <div class="text-right">
+                                {% if item.discount_amount > 0 %}
+                                    <p class="font-medium text-gray-900">₱{{ (item.final_price * item.quantity)|number_format(2) }}</p>
+                                    <p class="text-sm text-red-600 line-through">₱{{ (item.original_price * item.quantity)|number_format(2) }}</p>
+                                {% else %}
+                                    <p class="font-medium text-gray-900">₱{{ (item.original_price * item.quantity)|number_format(2) }}</p>
+                                {% endif %}
+                            </div>
+                            {# --- END MODIFIED --- #}
+
                         </div>
                     {% endfor %}
                 </div>
 
+                {# --- Totals (MODIFIED) --- #}
                 <div class="space-y-2 border-t border-pink-200 pt-4">
                     <div class="flex justify-between text-gray-700">
                         <span>Subtotal</span>
                         <span class="font-medium">₱{{ totals.subtotal|number_format(2) }}</span>
                     </div>
+
+                    {# --- NEW: Show Discount Total --- #}
+                    {% if totals.total_discount > 0 %}
+                    <div class="flex justify-between text-red-600">
+                        <span>Discounts</span>
+                        <span class="font-medium">- ₱{{ totals.total_discount|number_format(2) }}</span>
+                    </div>
+                    {% endif %}
+                    {# --- END NEW --- #}
                     
                     <div class="flex justify-between text-gray-700">
                         <span>Tax ({{ (config.tax_rate * 100)|default(12) }}%)</span>
@@ -287,7 +316,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const codRadioContainer = codRadio.closest('div'); // Gets the parent div for styling
 
     // Get base values from data attributes
-    const subtotal = parseFloat(summaryBox.dataset.subtotal);
+    // This 'subtotal' is the *discounted* subtotal passed from the controller
+    const subtotal = parseFloat(summaryBox.dataset.subtotal); 
     const tax = parseFloat(summaryBox.dataset.tax);
     const baseShippingFee = parseFloat(summaryBox.dataset.shippingFee);
 
@@ -299,7 +329,8 @@ document.addEventListener('DOMContentLoaded', () => {
             newShippingFee = baseShippingFee;
         }
 
-        const newTotal = subtotal + tax + newShippingFee;
+        // This calculation is correct because 'subtotal' is already discounted
+        const newTotal = subtotal + tax + newShippingFee; 
         const formattedTotal = formatCurrency(newTotal);
 
         // 1. Update the summary box text

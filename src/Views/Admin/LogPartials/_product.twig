@@ -8,7 +8,6 @@
 {% set isAfterState = isAfterState is defined ? isAfterState : true %}
 {% set beforeData = beforeData is defined ? beforeData : {} %}
 
-
 <style>
 .highlight-changed {
   background-color: #fff3cd;
@@ -22,7 +21,7 @@
 {% if data %}
 <div class="p-4 space-y-6 bg-white rounded-lg">
 
-  {# --- Product Header --- #}
+  {# --- Product Header (Unchanged) --- #}
   <div class="border-b border-pink-200 pb-3">
     <h3 class="text-xl font-bold text-[#835234]">
       {% set nameChanged = isAfterState and (beforeData.name ?? '') != (data.name ?? '') %}
@@ -39,7 +38,7 @@
     </p>
   </div>
 
-  {# --- Basic Info Grid --- #}
+  {# --- Basic Info Grid (Unchanged) --- #}
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
     {% set categoryChanged = isAfterState and (beforeData.category_id ?? '') != (data.category_id ?? '') %}
@@ -63,14 +62,17 @@
         {{ data.is_listed ? 'Listed' : 'Unlisted' }}
       </span>
     </div>
+  </div>
 
-    {% set priceChanged = isAfterState and (beforeData.price ?? 0) != (data.price ?? 0) %}
+  {# --- MODIFIED: Price & Stock Grid --- #}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {% set priceChanged = isAfterState and (beforeData.original_price ?? 0) != (data.original_price ?? 0) %}
     <div class="p-4 rounded-lg border transition
       {% if priceChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
     ">
-      <h4 class="text-md font-semibold text-[#a07445] mb-2">Base Price</h4>
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Original Price (Base)</h4>
       <p class="text-gray-900 font-semibold">
-        ₱{{ data.price | default(0) | number_format(2) }}
+        ₱{{ (data.original_price | default(data.price)) | default(0) | number_format(2) }}
       </p>
     </div>
 
@@ -78,13 +80,45 @@
     <div class="p-4 rounded-lg border transition
       {% if stockChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
     ">
-      <h4 class="text-md font-semibold text-[#a07445] mb-2">Total Stock</h4>
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Base Stock (if no sizes)</h4>
       <p class="text-gray-900 font-semibold">{{ data.stock | default('N/A') }}</p>
     </div>
-
   </div>
+  {# --- END MODIFIED --- #}
 
-  {# --- Product Description --- #}
+
+  {# --- NEW: Discount Info Grid --- #}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {% set finalPriceChanged = isAfterState and (beforeData.price ?? 0) != (data.price ?? 0) %}
+    <div class="p-4 rounded-lg border transition
+      {% if finalPriceChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Final Price (After Discount)</h4>
+      <p class="text-gray-900 font-semibold text-red-600">
+        ₱{{ data.price | default(0) | number_format(2) }}
+      </p>
+    </div>
+
+    {% set typeChanged = isAfterState and (beforeData.discount_type ?? '') != (data.discount_type ?? '') %}
+    <div class="p-4 rounded-lg border transition
+      {% if typeChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Applied Discount</h4>
+      <p class="text-gray-900 font-semibold">
+        {% if data.discount_type == 'percent' %}
+            {{ data.discount_value | default(0) | number_format(0) }}%
+        {% elseif data.discount_type == 'fixed' %}
+            ₱{{ data.discount_value | default(0) | number_format(2) }}
+        {% else %}
+            N/A
+        {% endif %}
+      </p>
+    </div>
+  </div>
+  {# --- END NEW --- #}
+
+
+  {# --- Product Description (Unchanged) --- #}
   {% set descChanged = isAfterState and (beforeData.description ?? '') != (data.description ?? '') %}
   <div class="p-4 rounded-lg border transition
     {% if descChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
@@ -95,7 +129,7 @@
     </p>
   </div>
 
-  {# --- Main Image --- #}
+  {# --- Main Image (Unchanged) --- #}
   {% set imageChanged = isAfterState and (beforeData.image ?? '') != (data.image ?? '') %}
   <div class="p-4 rounded-lg border transition
     {% if imageChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
@@ -113,7 +147,7 @@
     {% endif %}
   </div>
 
-  {# --- Variants (Sizes) --- #}
+  {# --- MODIFIED: Variants (Sizes) --- #}
   <div>
     <h4 class="text-lg font-semibold text-[#a07445] mb-3">Sizes & Variants</h4>
 
@@ -121,9 +155,12 @@
       <div class="divide-y divide-gray-100 border border-gray-200 rounded-lg">
         {% for size in data.sizes %}
           {% set beforeSize = beforeData.sizes is defined and beforeData.sizes[loop.index0] is defined ? beforeData.sizes[loop.index0] : {} %}
+          
+          {# --- MODIFIED: Added original_price to change check --- #}
           {% set variantChanged = isAfterState and (
             (beforeSize.name ?? '') != (size.name ?? '') or
             (beforeSize.price ?? 0) != (size.price ?? 0) or
+            (beforeSize.original_price ?? 0) != (size.original_price ?? 0) or
             (beforeSize.stock ?? 0) != (size.stock ?? 0) or
             (beforeSize.image ?? '') != (size.image ?? '')
           ) %}
@@ -142,7 +179,14 @@
               <p class="text-sm text-gray-500">Stock: {{ size.stock | default(0) }}</p>
             </div>
             <div class="text-right">
-              <p class="font-semibold text-gray-900">₱{{ size.price | number_format(2) }}</p>
+              {# --- MODIFIED: Show discount price --- #}
+              {% if size.original_price is defined and size.original_price > size.price %}
+                <p class="font-semibold text-red-600">₱{{ size.price | number_format(2) }}</p>
+                <p class="text-sm text-gray-500 line-through">₱{{ size.original_price | number_format(2) }}</p>
+              {% else %}
+                <p class="font-semibold text-gray-900">₱{{ size.price | number_format(2) }}</p>
+              {% endif %}
+              {# --- END MODIFIED --- #}
             </div>
           </div>
         {% endfor %}

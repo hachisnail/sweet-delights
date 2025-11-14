@@ -116,62 +116,59 @@ class OrderAdminController extends BaseAdminController
                 ['name' => "Order #" . $foundOrder['id'], 'url' => null]
             ]),
             'active_page' => 'orders',
-            'app_url' => $_ENV['APP_URL'] ?? ''
+            'app_url' => $_ENV['APP_URL'] ?? '',
+            'request' => $request
         ]);
     }
 
     /**
      * Update an order's status.
-     */
+        */
     public function updateStatus(Request $request, Response $response, array $args): Response
-    {
-        $orderId = (int)$args['id'];
-        $data = $request->getParsedBody();
-        $newStatus = $data['status'] ?? 'Processing';
-        $routeParser = RouteContext::fromRequest($request)->getRouteParser();
-        $url = $routeParser->urlFor('app.orders.show', ['id' => $orderId]); // Define redirect URL early
-        
-        // --- 1. GET ACTOR ---
-        $user = $request->getAttribute('user');
-        $actorId = $user ? (int)$user['id'] : null;
+        {
+            $orderId = (int)$args['id'];
+            $data = $request->getParsedBody();
+            $newStatus = $data['status'] ?? 'Processing';
+            $routeParser = RouteContext::fromRequest($request)->getRouteParser();
+            
+            // --- MODIFIED: Define base URL early ---
+            $url = $routeParser->urlFor('app.orders.show', ['id' => $orderId]); 
+            
+            $user = $request->getAttribute('user');
+            $actorId = $user ? (int)$user['id'] : null;
+            
+            $allowedAdminStatuses = ['Processing', 'Shipped', 'Cancelled'];
+            if (!in_array($newStatus, $allowedAdminStatuses)) {
+                return $response->withHeader('Location', $url)->withStatus(302);
+            }
+            
+            $orderBefore = $this->getOrderById($orderId);
+            if (!$orderBefore) {
+                return $response->withHeader('Location', $routeParser->urlFor('app.orders.index'))->withStatus(302);
+            }
 
-        // --- 2. VALIDATION ---
-        $allowedAdminStatuses = ['Processing', 'Shipped', 'Cancelled'];
-        if (!in_array($newStatus, $allowedAdminStatuses)) {
-            return $response->withHeader('Location', $url)->withStatus(302);
+            // --- NEW VALIDATION: Prevent reverting to 'Processing' ---
+            $currentStatus = $orderBefore['status'];
+            if (($currentStatus === 'Shipped' || $currentStatus === 'Delivered') && $newStatus === 'Processing') {
+                // Redirect back with an error flag
+                return $response->withHeader('Location', $url . '?error=revert')->withStatus(302);
+            }
+            // --- END NEW VALIDATION ---
+
+            if ($orderBefore['status'] === $newStatus) {
+                return $response->withHeader('Location', $url)->withStatus(302);
+            }
+
+            $stmt = $this->db->prepare("UPDATE orders SET status = ? WHERE id = ?");
+            $stmt->execute([$newStatus, $orderId]);
+            
+            $orderAfter = $this->getOrderById($orderId);
+            
+            $this->logEntityChange(
+                $actorId, 'update', 'order', $orderId, $orderBefore, $orderAfter
+            );
+            
+            // --- MODIFIED: Add success flag to URL ---
+            return $response->withHeader('Location', $url . '?success=status')->withStatus(302);
         }
-        
-        // --- 3. GET "BEFORE" STATE ---
-        $orderBefore = $this->getOrderById($orderId);
-        if (!$orderBefore) {
-            // Order doesn't exist, redirect
-            return $response->withHeader('Location', $routeParser->urlFor('app.orders.index'))->withStatus(302);
-        }
-
-        // --- 4. CHECK FOR CHANGE ---
-        if ($orderBefore['status'] === $newStatus) {
-            // No change, just redirect back
-            return $response->withHeader('Location', $url)->withStatus(302);
-        }
-
-        // --- 5. UPDATE DATABASE ---
-        $stmt = $this->db->prepare("UPDATE orders SET status = ? WHERE id = ?");
-        $stmt->execute([$newStatus, $orderId]);
-
-        // --- 6. GET "AFTER" STATE ---
-        $orderAfter = $this->getOrderById($orderId);
-
-        // --- 7. LOG THE CHANGE ---
-        $this->logEntityChange(
-            $actorId,
-            'update',
-            'order',
-            $orderId,
-            $orderBefore,
-            $orderAfter
-        );
-
-        // --- 8. REDIRECT ---
-        return $response->withHeader('Location', $url)->withStatus(302);
-    }
 }

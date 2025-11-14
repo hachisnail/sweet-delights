@@ -11,7 +11,7 @@
     <h2 class="text-2xl font-bold text-[#835234]">Log Details</h2>
   </div>
 
-  {# Log Summary Card #}
+  {# Log Summary Card (Unchanged) #}
   <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-6 space-y-4">
     <div>
       <span class="text-sm font-medium text-gray-500">Timestamp</span>
@@ -43,7 +43,7 @@
     </div>
   </div>
 
-  {# --- DYNAMIC DETAILS SECTION --- #}
+  {# --- DYNAMIC DETAILS SECTION (MODIFIED) --- #}
   {% if log.details.before or log.details.after %}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -59,6 +59,11 @@
               {% include 'Admin/LogPartials/_category.twig' with { data: log.details.before, beforeData: {}, isAfterState: false } %}
           {% elseif log.target_type == 'order' %}
               {% include 'Admin/LogPartials/_order.twig' with { data: log.details.before, beforeData: {}, isAfterState: false } %}
+          
+          {# --- NEW: ADD THIS LINE --- #}
+          {% elseif log.target_type == 'product_discount' %}
+              {% include 'Admin/LogPartials/_product-discount.twig' with { data: log.details.before, beforeData: {}, isAfterState: false } %}
+
           {% elseif log.target_type == 'settings' %}
               {% include 'Admin/LogPartials/_settings.twig' with { data: log.details.before, beforeData: {}, isAfterState: false } %}
           {% else %}
@@ -79,6 +84,11 @@
               {% include 'Admin/LogPartials/_category.twig' with { data: log.details.after, beforeData: log.details.before, isAfterState: true } %}
           {% elseif log.target_type == 'order' %}
               {% include 'Admin/LogPartials/_order.twig' with { data: log.details.after, beforeData: log.details.before, isAfterState: true } %}
+          
+          {# --- NEW: ADD THIS LINE --- #}
+          {% elseif log.target_type == 'product_discount' %}
+              {% include 'Admin/LogPartials/_product-discount.twig' with { data: log.details.after, beforeData: log.details.before, isAfterState: true } %}
+
           {% elseif log.target_type == 'settings' %}
               {% include 'Admin/LogPartials/_settings.twig' with { data: log.details.after, beforeData: log.details.before, isAfterState: true } %}
           {% else %}
@@ -89,7 +99,7 @@
 
     </div>
 
-  {# --- NON-STANDARD LOG STRUCTURE --- #}
+  {# ... (rest of the file is unchanged) ... #}
   {% elseif log.details is not empty %}
     <div class="bg-white rounded-lg shadow-md border border-gray-200">
       <h3 class="text-lg font-bold text-gray-700 p-4 border-b border-gray-200">Log Details</h3>
@@ -97,8 +107,6 @@
         {% include 'Admin/LogPartials/_default.twig' with { data: log.details, beforeData: {}, isAfterState: false } %}
       </div>
     </div>
-
-  {# --- EMPTY DETAILS --- #}
   {% else %}
     <div class="bg-white rounded-lg shadow-md border border-gray-200">
       <h3 class="text-lg font-bold text-gray-700 p-4 border-b border-gray-200">Log Details</h3>

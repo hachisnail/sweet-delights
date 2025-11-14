@@ -1,0 +1,110 @@
+{#
+  Receives:
+    - data: discount data (after or before)
+    - beforeData: discount data (for comparison)
+    - isAfterState: boolean — true if this is the "after" panel (highlight)
+#}
+
+{% set isAfterState = isAfterState is defined ? isAfterState : true %}
+{% set beforeData = beforeData is defined ? beforeData : {} %}
+
+{% if data %}
+<div class="p-4 space-y-6 bg-white rounded-lg">
+
+  {# --- Discount Header --- #}
+  <div class="border-b border-pink-200 pb-3">
+    <h3 class="text-xl font-bold text-[#835234]">
+      {% set valueChanged = isAfterState and (beforeData.discount_value ?? '') != (data.discount_value ?? '') %}
+      {% set typeChanged = isAfterState and (beforeData.discount_type ?? '') != (data.discount_type ?? '') %}
+      
+      <span class="{% if valueChanged or typeChanged %} bg-yellow-50 border-l-4 border-yellow-300 px-2 rounded transition {% endif %}">
+        {% if data.discount_type == 'percent' %}
+            {{ data.discount_value | default(0) | number_format(0) }}% Discount
+        {% elseif data.discount_type == 'fixed' %}
+            ₱{{ data.discount_value | default(0) | number_format(2) }} Discount
+        {% else %}
+            Discount (ID: {{ data.id }})
+        {% endif %}
+      </span>
+    </h3>
+  </div>
+
+  {# --- Details Grid --- #}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    {# --- Product ID --- #}
+    {% set productChanged = isAfterState and (beforeData.product_id ?? null) != (data.product_id ?? null) %}
+    <div class="p-4 rounded-lg border transition
+      {% if productChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Product ID</h4>
+      <p class="text-gray-800 font-medium">{{ data.product_id | default('N/A') }}</p>
+    </div>
+
+    {# --- Category ID --- #}
+    {% set categoryChanged = isAfterState and (beforeData.category_id ?? null) != (data.category_id ?? null) %}
+    <div class="p-4 rounded-lg border transition
+      {% if categoryChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Category ID</h4>
+      <p class="text-gray-800 font-medium">{{ data.category_id | default('N/A') }}</p>
+    </div>
+
+    {# --- Status (Active) --- #}
+    {% set activeChanged = isAfterState and (beforeData.active ?? null) != (data.active ?? null) %}
+    <div class="p-4 rounded-lg border transition
+      {% if activeChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Status</h4>
+      <span class="text-sm font-semibold px-3 py-1 rounded-full
+        {% if data.active %} bg-green-100 text-green-700
+        {% else %} bg-gray-100 text-gray-700
+        {% endif %}
+      ">
+        {{ data.active ? 'Active' : 'Inactive' }}
+      </span>
+    </div>
+
+    {# --- Discount Value --- #}
+    {% set valueChanged = isAfterState and (beforeData.discount_value ?? 0) != (data.discount_value ?? 0) %}
+    <div class="p-4 rounded-lg border transition
+      {% if valueChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Value</h4>
+      <p class="text-gray-900 font-semibold">
+        {% if data.discount_type == 'percent' %}
+            {{ data.discount_value | default(0) | number_format(0) }}%
+        {% else %}
+            ₱{{ data.discount_value | default(0) | number_format(2) }}
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  {# --- Date Range --- #}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {% set startChanged = isAfterState and (beforeData.start_date ?? null) != (data.start_date ?? null) %}
+    <div class="p-4 rounded-lg border transition
+      {% if startChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">Start Date</h4>
+      <p class="text-gray-800 font-medium">
+        {{ data.start_date ? (data.start_date | date('M d, Y, h:i A')) : 'N/A' }}
+      </p>
+    </div>
+
+    {% set endChanged = isAfterState and (beforeData.end_date ?? null) != (data.end_date ?? null) %}
+    <div class="p-4 rounded-lg border transition
+      {% if endChanged %} bg-yellow-50 border-yellow-300 shadow-sm {% else %} bg-gray-50 border-gray-200 {% endif %}
+    ">
+      <h4 class="text-md font-semibold text-[#a07445] mb-2">End Date</h4>
+      <p class="text-gray-800 font-medium">
+        {{ data.end_date ? (data.end_date | date('M d, Y, h:i A')) : 'N/A' }}
+      </p>
+    </div>
+  </div>
+
+</div>
+{% else %}
+  <p class="text-gray-500 italic">N/A (e.g., a “create” action)</p>
+{% endif %}

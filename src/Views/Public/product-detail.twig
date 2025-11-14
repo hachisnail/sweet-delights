@@ -6,57 +6,54 @@
 
 <div class="snap-start pt-[6.5rem] md:pt-[7rem] min-h-screen">
 
-
+    {# --- BREADCRUMB (Unchanged) --- #}
     <div class="max-w-4xl mx-auto px-6 mb-4">
       <div class="flex items-center gap-x-2 text-sm text-[#A69273] font-semibold">
-        
         <a href="/products" class="hover:text-[#A96B44] hover:underline">All Products</a>
-        
         {% if product.category and product.category.parent %}
           <span>/</span>
           <a href="/products?category={{ product.category.parent.slug }}" class="hover:text-[#A96B44] hover:underline">
             {{ product.category.parent.name }}
           </a>
         {% endif %}
-
         {% if product.category %}
           <span>/</span>
           <a href="/products?category={{ product.category.slug }}" class="hover:text-[#A96B44] hover:underline">
             {{ product.category.name }}
           </a>
         {% elseif product.category_name %}
-           {# Fallback in case only the old 'category_name' string is available #}
-           <span>/</span>
-           <span class="text-gray-500">{{ product.category_name }}</span>
+          <span>/</span>
+          <span class="text-gray-500">{{ product.category_name }}</span>
         {% endif %}
-
-        {# 3. Display the current Product Name (as text) #}
         <span>/</span>
         <span class="text-[#A96B44] truncate max-w-xs cursor-default">{{ product.name }}</span>
       </div>
     </div>
-    {# --- END: ADDED BREADCRUMB --- #}
+    {# --- END: BREADCRUMB --- #}
 
 
-    {# This is all your existing code for a found product #}
 {% set productMargin = related_products is defined and related_products|length > 0 ? 'mb-6 md:mb-10' : 'mb-16 md:mb-20' %}
 
+{# --- MODIFIED: Added new data attributes --- #}
 <div class="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-lg border border-pink-100 {{ productMargin }}"
      data-product-id="{{ product.id }}"
      data-product-sku="{{ product.sku }}"
      data-product-name="{{ product.name }}"
-     data-product-price="{{ product.price }}"
+     data-product-price="{{ product.price }}" {# This is now the FINAL (discounted) price #}
+     data-product-original-price="{{ product.original_price }}"
+     data-product-discount-type="{{ product.discount_type }}"
+     data-product-discount-value="{{ product.discount_value }}"
      data-product-image="{{ product.image }}"
      data-product-stock="{{ product.stock }}"
-     data-product-sizes='{{ product.sizes|json_encode|raw }}'>
+     data-product-sizes='{{ product.sizes|json_encode|raw }}'> {# This now contains discount info per size #}
 
       <div class="flex flex-col md:flex-row gap-8">
         <div class="md:w-1/2 flex justify-center">
           <div class="w-full max-w-sm h-96 bg-white rounded-xl shadow-md shadow-gray-400 flex items-center justify-center overflow-hidden">
             <img src="{{ product.image }}" alt="{{ product.name }}"
-                id="mainProductImage"
-                class="object-contain w-full h-full"
-                onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+                 id="mainProductImage"
+                 class="object-contain w-full h-full"
+                 onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
           </div>
         </div>
 
@@ -65,18 +62,26 @@
           <div>
             <h1 class="text-3xl font-bold text-[#835234] mb-2">{{ product.name }}</h1>
             
-            {# --- MODIFIED CATEGORY LINE --- #}
-            {# Uses 'product.category.name' if available, falls back to 'product.category_name' #}
             <p class="text-sm text-pink-600 font-semibold mb-2">{{ product.category.name | default(product.category_name) }}</p>
-            {# --- END MODIFIED LINE --- #}
             
-            <p id="productPriceDisplay" class="text-gray-600 mb-4 text-lg">
-                {% if product.sizes is defined and product.sizes|length > 0 %}
-                    Starts at ₱{{ product.price|number_format(2, '.', ',') }}
+            {# --- MODIFIED: Price Display Block --- #}
+            <div id="productPriceDisplay" class="mb-4">
+                {% if product.discount_amount > 0 %}
+                    <p class="text-2xl font-bold text-red-600">
+                        {% if product.sizes|length > 0 %}Starts at {% endif %}
+                        ₱{{ product.price|number_format(2) }}
+                    </p>
+                    <p class="text-lg text-gray-500 line-through">
+                        ₱{{ product.original_price|number_format(2) }}
+                    </p>
                 {% else %}
-                    ₱{{ product.price|number_format(2, '.', ',') }}
+                    <p class="text-2xl font-bold text-gray-700">
+                        {% if product.sizes|length > 0 %}Starts at {% endif %}
+                        ₱{{ product.price|number_format(2) }}
+                    </p>
                 {% endif %}
-            </p>
+            </div>
+            {# --- END MODIFIED: Price Display Block --- #}
             
             <p class="text-gray-700 mb-6 leading-relaxed">{{ product.description }}</p>
 
@@ -85,17 +90,28 @@
                 <p class="font-semibold text-[#835234] mb-1">Available Sizes:</p>
                 <div id="sizeSelector" class="flex gap-2 flex-wrap">
                   {% for size in product.sizes %}
-                    {#  --- START: UPDATED BUTTON --- #}
+                    {# --- MODIFIED: Added new data attributes for size --- #}
                     <button 
                       type="button"
                       data-size="{{ size.name }}"
                       data-stock="{{ size.stock }}"
                       data-price="{{ size.price }}"
-                      data-image="{{ size.image | default('') }}" {#  ADDED DATA-IMAGE #}
+                      data-original-price="{{ size.original_price }}"
+                      data-discount-type="{{ size.discount_type }}"
+                      data-discount-value="{{ size.discount_value }}"
+                      data-image="{{ size.image | default('') }}"
                       class="size-btn px-3 py-1 bg-pink-100 text-pink-700 rounded-lg text-sm hover:bg-pink-200 focus:outline-none transition">
-                      {{ size.name }} (₱{{ size.price|number_format(2) }}) - {{ size.stock }} left
+                      
+                      {{ size.name }}
+                      
+                      {# --- MODIFIED: Show discounted price for size --- #}
+                      {% if size.discount_amount > 0 %}
+                        <span class="font-bold ">₱{{ size.price|number_format(2) }}</span>
+                      {% else %}
+                        <span>(₱{{ size.price|number_format(2) }})</span>
+                      {% endif %}
+                      - {{ size.stock }} left
                     </button>
-                    {#  --- END: UPDATED BUTTON --- #}
                   {% endfor %}
                 </div>
                 <div id="sizeWarning" class="hidden flex items-center gap-2 mt-1 text-red-500 text-xs">
@@ -112,7 +128,6 @@
 
           <div class="mt-6 flex flex-col gap-3">
             
-            {# --- START: MODIFIED QUANTITY SELECTOR --- #}
             <div id="quantitySelectorContainer" 
                  class="flex items-center gap-3 {% if product.sizes is defined and product.sizes|length > 0 %}hidden{% endif %}">
               <label class="text-[#835234] font-semibold">Quantity:</label>
@@ -123,7 +138,6 @@
                 <button id="increaseQty" class="px-3 py-1 bg-pink-100 hover:bg-pink-200">+</button>
               </div>
             </div>
-            {# --- END: MODIFIED QUANTITY SELECTOR --- #}
 
             <div class="flex gap-3">
               <button id="addToCartBtn" 
@@ -139,33 +153,41 @@
         </div>
       </div>
 
-      {% if related_products is defined and related_products|length > 0 %}
-        <div class="max-w-5xl mx-auto px-6 mt-10 mb-16">
-          <h2 class="text-2xl font-bold text-[#835234] mb-6 text-center">
-            Frequently Bought Together
-          </h2>
+    {# --- MODIFIED: Related Products Loop --- #}
+    {% if related_products is defined and related_products|length > 0 %}
+      <div class="max-w-5xl mx-auto px-6 mt-10 mb-16">
+        <h2 class="text-2xl font-bold text-[#835234] mb-6 text-center">
+          Frequently Bought Together
+        </h2>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {% for related in related_products %}
-              <a href="/products/{{ related.slug | default(related.sku) }}" 
-                class="bg-white rounded-xl shadow-md hover:shadow-lg transition p-4 border border-pink-100 flex flex-col">
-                
-                <img src="{{ related.image | default('/Assets/placeholder-item.png') }}"
-                    alt="{{ related.name }}"
-                    class="w-full h-40 object-cover rounded-md mb-3">
-                
-                <h3 class="text-lg font-semibold text-[#835234] truncate">{{ related.name }}</h3>
-                <p class="text-gray-600 text-sm mb-2">{{ related.category_name | default('') }}</p>
-                <p class="text-pink-700 font-bold mt-auto">
-                  ₱{{ related.price|number_format(2, '.', ',') }}
-                </p>
-              </a>
-            {% endfor %}
-          </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          {% for related in related_products %}
+            <a href="/products/{{ related.slug | default(related.sku) }}" 
+               class="bg-white rounded-xl shadow-md hover:shadow-lg transition p-4 border border-pink-100 flex flex-col">
+              
+              <img src="{{ related.image | default('/Assets/placeholder-item.png') }}"
+                   alt="{{ related.name }}"
+                   class="w-full h-40 object-cover rounded-md mb-3">
+              
+              <h3 class="text-lg font-semibold text-[#835234] truncate">{{ related.name }}</h3>
+              <p class="text-gray-600 text-sm mb-2">{{ related.category_name | default('') }}</p>
+              
+              {# --- MODIFIED: Price block for related items --- #}
+              <div class="mt-auto">
+                  {% if related.discount_amount > 0 %}
+                      <p class="text-red-700 font-bold">₱{{ related.price|number_format(2) }}</p>
+                      <p class="text-gray-500 text-sm line-through">₱{{ related.original_price|number_format(2) }}</p>
+                  {% else %}
+                      <p class="text-pink-700 font-bold">₱{{ related.price|number_format(2) }}</p>
+                  {% endif %}
+              </div>
+              {# --- END MODIFIED --- #}
+            </a>
+          {% endfor %}
         </div>
-      {% endif %}
-
-
+      </div>
+    {% endif %}
+    {# --- END MODIFIED: Related Products Loop --- #}
 
   </div>
 
@@ -185,6 +207,7 @@ window.addEventListener("servicesReady", () => {
   const container = document.querySelector("[data-product-id]");
   if (!container) return;
 
+  // --- Base elements (Unchanged) ---
   const qtyInput = document.getElementById("quantityInput");
   const decBtn = document.getElementById("decreaseQty");
   const incBtn = document.getElementById("increaseQty");
@@ -192,53 +215,47 @@ window.addEventListener("servicesReady", () => {
   const sizeWarning = document.getElementById("sizeWarning");
   const sizeSelector = document.getElementById("sizeSelector");
   const addToCartBtn = document.getElementById("addToCartBtn");
-  
-  {# --- START: ADDED QUANTITY VAR --- #}
   const quantitySelectorContainer = document.getElementById("quantitySelectorContainer");
-  {# --- END: ADDED QUANTITY VAR --- #}
-  
-  // --- START: FAVOURITE VARS ---
   const addToFavouriteBtn = document.getElementById("addToFavouriteBtn");
   const heartIcon = document.getElementById("heartIcon");
-  // --- END: FAVOURITE VARS ---
-  
   const priceDisplay = document.getElementById("productPriceDisplay");
   const mainProductImage = document.getElementById("mainProductImage");
 
+// --- MODIFIED: Product object now includes discount info ---
 const product = {
   sku: container.dataset.productSku,
   name: container.dataset.productName,
   price: Number(container.dataset.productPrice),
+  original_price: Number(container.dataset.productOriginalPrice),
+  discount_type: container.dataset.productDiscountType,
+  discount_value: Number(container.dataset.productDiscountValue),
   image: container.dataset.productImage,
   stock: Number(container.dataset.productStock || "1"),
   sizes: JSON.parse(container.dataset.productSizes || "[]"),
 };
 
-
+  // --- MODIFIED: 'selected' variables now track discount info ---
   let selectedSize = null;
   let selectedStock = 0;
-  let selectedPrice = product.price; // Default to base price
-  let selectedImage = product.image; // Default to main image
+  let selectedPrice = product.price;
+  let selectedOriginalPrice = product.original_price;
+  let selectedDiscountType = product.discount_type;
+  let selectedDiscountValue = product.discount_value;
+  let selectedImage = product.image;
 
-  // --- START: ADDED FAVOURITE LOGIC (1 of 2) ---
+  // --- (Favourite logic is unchanged) ---
   const updateHeartUI = () => {
     if (window.favouriteService && window.favouriteService.isFavourite(product.sku)) {
-        // Apply classes to show it's favourited
         heartIcon.classList.add("fill-red-500", "stroke-red-500");
     } else {
-        // Remove classes to show it's not favourited
         heartIcon.classList.remove("fill-red-500", "stroke-red-500");
     }
   };
-  // --- END: ADDED FAVOURITE LOGIC (1 of 2) ---
-
+  
   const getAvailableStockForSelectedSize = () => {
     if (product.sizes.length > 0) {
-      // If sizes exist, stock is determined by selectedSize
-      // If no size is selected, stock is 0
       return selectedSize ? selectedStock : 0;
     }
-    // If no sizes, stock is from the main product
     return product.stock;
   };
 
@@ -251,8 +268,19 @@ const product = {
           decBtn.disabled = true;
           incBtn.disabled = true;
           
+          // --- MODIFIED: Reset price display to show base discount ---
           if (priceDisplay) {
-              priceDisplay.textContent = `Starts at ₱${product.price.toFixed(2)}`;
+              const startsAt = product.sizes.length > 0 ? 'Starts at ' : '';
+              if (product.original_price > product.price) {
+                  priceDisplay.innerHTML = `
+                      <p class="text-2xl font-bold text-red-600">${startsAt}₱${product.price.toFixed(2)}</p>
+                      <p class="text-lg text-gray-500 line-through">₱${product.original_price.toFixed(2)}</p>
+                  `;
+              } else {
+                  priceDisplay.innerHTML = `
+                      <p class="text-2xl font-bold text-gray-700">${startsAt}₱${product.price.toFixed(2)}</p>
+                  `;
+              }
           }
           
           if (mainProductImage) {
@@ -292,12 +320,26 @@ const product = {
       btn.classList.remove("bg-pink-100", "text-pink-700");
       btn.classList.add("bg-[#835234]", "text-white", "ring-2", "ring-[#835234]");
 
+      // --- MODIFIED: Get all discount info from the selected size ---
       selectedSize = btn.dataset.size;
       selectedStock = Number(btn.dataset.stock);
+      selectedPrice = Number(btn.dataset.price);
+      selectedOriginalPrice = Number(btn.dataset.originalPrice);
+      selectedDiscountType = btn.dataset.discountType;
+      selectedDiscountValue = Number(btn.dataset.discountValue);
       
-      selectedPrice = Number(btn.dataset.price); // Get price from button
+      // --- MODIFIED: Update price display with discount HTML ---
       if (priceDisplay) {
-        priceDisplay.textContent = `₱${selectedPrice.toFixed(2)}`; // Update UI
+          if (selectedOriginalPrice > selectedPrice) {
+              priceDisplay.innerHTML = `
+                  <p class="text-2xl font-bold text-red-600">₱${selectedPrice.toFixed(2)}</p>
+                  <p class="text-lg text-gray-500 line-through">₱${selectedOriginalPrice.toFixed(2)}</p>
+              `;
+          } else {
+              priceDisplay.innerHTML = `
+                  <p class="text-2xl font-bold text-gray-700">₱${selectedPrice.toFixed(2)}</p>
+              `;
+          }
       }
       
       const newImage = btn.dataset.image;
@@ -309,11 +351,9 @@ const product = {
           selectedImage = product.image;
       }
       
-      {# --- START: SHOW QUANTITY SELECTOR --- #}
       if (quantitySelectorContainer) {
         quantitySelectorContainer.classList.remove("hidden");
       }
-      {# --- END: SHOW QUANTITY SELECTOR --- #}
       
       sizeWarning.classList.add("hidden");
       qtyInput.value = 1;
@@ -325,7 +365,7 @@ const product = {
     sizeButtons[0].click();
   }
   
-  // --- Quantity buttons ---
+  // --- (Quantity buttons unchanged) ---
   decBtn.addEventListener("click", () => {
       let currentVal = Number(qtyInput.value);
       if (currentVal > 1) {
@@ -373,11 +413,15 @@ const product = {
     
     const requested = Math.min(Number(qtyInput.value) || 1, availableStock);
 
+    // --- MODIFIED: Pass all discount info to cartService ---
     window.cartService.addItem({
         sku: product.sku,
         name: product.name,
         image: selectedImage, 
-        price: selectedPrice,
+        price: selectedPrice, // Final discounted price
+        original_price: selectedOriginalPrice,
+        discount_type: selectedDiscountType,
+        discount_value: selectedDiscountValue,
         selectedSize,
         stock: selectedSize ? selectedStock : product.stock,
     }, requested);
@@ -389,13 +433,17 @@ const product = {
         buttons: [{ text: "OK", variant: "confirm" }],
     });
 
-    // Reset UI
+    // --- MODIFIED: Reset UI now includes discount vars ---
     qtyInput.value = 1;
     if (product.sizes.length > 0) {
         selectedSize = null;
         selectedStock = 0;
         selectedPrice = product.price; 
+        selectedOriginalPrice = product.original_price;
+        selectedDiscountType = product.discount_type;
+        selectedDiscountValue = product.discount_value;
         selectedImage = product.image; 
+
         if (mainProductImage) {
           mainProductImage.src = product.image;
         }
@@ -404,35 +452,26 @@ const product = {
           b.classList.add("bg-pink-100", "text-pink-700");
         });
         
-        {# --- START: HIDE QUANTITY SELECTOR ON RESET --- #}
         if (quantitySelectorContainer) {
           quantitySelectorContainer.classList.add("hidden");
         }
-        {# --- END: HIDE QUANTITY SELECTOR ON RESET --- #}
     }
     refreshQuantityUI();
   });
 
-  // --- START: ADDED FAVOURITE LOGIC (2 of 2) ---
+  // --- (Favourite logic unchanged) ---
   addToFavouriteBtn.addEventListener("click", () => {
     if (!window.favouriteService) return;
-
-    // Use the main 'product' object. Favourites track the base product.
     const wasAdded = window.favouriteService.toggle(product);
-    
-    // Update the heart icon immediately
     updateHeartUI();
-
-    // Show a confirmation
     window.showModal({
-        type: wasAdded ? "success" : "info",
-        title: wasAdded ? "Added to Favourites" : "Removed from Favourites",
-        message: `${product.name} ${wasAdded ? "added to" : "removed from"} your favourites.`,
-        buttons: [{ text: "OK", variant: "confirm" }],
-        duration: 3000 // Auto-close after 3 seconds
+      type: wasAdded ? "success" : "info",
+      title: wasAdded ? "Added to Favourites" : "Removed from Favourites",
+      message: `${product.name} ${wasAdded ? "added to" : "removed from"} your favourites.`,
+      buttons: [{ text: "OK", variant: "confirm" }],
+      duration: 3000
     });
   });
-  // --- END: ADDED FAVOURITE LOGIC (2 of 2) ---
 
   window.addEventListener("favouritesChanged", updateHeartUI);
   window.addEventListener("cartChanged", refreshQuantityUI);
@@ -451,7 +490,7 @@ const product = {
 
 {% else %}
 
-  {#  START: This block runs if product is null (not found) #}
+  {# --- Error block (Unchanged) --- #}
   <div class="snap-start pt-20 ">
     <div class="max-w-4xl mx-auto p-6 py-20 bg-white rounded-2xl shadow-lg border border-pink-100 text-center">
         
@@ -473,9 +512,9 @@ const product = {
         </a>
     </div>
   </div>
-  {#  END: Error block #}
+  {# --- END: Error block --- #}
 
 {% endif %}
-{#  END: Error Handler Check #}
+{# --- END: Error Handler Check --- #}
 
 {% endblock %}

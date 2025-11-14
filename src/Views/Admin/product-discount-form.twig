@@ -1,0 +1,207 @@
+{% extends "Layouts/admin.twig" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto bg-white p-6 rounded-xl shadow-md border border-gray-200">
+  
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-[#835234]">{{ discount ? 'Edit Discount' : 'Add Discount' }}</h1>
+    <a href="{{ url_for('admin.discounts') }}" 
+       class="text-pink-600 hover:text-pink-800 font-medium">&larr; Back to Discounts</a>
+  </div>
+
+  <form method="post" action="{{ form_action }}" class="space-y-6">
+
+    <div>
+      <label class="block text-sm font-medium text-[#835234] mb-2">Apply Discount To</label>
+      <div class="flex gap-6">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="discount_scope" value="product" 
+                 class="h-4 w-4 text-pink-600 focus:ring-pink-500"
+                 {% if discount is null or discount.product_id %}checked{% endif %}>
+          <span class="text-sm font-medium text-gray-700">Specific Product</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="discount_scope" value="category" 
+                 class="h-4 w-4 text-pink-600 focus:ring-pink-500"
+                 {% if discount and discount.category_id %}checked{% endif %}>
+          <span class="text-sm font-medium text-gray-700">Entire Category</span>
+        </label>
+      </div>
+    </div>
+
+    <div id="product-selector-wrapper">
+      <label class="block text-sm font-medium text-[#835234] mb-2">Select Product</label>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {% for p in products %}
+        <label class="cursor-pointer relative">
+          <input type="radio" name="product_id" value="{{ p.id }}" class="sr-only product-radio"
+                 {% if discount and discount.product_id == p.id %}checked{% endif %}>
+          <div class="product-card border rounded-lg shadow-sm p-4 flex flex-col items-center transition transform hover:scale-105 hover:shadow-md">
+            
+            <div class="w-full h-32 mb-3 overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+              <img src="{{ p.image ?: '/Assets/placeholder-item.png' }}" 
+                   alt="{{ p.name }}" 
+                   class="w-full h-full object-cover"
+                   onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+            </div>
+
+            <h3 class="text-sm font-semibold text-[#835234] text-center mb-1 truncate">{{ p.name }}</h3>
+            <span class="text-xs text-gray-500">{{ p.sku }}</span>
+
+            <div class="absolute inset-0 border-4 border-pink-500 rounded-lg pointer-events-none opacity-0 transition-opacity"></div>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div id="category-selector-wrapper" class="hidden">
+      <label for="category_id" class="block text-sm font-medium text-[#835234] mb-1">Select Category</label>
+      <select name="category_id" id="category_id"
+              class="w-full px-4 py-2 border border-pink-300 rounded-lg focus:ring-pink-500 focus:border-pink-500 bg-white">
+        <option value="">-- Select a Category --</option>
+        {% for c in categories %}
+          <option value="{{ c.id }}" {% if discount and discount.category_id == c.id %}selected{% endif %}>
+            {{ c.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-[#835234] mb-1">Discount Type</label>
+      <select name="discount_type" required
+              class="w-full px-4 py-2 border border-pink-300 rounded-lg focus:ring-pink-500 focus:border-pink-500 bg-white">
+        <option value="fixed" {% if discount and discount.discount_type == 'fixed' %}selected{% endif %}>Fixed</option>
+        <option value="percent" {% if discount and discount.discount_type == 'percent' %}selected{% endif %}>Percent</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-[#835234] mb-1">Discount Value</label>
+      <div class="relative w-full">
+        <input type="number" name="discount_value" step="0.01" required
+               value="{{ discount ? discount.discount_value : '' }}"
+               id="discount_value"
+               class="w-full px-10 py-2 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500">
+        <span id="discount-symbol"
+              class="absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 font-semibold">
+          {{ discount and discount.discount_type == 'percent' ? '%' : '₱' }}
+        </span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-[#835234] mb-1">Start Date</label>
+        <input type="date" name="start_date_date"
+               value="{{ discount ? discount.start_date|date('Y-m-d') : '' }}"
+               class="w-full px-4 py-2 border border-pink-300 rounded-lg focus:ring-pink-500 focus:border-pink-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-[#835234] mb-1">Start Time</label>
+        <input type="time" name="start_date_time"
+               value="{{ discount ? discount.start_date|date('H:i') : '' }}"
+               class="w-full px-4 py-2 border border-pink-300 rounded-lg focus:ring-pink-500 focus:border-pink-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-[#835234] mb-1">End Date</label>
+        <input type="date" name="end_date_date"
+               value="{{ discount ? discount.end_date|date('Y-m-d') : '' }}"
+               class="w-full px-4 py-2 border border-pink-300 rounded-lg focus:ring-pink-500 focus:border-pink-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-[#835234] mb-1">End Time</label>
+        <input type="time" name="end_date_time"
+               value="{{ discount ? discount.end_date|date('H:i') : '' }}"
+               class="w-full px-4 py-2 border border-pink-300 rounded-lg focus:ring-pink-500 focus:border-pink-500">
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-3">
+      <input type="checkbox" name="active" id="active"
+             class="h-5 w-5 rounded border-gray-300 text-pink-600 focus:ring-pink-500" 
+             {% if discount is null or discount.active %}checked{% endif %}>
+      <label for="active" class="text-sm font-medium text-[#835234]">Active</label>
+    </div>
+
+    <div class="flex justify-end">
+      <button type="submit"
+              class="px-6 py-2 bg-pink-500 text-white rounded-xl font-semibold hover:bg-pink-600 transition">
+        Save Discount
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  // ----- PRODUCT CARD OUTLINE -----
+  const radios = document.querySelectorAll("input.product-radio");
+
+  radios.forEach(radio => {
+    const card = radio.closest('label').querySelector('.product-card');
+    if (!card) return;
+
+    const overlay = card.querySelector('.absolute');
+
+    if (radio.checked) overlay.classList.add('opacity-100');
+
+    radio.addEventListener('change', () => {
+      radios.forEach(r => {
+        const c = r.closest('label').querySelector('.product-card');
+        if (c) c.querySelector('.absolute').classList.remove('opacity-100');
+      });
+      overlay.classList.add('opacity-100');
+    });
+  });
+
+
+  // ----- DISCOUNT TYPE SYMBOL -----
+  const discountTypeSelect = document.querySelector("select[name='discount_type']");
+  const discountSymbol = document.getElementById("discount-symbol");
+
+  discountTypeSelect?.addEventListener("change", (e) => {
+    discountSymbol.textContent = e.target.value === "percent" ? "%" : "₱";
+  });
+
+
+  // ----- SCOPE TOGGLE -----
+  const scopeRadios = document.querySelectorAll("input[name='discount_scope']");
+  const productWrapper = document.getElementById("product-selector-wrapper");
+  const categoryWrapper = document.getElementById("category-selector-wrapper");
+  const productRadios = document.querySelectorAll("input[name='product_id']");
+  const categorySelect = document.getElementById("category_id");
+
+  function toggleScope(scope) {
+    if (scope === "product") {
+      productWrapper.style.display = "block";
+      categoryWrapper.style.display = "none";
+      categorySelect.required = false;
+      categorySelect.value = "";
+    } else {
+      productWrapper.style.display = "none";
+      categoryWrapper.style.display = "block";
+      categorySelect.required = true;
+
+      productRadios.forEach(r => r.checked = false);
+      radios.forEach(r => {
+        const c = r.closest('label').querySelector('.product-card');
+        if (c) c.querySelector('.absolute').classList.remove('opacity-100');
+      });
+    }
+  }
+
+  const initialScope = document.querySelector("input[name='discount_scope']:checked")?.value;
+  if (initialScope) toggleScope(initialScope);
+
+  scopeRadios.forEach(radio => {
+    radio.addEventListener("change", e => toggleScope(e.target.value));
+  });
+
+});
+</script>
+
+{% endblock %}

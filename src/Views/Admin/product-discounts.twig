@@ -1,0 +1,115 @@
+{% extends "Layouts/admin.twig" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
+    <h2 class="text-2xl font-bold text-[#835234]">Product Discounts</h2>
+    <a href="{{ app_url }}/app/product-discounts/new" 
+       class="px-5 py-2 bg-pink-500 text-white rounded-xl font-semibold hover:bg-pink-600 transition text-center">
+       Add New Discount
+    </a>
+  </div>
+
+  <div class="bg-white p-4 rounded-lg shadow-md shadow-gray-400 border border-gray-200 mb-6">
+    <form method="GET" action="{{ app_url }}/app/product-discounts" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label for="search" class="block text-sm font-medium text-gray-700">Search by Product/Category</label>
+        <input type="search" name="search" id="search" value="{{ search_term|default('') }}"
+               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 text-sm"
+               placeholder="E.g. Red Velvet or Cakes...">
+      </div>
+
+      <div>
+        <label for="active_filter" class="block text-sm font-medium text-gray-700">Filter by Status</label>
+        <select name="active_filter" id="active_filter"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 text-sm">
+          <option value="">All</option>
+          <option value="1" {{ active_filter == 1 ? 'selected' : '' }}>Active</option>
+          <option value="0" {{ active_filter == 0 ? 'selected' : '' }}>Inactive</option>
+        </select>
+      </div>
+
+      <div class="flex items-end gap-3">
+        <button type="submit"
+                class="w-full md:w-auto px-4 py-2 bg-[#835234] text-white text-sm font-medium rounded-md hover:bg-[#6d412a] transition">
+          Filter
+        </button>
+        <a href="{{ app_url }}/app/product-discounts"
+           class="w-full md:w-auto px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 transition text-center">
+          Clear
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    {% for d in discounts %}
+      <div class="bg-white rounded-lg shadow-md shadow-gray-400 border border-gray-200 flex flex-col overflow-hidden">
+        
+        <div class="p-4 flex-grow">
+          
+          <h3 class="text-lg font-bold text-[#835234] mb-1 truncate">{{ d.product_name | default(d.category_name) }}</h3>
+          <p class="text-sm font-medium text-gray-500 mb-2">
+            {% if d.product_name %}
+                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{{ d.product_sku }}</span>
+                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">Product</span>
+            {% elseif d.category_name %}
+                <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Category</span>
+            {% else %}
+                (Invalid Discount)
+            {% endif %}
+          </p>
+          <p class="text-sm text-gray-700 mb-1"><strong>Type:</strong> {{ d.discount_type|capitalize }}</p>
+          <p class="text-sm text-gray-700 mb-1"><strong>Value:</strong> 
+            <span class="font-bold text-lg text-pink-600">
+                {{ d.discount_value|number_format(d.discount_type == 'percent' ? 0 : 2) }}{{ d.discount_type == 'percent' ? '%' : '₱' }}
+            </span>
+          </p>
+          <p class="text-sm text-gray-700 mb-1"><strong>Status:</strong>
+            <span class="font-medium {{ d.active ? 'text-green-600' : 'text-red-600' }}">
+              {{ d.active ? 'Active' : 'Inactive' }}
+            </span>
+          </p>
+          <p class="text-sm text-gray-500 mb-1"><strong>Start:</strong> {{ d.start_date ? d.start_date|date('Y-m-d H:i') : '-' }}</p>
+          <p class="text-sm text-gray-500"><strong>End:</strong> {{ d.end_date ? d.end_date|date('Y-m-d H:i') : '-' }}</p>
+        </div>
+
+        <div class="p-4 bg-gray-50 border-t border-gray-200 flex gap-2">
+          <a href="{{ app_url }}/app/product-discounts/{{ d.id }}/edit"
+             class="flex-1 px-3 py-1 text-sm text-center bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition">
+             Edit
+          </a>
+          <form action="{{ app_url }}/app/product-discounts/{{ d.id }}/delete" method="POST" class="flex-1">
+            <button type="button"
+                    data-discount-product="{{ d.product_name | default(d.category_name)|e('html_attr') }}"
+                    class="delete-discount-btn w-full px-3 py-1 text-sm bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition">
+              Delete
+            </button>
+          </form>
+        </div>
+      </div>
+    {% else %}
+      <div class="col-span-full text-center text-gray-500 py-10">
+        <p class="text-lg">No discounts found.</p>
+        <p>Your search or filter criteria returned no results.</p>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll('.delete-discount-btn').forEach(button => {
+    button.addEventListener('click', e => {
+      e.preventDefault();
+      const form = e.currentTarget.closest('form');
+      const name = e.currentTarget.dataset.discountProduct || 'this discount';
+      if (confirm(`Are you sure you want to delete the discount for "${name}"? This action cannot be undone.`)) {
+        form.submit();
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

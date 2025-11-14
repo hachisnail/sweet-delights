@@ -3,7 +3,14 @@
 {% block content %}
 <div class="max-w-4xl mx-auto">
 
-  {# --- Header & Status Form (Unchanged) --- #}
+  {# --- ERROR MESSAGE --- #}
+  {% if request.getParam('error') == 'revert' %}
+    <div class="mb-6 p-4 rounded-lg bg-red-100 text-red-800 border border-red-200">
+      <strong>Action Denied:</strong> An order that is 'Shipped' or 'Delivered' cannot be changed back to 'Processing'.
+    </div>
+  {% endif %}
+
+  {# --- Header & Status Form --- #}
   <div class="flex flex-col md:flex-row justify-between md:items-start gap-4 mb-6">
     <div>
       <h2 class="text-3xl font-bold text-[#835234]">{{ title }}</h2>
@@ -11,25 +18,42 @@
     </div>
     
     <div>
-      <form action="{{ app_url }}/app/orders/{{ order.id }}/update-status" method="POST" class="flex items-center gap-2">
+      <form id="statusUpdateForm" 
+            action="{{ app_url }}/app/orders/{{ order.id }}/update-status" 
+            method="POST" 
+            class="flex items-center gap-2"
+            data-current-status="{{ order.status }}">
+
         {% set isLocked = order.status == 'Delivered' or order.status == 'Cancelled' %}
+        
         <label for="status" class="text-sm font-medium text-gray-700">Set Status:</label>
+        
         <select name="status" id="status" 
-                class="block w-48 px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 text-sm
+                class="block w-48 px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm
+                       focus:outline-none focus:ring-pink-500 focus:border-pink-500 text-sm
                        {{ isLocked ? 'bg-gray-100 cursor-not-allowed' : '' }}"
                 {{ isLocked ? 'disabled' : '' }}>
+
           {% for status in order_statuses %}
-            <option value="{{ status }}" {{ order.status == status ? 'selected' : '' }}>{{ status }}</option>
+            {% set canSelectProcessing = (order.status == 'Processing') %}
+            {% set isProcessingOption = (status == 'Processing') %}
+            
+            <option value="{{ status }}"
+                    {{ order.status == status ? 'selected' : '' }}
+                    {{ (isProcessingOption and not canSelectProcessing) ? 'disabled' : '' }}>
+              {{ status }} {{ (isProcessingOption and not canSelectProcessing) ? '(Locked)' : '' }}
+            </option>
           {% endfor %}
         </select>
         
-        <button type="submit" 
+        <button type="button" id="updateStatusBtn"
                 class="px-4 py-2 text-white text-sm font-medium rounded-md transition
                        {{ isLocked ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#835234] hover:bg-[#6d412a]' }}"
                 {{ isLocked ? 'disabled' : '' }}>
           Update
         </button>
       </form>
+
       {% if isLocked %}
         <p class="text-xs text-gray-500 mt-1 text-right">
           This order is {{ order.status }} and can no longer be modified.
@@ -38,89 +62,175 @@
     </div>
   </div>
 
-  {# --- Info Cards (Unchanged, already correct) --- #}
+  {# --- Customer & Order Summary --- #}
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    
     <div class="bg-white p-6 rounded-lg shadow-md shadow-gray-400 border border-gray-200">
       <h3 class="text-xl font-semibold text-[#a07445] mb-3">Customer & Shipping</h3>
       <div class="text-gray-700 space-y-1">
-        <p class="font-medium">{{ order.customer_name }}</d>
+        <p class="font-medium">{{ order.customer_name }}</p>
+
         {% if order.shipping_method == 'pickup' %}
-            <p class="font-medium text-blue-600">In-Store Pickup</p>
-            <p class="text-sm text-gray-500">(No shipping address required)</p>
+          <p class="font-medium text-blue-600">In-Store Pickup</p>
+          <p class="text-sm text-gray-500">(No shipping address required)</p>
         {% else %}
-            <p class="text-sm">{{ order.address.street }}</p>
-            <p class="text-sm">{{ order.address.city }}, {{ order.address.state }} {{ order.address.postal_code }}</p>
+          <p class="text-sm">{{ order.address.street }}</p>
+          <p class="text-sm">{{ order.address.city }}, {{ order.address.state }} {{ order.address.postal_code }}</p>
         {% endif %}
+
         <p class="text-sm pt-2 border-t border-gray-100 mt-2">{{ order.customer_email ?? 'N/A' }}</p>
         <p class="text-sm">{{ order.customer_contact ?? 'N/A' }}</p>
       </div>
     </div>
+    
     <div class="bg-white p-6 rounded-lg shadow-md shadow-gray-400 border border-gray-200">
       <h3 class="text-xl font-semibold text-[#a07445] mb-3">Order Summary</h3>
+
       {% if order.subtotal is defined %}
         <div class="space-y-2 text-gray-700">
+          
           <div class="flex justify-between">
             <span>Subtotal</span>
             <span class="font-medium">₱{{ order.subtotal|number_format(2) }}</span>
           </div>
+
+          {% if order.total_discount and order.total_discount > 0 %}
+            <div class="flex justify-between text-red-600">
+              <span>Discounts</span>
+              <span class="font-medium">- ₱{{ order.total_discount|number_format(2) }}</span>
+            </div>
+          {% endif %}
+
           <div class="flex justify-between">
             <span>Tax</span>
             <span class="font-medium">₱{{ order.tax|number_format(2) }}</span>
           </div>
+
           <div class="flex justify-between">
             <span>Shipping</span>
             <span class="font-medium">₱{{ order.shipping_fee|number_format(2) }}</span>
           </div>
+
           <div class="flex justify-between">
             <span>Payment Method</span>
             <span class="font-medium">
-                {% if order.payment_method == 'cod' %}
-                    Cash on Delivery
-                {% elseif order.payment_method == 'card' %}
-                    Credit Card
-                {% else %}
-                    {{ order.payment_method | capitalize }}
-                {% endif %}
+              {% if order.payment_method == 'cod' %}
+                Cash on Delivery
+              {% elseif order.payment_method == 'card' %}
+                Credit Card
+              {% else %}
+                {{ order.payment_method | capitalize }}
+              {% endif %}
             </span>
           </div>
+
           <div class="flex justify-between text-xl font-bold text-[#835234] mt-2 pt-2 border-t border-gray-200">
             <span>Total</span>
             <span>₱{{ order.total|number_format(2) }}</span>
           </div>
+
         </div>
       {% endif %}
     </div>
+
   </div>
 
-  {# --- Items List (MODIFIED) --- #}
+  {# --- Items --- #}
   <div class="bg-white rounded-lg shadow-md shadow-gray-400 border border-gray-200 overflow-hidden">
     <h3 class="text-xl font-semibold text-[#a07445] p-6">Items ({{ order.items|length }})</h3>
+
     <div class="border-t border-gray-200">
       {% for item in order.items %}
         <a href="{{ item.sku ? '/products/' ~ item.sku : '#' }}" target="_blank"
            class="flex items-center gap-4 p-4 transition hover:bg-gray-50 {{ not loop.last ? 'border-b border-gray-200' : '' }}">
           
-          {# --- FIX: Added fallback and onerror --- #}
-          <img src="{{ item.image | default('/Assets/placeholder-item.png') }}" 
-               alt="{{ item.product_name }}" 
+          <img src="{{ item.image | default('/Assets/placeholder-item.png') }}"
+               alt="{{ item.product_name }}"
                class="w-16 h-16 rounded-lg object-cover border border-pink-100 bg-pink-50"
                onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
           
           <div class="flex-1">
-            {# --- FIX: item.name -> item.product_name --- #}
             <p class="text-md font-semibold text-gray-800">{{ item.product_name }}</p>
-            {# --- FIX: item.selectedSize -> item.size --- #}
             <p class="text-sm text-gray-500">{{ item.size }}</p>
           </div>
           
           <div class="text-right text-gray-700">
-            <p class="text-sm">₱{{ item.price|number_format(2) }} &times; {{ item.quantity }}</p>
-            <p class="text-md font-medium text-gray-900">₱{{ (item.price * item.quantity)|number_format(2) }}</p>
+            {% if item.original_price and item.original_price > item.price %}
+              <p class="text-sm">
+                <span class="font-bold text-red-600">₱{{ item.price|number_format(2) }}</span>
+                <span class="text-gray-500 line-through">(₱{{ item.original_price|number_format(2) }})</span>
+                × {{ item.quantity }}
+              </p>
+            {% else %}
+              <p class="text-sm">₱{{ item.price|number_format(2) }} × {{ item.quantity }}</p>
+            {% endif %}
+
+            <p class="text-md font-medium text-gray-900">
+              ₱{{ (item.price * item.quantity)|number_format(2) }}
+            </p>
           </div>
+
         </a>
       {% endfor %}
     </div>
+
   </div>
 
 </div>
+
+{# --- SCRIPT BLOCK --- #}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const statusForm = document.getElementById('statusUpdateForm');
+    const updateButton = document.getElementById('updateStatusBtn');
+    const statusSelect = document.getElementById('status');
+
+    updateButton?.addEventListener('click', (e) => {
+        e.preventDefault();
+        
+        const currentStatus = statusForm.dataset.currentStatus;
+        const newStatus = statusSelect.value;
+
+        if (newStatus === currentStatus) {
+            window.showModal({
+                type: 'info',
+                title: 'No Change',
+                message: 'The order status is already set to "' + newStatus + '".',
+                buttons: [{ text: 'OK', variant: 'primary' }]
+            });
+            return;
+        }
+
+        window.showModal({
+            type: 'warning',
+            title: 'Confirm Status Change',
+            message: `Are you sure you want to change this order's status from "${currentStatus}" to "${newStatus}"?`,
+            buttons: [
+                { text: 'Cancel', variant: 'cancel' },
+                {
+                  text: 'Yes, Update Status',
+                  variant: (newStatus === 'Cancelled') ? 'danger' : 'primary',
+                  callback: () => statusForm.submit()
+                }
+            ]
+        });
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success') === 'status') {
+        window.showModal({
+            type: 'success',
+            title: 'Status Updated',
+            message: 'The order status has been successfully updated.',
+            buttons: [{ text: 'OK', variant: 'primary' }],
+            duration: 3000
+        });
+
+        history.replaceState(null, '', window.location.pathname);
+    }
+
+});
+</script>
+
 {% endblock %}

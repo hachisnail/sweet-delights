@@ -29,20 +29,63 @@ class CheckoutController extends BaseAdminController {
             return $response->withHeader('Location', $routeParser->urlFor('products.index'))->withStatus(302);
         }
 
+        // --- NEW: Calculate Discounts ---
         $subtotal = 0;
+        $totalDiscount = 0;
+        $cartWithDetails = [];
+        
+        $productStmt = $this->db->prepare("SELECT id, category_id FROM products WHERE sku = ?");
+
         foreach ($cart as $item) {
-            $subtotal += $item['price'] * $item['quantity'];
+            // 1. Find product_id from SKU
+            $productStmt->execute([$item['sku']]);
+            $product = $productStmt->fetch();
+            $productId = $product ? (int)$product['id'] : null;
+            $categoryId = ($product && $product['category_id']) ? (int)$product['category_id'] : null;
+            $discount = $this->findActiveDiscount($productId, $categoryId);
+
+            $item['discount_type'] = $discount ? $discount['discount_type'] : null;
+            $item['discount_value'] = $discount ? (float)$discount['discount_value'] : 0;
+            // 3. Calculate prices
+            $item['original_price'] = (float)$item['price'];
+            $item['discount_amount'] = 0;
+            $item['final_price'] = $item['original_price'];
+
+            if ($discount) {
+                if ($discount['discount_type'] === 'percent') {
+                    $item['discount_amount'] = $item['original_price'] * ((float)$discount['discount_value'] / 100);
+                } else { // 'fixed'
+                    $item['discount_amount'] = (float)$discount['discount_value'];
+                }
+
+                // Ensure discount isn't more than the item price
+                if ($item['discount_amount'] > $item['original_price']) {
+                    $item['discount_amount'] = $item['original_price'];
+                }
+
+                $item['final_price'] = $item['original_price'] - $item['discount_amount'];
+            }
+
+            // 4. Add to totals
+            $subtotal += $item['original_price'] * $item['quantity'];
+            $totalDiscount += $item['discount_amount'] * $item['quantity'];
+            
+            $cartWithDetails[] = $item;
         }
-        $tax = $subtotal * ($config['tax_rate'] ?? 0);
+        
+        $discountedSubtotal = $subtotal - $totalDiscount;
+        $tax = $discountedSubtotal * ($config['tax_rate'] ?? 0);
         $shipping = $config['shipping_fee'] ?? 0; // Default shipping fee
-        $total = $subtotal + $tax + $shipping;
+        $total = $discountedSubtotal + $tax + $shipping;
+        // --- END NEW ---
 
         return $view->render($response, 'User/checkout.twig', [
             'title' => 'Checkout',
             'user' => $user,
-            'cart' => $cart,
+            'cart' => $cartWithDetails, // Pass the new detailed cart
             'totals' => [
                 'subtotal' => $subtotal,
+                'total_discount' => $totalDiscount, // Pass new discount total
                 'tax' => $tax,
                 'shipping' => $shipping,
                 'total' => $total
@@ -80,18 +123,16 @@ class CheckoutController extends BaseAdminController {
 
             // --- 4. Validate Stock ---
             $stockErrors = [];
+            $productStmtForStock = $this->db->prepare("SELECT id FROM products WHERE sku = ?");
             foreach ($cart as $item) {
-                // Find the product_id from the SKU
-                $productStmt = $this->db->prepare("SELECT id FROM products WHERE sku = ?");
-                $productStmt->execute([$item['sku']]);
-                $product = $productStmt->fetch();
+                $productStmtForStock->execute([$item['sku']]);
+                $product = $productStmtForStock->fetch();
 
                 if (!$product) {
                     $stockErrors[] = "Product {$item['name']} not found.";
                     continue;
                 }
 
-                // Find the specific size and *lock the row* for this transaction
                 $sizeStmt = $this->db->prepare(
                     "SELECT stock FROM product_sizes WHERE product_id = ? AND name = ? FOR UPDATE"
                 );
@@ -111,29 +152,74 @@ class CheckoutController extends BaseAdminController {
             // (Frontend JS handles 'required' attributes)
 
             // --- 6. Reduce Stock ---
+            $productStmtForStock->closeCursor(); // Close previous cursor
+            $productStmtForStock = $this->db->prepare("SELECT id FROM products WHERE sku = ?");
             foreach ($cart as $item) {
-                // We need the product_id again to be safe
-                $productStmt = $this->db->prepare("SELECT id FROM products WHERE sku = ?");
-                $productStmt->execute([$item['sku']]);
-                $product = $productStmt->fetch();
+                $productStmtForStock->execute([$item['sku']]);
+                $product = $productStmtForStock->fetch();
 
                 $updateStmt = $this->db->prepare(
                     "UPDATE product_sizes SET stock = stock - ? WHERE product_id = ? AND name = ?"
                 );
                 $updateStmt->execute([$item['quantity'], $product['id'], $item['selectedSize']]);
             }
+            $productStmtForStock->closeCursor();
 
-            // --- 7. RECALCULATE Totals & Create Order Record ---
-            $subtotal = array_reduce($cart, fn($sum, $item) => $sum + ($item['price'] * $item['quantity']), 0);
-            $tax = $subtotal * ($config['tax_rate'] ?? 0);
+            // --- 7. RECALCULATE Totals & Create Order Record (WITH DISCOUNTS) ---
             
+            // --- NEW: Securely recalculate all totals on the server ---
+            $subtotal = 0;
+            $totalDiscount = 0;
+            $cartWithDetails = [];
+            
+            $productStmt = $this->db->prepare("SELECT id, image FROM products WHERE sku = ?");
+
+            foreach ($cart as $item) {
+                // 1. Find product_id from SKU
+                $productStmt->execute([$item['sku']]);
+                $product = $productStmt->fetch();
+                $productId = $product ? (int)$product['id'] : null;
+                $item['image'] = $product ? $product['image'] : $item['image']; // Get image now
+
+                // 2. Find active discount
+                $discount = $productId ? $this->getActiveDiscountForProduct($productId) : null;
+
+                // 3. Calculate prices
+                $item['original_price'] = (float)$item['price'];
+                $item['discount_amount'] = 0;
+                $item['final_price'] = $item['original_price'];
+
+                if ($discount) {
+                    if ($discount['discount_type'] === 'percent') {
+                        $item['discount_amount'] = $item['original_price'] * ((float)$discount['discount_value'] / 100);
+                    } else { // 'fixed'
+                        $item['discount_amount'] = (float)$discount['discount_value'];
+                    }
+                    if ($item['discount_amount'] > $item['original_price']) {
+                        $item['discount_amount'] = $item['original_price'];
+                    }
+                    $item['final_price'] = $item['original_price'] - $item['discount_amount'];
+                }
+
+                // 4. Add to totals
+                $subtotal += $item['original_price'] * $item['quantity'];
+                $totalDiscount += $item['discount_amount'] * $item['quantity'];
+                
+                $cartWithDetails[] = $item;
+            }
+            $productStmt->closeCursor();
+            
+            $discountedSubtotal = $subtotal - $totalDiscount;
+            $tax = $discountedSubtotal * ($config['tax_rate'] ?? 0);
             $shipping = ($shippingMethod === 'pickup') ? 0 : ($config['shipping_fee'] ?? 0);
-            
-            $total = $subtotal + $tax + $shipping;
+            $total = $discountedSubtotal + $tax + $shipping;
+            // --- END NEW RECALCULATION ---
+
 
             $orderStmt = $this->db->prepare(
-                "INSERT INTO orders (user_id, customer_name, address, shipping_method, date, payment_method, status, subtotal, tax, shipping_fee, total)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                // Added total_discount column
+                "INSERT INTO orders (user_id, customer_name, address, shipping_method, date, payment_method, status, subtotal, total_discount, tax, shipping_fee, total)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             $orderStmt->execute([
                 $user['id'],
@@ -143,36 +229,34 @@ class CheckoutController extends BaseAdminController {
                 date('Y-m-d H:i:s'),
                 $paymentMethod, 
                 'Processing',
-                $subtotal,
+                $subtotal,        // Original subtotal
+                $totalDiscount,   // Total discount
                 $tax,
                 $shipping, 
-                $total
+                $total            // Final total
             ]);
             $newOrderId = (int)$this->db->lastInsertId();
 
             // --- 8. Create order_items Records ---
             
-            // --- FIX 1: Changed $this.db to $this->db ---
+            // Updated to include original_price and discount_amount
             $itemStmt = $this->db->prepare(
-                "INSERT INTO order_items (order_id, sku, product_name, size, price, quantity, image)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO order_items (order_id, sku, product_name, size, price, original_price, discount_amount, quantity, image)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
 
-            $productImageStmt = $this->db->prepare("SELECT image FROM products WHERE sku = ?");
-
-            foreach ($cart as $item) {
-                $productImageStmt->execute([$item['sku']]);
-                $productData = $productImageStmt->fetch();
-                $productImage = $productData ? $productData['image'] : null;
-
+            // We already have $cartWithDetails from Step 7
+            foreach ($cartWithDetails as $item) {
                 $itemStmt->execute([
                     $newOrderId,
                     $item['sku'],
                     $item['name'],
                     $item['selectedSize'],
-                    $item['price'],
+                    $item['final_price'],      // The final (discounted) price
+                    $item['original_price'], // The original price
+                    $item['discount_amount'],  // The discount applied
                     $item['quantity'],
-                    $productImage
+                    $item['image'] ?? null       // Use image fetched in step 7
                 ]);
             }
 
@@ -206,8 +290,6 @@ class CheckoutController extends BaseAdminController {
         }
 
         // --- 12. Clear Cart (Only happens on success) ---
-        
-        // --- FIX 2: Changed $this.saveUserKey to $this->saveUserKey ---
         $this->saveUserKey($user['id'], 'cart', []);
         $_SESSION['user']['cart'] = []; // Update session immediately
 
@@ -220,6 +302,7 @@ class CheckoutController extends BaseAdminController {
      * Shows the "Order Successful" page.
      */
     public function showSuccess(Request $request, Response $response): Response {
+        // ... (This method remains unchanged) ...
         $view = $this->viewFromRequest($request);
         $orderId = $request->getQueryParams()['order_id'] ?? null;
 
@@ -233,4 +316,54 @@ class CheckoutController extends BaseAdminController {
             'order_id' => $orderId
         ]);
     }
+
+
+    /**
+     * --- NEW HELPER FUNCTION ---
+     * Finds a single, active discount for a product.
+     */
+/**
+ * Finds the best active discount for a product.
+ * Checks for a product-specific discount first, then for a category discount.
+ */
+/**
+ * Finds the best active discount for a product.
+ * Checks for a product-specific discount first, then for a category discount.
+ */
+private function findActiveDiscount(?int $productId, ?int $categoryId): ?array
+{
+    // 1. Check for product-specific discount
+    if ($productId) {
+        $stmt = $this->db->prepare("
+            SELECT * FROM product_discounts
+            WHERE product_id = ? AND active = 1
+              AND (start_date IS NULL OR start_date <= NOW())
+              AND (end_date IS NULL OR end_date >= NOW())
+            ORDER BY id DESC LIMIT 1
+        ");
+        $stmt->execute([$productId]);
+        $discount = $stmt->fetch();
+        if ($discount) {
+            return $discount;
+        }
+    }
+
+    // 2. Check for category-specific discount
+    if ($categoryId) {
+        $stmt = $this->db->prepare("
+            SELECT * FROM product_discounts
+            WHERE category_id = ? AND active = 1
+              AND (start_date IS NULL OR start_date <= NOW())
+              AND (end_date IS NULL OR end_date >= NOW())
+            ORDER BY id DESC LIMIT 1
+        ");
+        $stmt->execute([$categoryId]);
+        $discount = $stmt->fetch();
+        if ($discount) {
+            return $discount;
+        }
+    }
+
+    return null;
+}
 }

@@ -91,13 +91,21 @@ class CartService {
     const key = getKey(product);
     const index = this.inMemoryCart.findIndex((p) => getKey(p) === key);
 
-    if (index === -1) {
+if (index === -1) {
       // Item not in cart, add it
       this.inMemoryCart.push({
         sku: product.sku,
         name: product.name,
         image: product.image,
-        price: product.price,
+        price: product.price, // This is the FINAL (discounted) price
+        
+        // --- NEWLY ADDED ---
+        // Use original_price if available, otherwise default to the final price
+        original_price: product.original_price || product.price, 
+        discount_type: product.discount_type || null,
+        discount_value: product.discount_value || 0,
+        // --- END NEW ---
+
         stock: product.stock,
         selectedSize: product.selectedSize || null,
         // Respect stock on initial add
@@ -208,89 +216,124 @@ class CartService {
     }
   }
 
-  _renderSidebar() {
-    const items = this.inMemoryCart;
-    if (!this.cartItemsContainer) return;
+_renderSidebar() {
+  const items = this.inMemoryCart;
+  if (!this.cartItemsContainer) return;
 
-    this.cartItemsContainer.innerHTML = "";
+  this.cartItemsContainer.innerHTML = "";
 
-    if (items.length === 0) {
-      this.cartItemsContainer.innerHTML = `<p class="text-gray-500">Your cart is empty.</p>`;
-      return;
-    }
+  if (items.length === 0) {
+    this.cartItemsContainer.innerHTML = `<p class="text-gray-500">Your cart is empty.</p>`;
+    return;
+  }
 
-    // --- FIXED RENDER LOGIC ---
-    // The loop now gets the 'index'
-    items.forEach((item, index) => {
-      const a = document.createElement("a");
-      a.href = `/products/${item.sku}`;
-      a.className = "flex flex-col border-b pb-3 mb-3 group no-underline";
+  items.forEach((item, index) => {
+    const a = document.createElement("a");
+    a.href = `/products/${item.sku}`;
+    a.className = "flex flex-col border-b pb-3 mb-3 group no-underline";
 
-      a.innerHTML = `
-        <div class="flex gap-3 items-center">
-          <img src="${item.image}" alt="${item.name}"
-               onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';"
-               class="w-16 h-16 object-cover rounded-lg shadow-sm shadow-pink-200">
-          <div class="flex-1">
-            <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
-                        ${item.selectedSize ? `<p class="text-xs text-gray-500">Size: ${item.selectedSize}</p>` : ""}
-            <p class="text-sm text-gray-500">₱${item.price}</p>
-          </div>
-          <button class="removeItem text-red-500 hover:text-red-700 font-bold cursor-pointer">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none"
-                 stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-              <path d="M3 6h18"/>
-              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-          </button>
-        </div>
-        <div class="flex items-center justify-between mt-3">
-          <div class="flex items-center border rounded-lg overflow-hidden">
-            <button class="decreaseQty px-3 py-1 bg-pink-50 hover:bg-pink-100">-</button>
-            <input type="number" class="cartQty w-14 text-center border-l border-r outline-none text-sm"
-                   value="${item.quantity}" min="1" max="${item.stock}">
-            <button class="increaseQty px-3 py-1 bg-pink-50 hover:bg-pink-100">+</button>
-          </div>
-          <p class="font-semibold text-[#835234]">₱${(item.price * item.quantity).toFixed(2)}</p>
-        </div>
+    // --- PRICE & DISCOUNT ---
+    let priceHtml = "";
+    let discountHtml = "";
+
+    const originalPrice = parseFloat(item.original_price);
+    const finalPrice = parseFloat(item.price);
+
+    if (!isNaN(originalPrice) && originalPrice > finalPrice) {
+      priceHtml = `
+        <p class="text-sm font-bold text-red-600">₱${finalPrice.toFixed(2)}</p>
+        <p class="text-xs text-gray-500 line-through">₱${originalPrice.toFixed(2)}</p>
       `;
 
-      // Remove item - Now passes 'index'
-      a.querySelector(".removeItem").addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        window.showModal({
-          type: "error",
-          title: "Remove from Cart",
-          message: `Remove ${item.name}${item.selectedSize ? ` (${item.selectedSize})` : ''} from your cart?`,
-          buttons: [
-            { text: "Cancel", variant: "cancel" },
-            { text: "Remove", variant: "danger", action: () => this.removeItem(index) },
-          ],
-        });
-      });
+      if (item.discount_type === "percent") {
+        discountHtml = `<p class="text-xs text-red-600">(${parseFloat(item.discount_value)}% OFF)</p>`;
+      } else if (item.discount_type === "fixed") {
+        discountHtml = `<p class="text-xs text-red-600">(₱${parseFloat(item.discount_value).toFixed(2)} OFF)</p>`;
+      }
+    } else {
+      priceHtml = `
+        <p class="text-sm text-gray-500">₱${finalPrice.toFixed(2)}</p>
+      `;
+    }
 
-      // Quantity controls - Now pass 'index'
-      a.querySelector(".increaseQty").addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.updateQuantity(index, item.quantity + 1);
-      });
+    const itemTotalPrice = (finalPrice * item.quantity).toFixed(2);
+    // --- END PRICE & DISCOUNT ---
 
-      a.querySelector(".decreaseQty").addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        // This will now correctly remove the item if quantity reaches 0
-        this.updateQuantity(index, item.quantity - 1);
-      });
+    a.innerHTML = `
+      <div class="flex gap-3 items-center">
+        <img src="${item.image}" alt="${item.name}"
+              onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';"
+              class="w-16 h-16 object-cover rounded-lg shadow-sm shadow-pink-200">
 
-      a.querySelector(".cartQty").addEventListener("change", (e) => {
-        const value = parseInt(e.target.value) || 0; // Default to 0 to trigger removal
-        this.updateQuantity(index, value);
-      });
+        <div class="flex-1">
+          <p class="font-semibold text-[#835234] group-hover:underline">${item.name}</p>
+          ${item.selectedSize ? `<p class="text-xs text-gray-500">Size: ${item.selectedSize}</p>` : ""}
+          ${priceHtml}
+          ${discountHtml}
+        </div>
 
-      this.cartItemsContainer.appendChild(a);
+        <button class="removeItem text-red-500 hover:text-red-700 font-bold cursor-pointer">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none"
+                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+            <path d="M3 6h18"/>
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="flex items-center justify-between mt-3">
+        <div class="flex items-center border rounded-lg overflow-hidden">
+          <button class="decreaseQty px-3 py-1 bg-pink-50 hover:bg-pink-100">-</button>
+          <input type="number"
+                 class="cartQty w-14 text-center border-l border-r outline-none text-sm"
+                 value="${item.quantity}" min="1" max="${item.stock}">
+          <button class="increaseQty px-3 py-1 bg-pink-50 hover:bg-pink-100">+</button>
+        </div>
+        <p class="font-semibold text-[#835234]">₱${itemTotalPrice}</p>
+      </div>
+    `;
+
+    // --- EVENTS ---
+
+    // Remove item
+    a.querySelector(".removeItem").addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      window.showModal({
+        type: "error",
+        title: "Remove from Cart",
+        message: `Remove ${item.name}${item.selectedSize ? ` (${item.selectedSize})` : ""} from your cart?`,
+        buttons: [
+          { text: "Cancel", variant: "cancel" },
+          { text: "Remove", variant: "danger", action: () => this.removeItem(index) },
+        ],
+      });
     });
-  }
+
+    // Increase qty
+    a.querySelector(".increaseQty").addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.updateQuantity(index, item.quantity + 1);
+    });
+
+    // Decrease qty
+    a.querySelector(".decreaseQty").addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.updateQuantity(index, item.quantity - 1);
+    });
+
+    // Manual input change
+    a.querySelector(".cartQty").addEventListener("change", (e) => {
+      const value = parseInt(e.target.value) || 0;
+      this.updateQuantity(index, value);
+    });
+
+    this.cartItemsContainer.appendChild(a);
+  });
+}
+
 }
