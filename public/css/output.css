@@ -1381,6 +1381,9 @@
   .pt-10 {
     padding-top: calc(var(--spacing) * 10);
   }
+  .pt-19 {
+    padding-top: calc(var(--spacing) * 19);
+  }
   .pt-20 {
     padding-top: calc(var(--spacing) * 20);
   }
