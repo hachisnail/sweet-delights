@@ -300,40 +300,62 @@ class CheckoutController extends BaseAdminController {
      * Finds the best active discount for a product.
      * Checks for a product-specific discount first, then for a category discount.
      */
-    private function findActiveDiscount(?int $productId, ?int $categoryId): ?array
-    {
-        // 1. Check for product-specific discount
-        if ($productId) {
-            $stmt = $this->db->prepare("
-                SELECT * FROM product_discounts
-                WHERE product_id = ? AND active = 1
-                  AND (start_date IS NULL OR start_date <= NOW())
-                  AND (end_date IS NULL OR end_date >= NOW())
-                ORDER BY id DESC LIMIT 1
-            ");
-            $stmt->execute([$productId]);
-            $discount = $stmt->fetch();
-            if ($discount) {
-                return $discount;
-            }
-        }
-
-        // 2. Check for category-specific discount
-        if ($categoryId) {
-            $stmt = $this->db->prepare("
-                SELECT * FROM product_discounts
-                WHERE category_id = ? AND active = 1
-                  AND (start_date IS NULL OR start_date <= NOW())
-                  AND (end_date IS NULL OR end_date >= NOW())
-                ORDER BY id DESC LIMIT 1
-            ");
-            $stmt->execute([$categoryId]);
-            $discount = $stmt->fetch();
-            if ($discount) {
-                return $discount;
-            }
-        }
-
-        return null;
+/**
+ * Finds the best active discount for a product.
+ * Order of priority:
+ * 1. Product-level discount
+ * 2. Category-level discount
+ * 3. Parent category discount (recursive)
+ */
+private function findActiveDiscount(?int $productId, ?int $categoryId): ?array
+{
+    // 1. Check product-specific discount
+    if ($productId) {
+        $stmt = $this->db->prepare("
+            SELECT * FROM product_discounts
+            WHERE product_id = ? AND active = 1
+              AND (start_date IS NULL OR start_date <= NOW())
+              AND (end_date IS NULL OR end_date >= NOW())
+            ORDER BY id DESC LIMIT 1
+        ");
+        $stmt->execute([$productId]);
+        $discount = $stmt->fetch();
+        if ($discount) return $discount;
     }
+
+    // 2. Recursively check category + parent categories
+    return $this->findCategoryDiscountRecursive($categoryId);
+}
+
+/**
+ * Recursively checks for active category discounts.
+ */
+private function findCategoryDiscountRecursive(?int $categoryId): ?array
+{
+    if (!$categoryId) return null;
+
+    // A. Check discount for this category
+    $stmt = $this->db->prepare("
+        SELECT * FROM product_discounts
+        WHERE category_id = ? AND active = 1
+          AND (start_date IS NULL OR start_date <= NOW())
+          AND (end_date IS NULL OR end_date >= NOW())
+        ORDER BY id DESC LIMIT 1
+    ");
+    $stmt->execute([$categoryId]);
+    $discount = $stmt->fetch();
+
+    if ($discount) return $discount;
+
+    // B. Get parent category
+    $stmt = $this->db->prepare("SELECT parent_id FROM categories WHERE id = ?");
+    $stmt->execute([$categoryId]);
+    $parentId = $stmt->fetchColumn();
+
+    if (!$parentId) return null;
+
+    // C. Check parent recursively
+    return $this->findCategoryDiscountRecursive($parentId);
+}
+
 }
