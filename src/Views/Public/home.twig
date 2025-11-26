@@ -139,37 +139,62 @@ style="background-image: url('{{ app_url }}/Assets/category-bg.png');">
       </div>
     </div>
 
-    {# --- CATEGORY GRID --- #}
+{# --- CATEGORY GRID --- #}
     <div class="min-h-90 w-full flex flex-wrap justify-center items-center gap-6 mt-8">
+      
       {% for cat in categories %}
         {# Updated Logic to use app_url without leading slash issues #}
         {% set image_src = cat.image ? app_url ~ '/Assets/Categories/' ~ cat.image : app_url ~ '/Assets/Categories/' ~ cat.slug ~ '.png' %}
+        
         <div class="relative bg-transparent">
-          <img src="/Assets/kitty.png" class="absolute inset-0 -top-10 left-45 object-cover pointer-events-none select-none z-10">
+          <img src="/Assets/kitty.png" class="absolute inset-0 -top-10 left-45 object-cover pointer-events-none select-none z-10" onerror="this.style.display='none'">
 
-        <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden  border-[#876041] border-4 shadow-md shadow-[#d4c2a8] bg-white flex flex-col items-center justify-end group hover:scale-[1.02] transition-transform duration-500">
+          <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border-[#876041] border-4 shadow-md shadow-[#d4c2a8] bg-white flex flex-col items-center justify-end group hover:scale-[1.02] transition-transform duration-500">
           
-          <a href="{{ app_url }}/products?category={{ cat.slug }}" class="absolute inset-0">
-            <img 
-              src="{{ image_src }}" 
-              alt="{{ cat.name }}" 
-              class="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-110"
-               onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
-          </a>
+            <a href="{{ app_url }}/products?category={{ cat.slug }}" class="absolute inset-0">
+              <img 
+                src="{{ image_src }}" 
+                alt="{{ cat.name }}" 
+                class="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-110"
+                onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+            </a>
 
-          <a href="{{ app_url }}/products?category={{ cat.slug }}"
-             class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44]/50 border border-white text-white font-semibold rounded-full overflow-hidden group/button shadow-md hover:shadow-lg transition-all duration-300 border border-[#835234]">
-            
-            <span class="absolute inset-1 bg-white opacity-25 
-                         scale-x-0 origin-left group-hover/button:scale-x-100
-                         transition-transform duration-500 ease-in-out rounded-full"></span>
+            <a href="{{ app_url }}/products?category={{ cat.slug }}"
+               class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44]/50 border border-white text-white font-semibold rounded-full overflow-hidden group/button shadow-md hover:shadow-lg transition-all duration-300 border border-[#835234]">
+              
+              <span class="absolute inset-1 bg-white opacity-25 
+                           scale-x-0 origin-left group-hover/button:scale-x-100
+                           transition-transform duration-500 ease-in-out rounded-full"></span>
 
-            <span class="relative z-10 flex items-center justify-center h-full tracking-wide">
-              {{ cat.name }}
-            </span>
-          </a>
+              <span class="relative z-10 flex items-center justify-center h-full tracking-wide">
+                {{ cat.name }}
+              </span>
+            </a>
 
+          </div>
         </div>
+
+      {% else %}
+
+        {# --- EMPTY STATE PLACEHOLDER --- #}
+        <div class="flex flex-col items-center justify-center py-10 opacity-70 animate-pulse">
+            
+            {# Circle Background #}
+            <div class="w-32 h-32 bg-[#E8DCC4] rounded-full flex items-center justify-center mb-4 shadow-inner border-2 border-[#C7A97E] border-dashed">
+                {# SVG Icon: Cookie/Pastry #}
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#835234" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/>
+                    <path d="M8.5 8.5v.01"/>
+                    <path d="M16 15.5v.01"/>
+                    <path d="M12 12v.01"/>
+                    <path d="M11 17v.01"/>
+                    <path d="M7 14v.01"/>
+                </svg>
+            </div>
+            
+            <h3 class="font-zen-antique text-2xl text-[#835234]">Oven Empty</h3>
+            <p class="text-[#A96B44] text-sm mt-1 font-zen-antique">We are baking new categories...</p>
+            
         </div>
 
       {% endfor %}

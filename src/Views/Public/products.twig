@@ -141,12 +141,16 @@
     </div>
 </section>
 {% endif %}
-  {# --- CATEGORY SECTION (Unchanged) --- #}
+
+{# --- CATEGORY SECTION --- #}
   <section class="flex flex-col items-center justify-center pb-10">
     <div class="w-fit items-center flex flex-col gap-y-3">
+      
+      {# --- Header / Breadcrumbs --- #}
       <h1 class="font-zen-antique text-3xl lg:text-6xl text-[#A96B44] font-400 text-shadow-sm text-shadow-[#8c8989]">
         {{ selected_category.name | default('Explore Our Categories') }}
       </h1>
+      
       {% if selected_category %}
         <div class="flex items-center gap-x-2 text-sm text-[#A69273] font-semibold">
           <a href="/products" class="hover:text-[#A96B44] hover:underline">All Categories</a>
@@ -167,74 +171,136 @@
         </div>
       {% endif %}
 
+      {# --- Logic to determine what to show --- #}
       {% if selected_category %}
         {% set categories_to_display = selected_category.children %}
       {% else %}
         {% set categories_to_display = all_categories %}
       {% endif %}
 
+      {# --- GRID OR EMPTY STATE --- #}
       {% if categories_to_display is defined and categories_to_display|length > 0 %}
+        
         <div class="min-h-90 w-full gap-6 flex flex-wrap justify-center items-center mt-8">
           {% for cat in categories_to_display %}
             {% set image_src = cat.image ? '/Assets/Categories/' ~ cat.image : '/Assets/Categories/' ~ cat.slug ~ '.png' %}
-                   <div class="relative bg-transparent">
-          <img src="/Assets/kitty.png" class="absolute inset-0 -top-10 left-45 object-cover pointer-events-none select-none z-10">
-          
-            <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border-[#876041] border-4 
-                         bg-white shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 group">
-              
-              <a href="?category={{ cat.slug | url_encode }}" class="absolute inset-0 block">
-                <img src="{{ image_src }}" alt="{{ cat.name }}"
-                     class="w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-105"
-                     onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
-                <div class="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent"></div>
-              </a>
-
             
-            <a href="?category={{ cat.slug | url_encode }}"
-              title="{{ cat.name }}" 
-              class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44]/50 border border-white text-white font-zen-antique text-lg rounded-full overflow-hidden
-                      shadow-md hover:shadow-xl transition-all duration-300 group/button flex items-center"> 
+            <div class="relative bg-transparent">
+              <img src="/Assets/kitty.png" class="absolute inset-0 -top-10 left-45 object-cover pointer-events-none select-none z-10" onerror="this.style.display='none'">
+          
+              <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border-[#876041] border-4 
+                          bg-white shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 group">
+              
+                <a href="?category={{ cat.slug | url_encode }}" class="absolute inset-0 block">
+                  <img src="{{ image_src }}" alt="{{ cat.name }}"
+                       class="w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-105"
+                       onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+                  <div class="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent"></div>
+                </a>
 
+                <a href="?category={{ cat.slug | url_encode }}"
+                   title="{{ cat.name }}" 
+                   class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44]/50 border border-white text-white font-zen-antique text-lg rounded-full overflow-hidden
+                          shadow-md hover:shadow-xl transition-all duration-300 group/button flex items-center"> 
 
-            <span class="absolute inset-1 bg-white opacity-25 
-                        scale-x-0 origin-left group-hover/button:scale-x-100
-                        transition-transform duration-500 ease-in-out rounded-full"></span>
-                <span class="relative z-10 w-full truncate text-center px-2">{{ cat.name }}</span>
-              </a>
-            </div>
+                   <span class="absolute inset-1 bg-white opacity-25 
+                                scale-x-0 origin-left group-hover/button:scale-x-100
+                                transition-transform duration-500 ease-in-out rounded-full"></span>
+                   <span class="relative z-10 w-full truncate text-center px-2">{{ cat.name }}</span>
+                </a>
+              </div>
             </div>
           {% endfor %}
         </div>
+
+      {% else %}
+
+        {# --- EMPTY STATE PLACEHOLDER --- #}
+        <div class="flex flex-col items-center justify-center py-12 opacity-80 mt-8">
+            
+            {# Chef Hat / Pantry Icon #}
+            <div class="w-28 h-28 bg-[#FFF3E0] rounded-full flex items-center justify-center mb-4 shadow-inner border-2 border-[#EADBCB] border-dashed">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#835234" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/>
+                    <line x1="6" y1="17" x2="18" y2="17"/>
+                </svg>
+            </div>
+            
+            <h3 class="font-zen-antique text-2xl text-[#835234]">Pantry Empty</h3>
+            <p class="text-[#A96B44] text-sm mt-1 max-w-xs text-center">We are currently restocking our shelves. Check back soon for new categories!</p>
+            
+            {% if selected_category %}
+                <a href="{{ app_url }}/products" 
+                   class="mt-5 text-xs uppercase tracking-widest font-bold text-[#835234] border-b border-[#835234] hover:text-[#A96B44] hover:border-[#A96B44] transition-colors">
+                    Go Back Home
+                </a>
+            {% endif %}
+        </div>
+
       {% endif %}
     </div>
   </section>
 
   {# --- PRODUCT GRID (Unchanged from last fix) --- #}
+{# --- PRODUCT GRID --- #}
   <section class="mt-10 ">
     <h1 class="text-3xl font-zen-antique text-[#A96B44] mb-6 text-center">Our Treats</h1>
 
     <div id="products-grid" class="w-full max-w-8xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       
+      {# --- EMPTY STATE CHECK --- #}
       {% if products is empty %}
-        <p class="text-center text-gray-500 col-span-full">No products found.</p>
+        
+        <div class="col-span-full flex flex-col items-center justify-center py-16 opacity-90">
+            {# Icon Container #}
+            <div class="relative w-32 h-32 bg-[#FFF3E0] rounded-full flex items-center justify-center mb-4 shadow-inner border-2 border-[#EADBCB] border-dashed">
+                
+                {# Muffin/Cupcake Icon #}
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#835234" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 14h18"/>
+                    <path d="M5 14v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>
+                    <path d="M7.5 14a2.5 2.5 0 0 1 0-5l1.07-3.69A1.02 1.02 0 0 1 9.5 5h5a1.02 1.02 0 0 1 .93.53L16.5 9a2.5 2.5 0 0 1 0 5"/>
+                </svg>
+
+                {# Tiny question mark badge #}
+                <div class="absolute top-0 right-0 bg-[#A96B44] text-white rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+                </div>
+            </div>
+
+            <h3 class="font-zen-antique text-2xl text-[#835234]">Fresh Out of Treats</h3>
+            <p class="text-[#A96B44] text-sm mt-2 font-medium">We couldn't find any items here.</p>
+            
+            {# Reset Button #}
+            <a href="{{ app_url }}/products" 
+               class="mt-6 px-6 py-2 bg-[#835234] text-white rounded-full shadow-md hover:bg-[#6B4226] hover:scale-105 transition-all flex items-center gap-2 text-sm">
+                View All Menu
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
+        </div>
+
       {% else %}
+
+        {# --- PRODUCT LOOP --- #}
         {% for product in products %}
         <a href="{{ app_url }}/products/{{ product.sku | default(product.id) }}"
-           class="min-w-70 flex flex-col bg-white rounded-2xl shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 border border-[#EADBCB] overflow-hidden">
+           class="min-w-70 flex flex-col bg-white rounded-2xl shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 border border-[#EADBCB] overflow-hidden group">
 
-          <div class="relative w-full h-48">
+          <div class="relative w-full h-48 overflow-hidden">
             <img src="{{ product.image }}" alt="{{ product.name }}"
-                 class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-in-out hover:scale-105"
+                 class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-110"
                  onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+                 
+             {# Overlay on hover #}
+             <div class="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           </div>
 
           <div class="p-4 flex flex-col grow">
             
             <div>
-              <h2 class="font-semibold text-lg text-[#835234] truncate">{{ product.name }}</h2>
+              <h2 class="font-semibold text-lg text-[#835234] truncate group-hover:text-[#A96B44] transition-colors">{{ product.name }}</h2>
               
-              {# --- Price Block (Already updated) --- #}
+              {# --- Price Block --- #}
               <div class="mb-1">
                 {% set base_price = product.price %}
                 {% set base_original_price = product.original_price | default(product.price) %}
