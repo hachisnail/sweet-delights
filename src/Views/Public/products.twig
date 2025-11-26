@@ -177,8 +177,10 @@
         <div class="min-h-90 w-full gap-6 flex flex-wrap justify-center items-center mt-8">
           {% for cat in categories_to_display %}
             {% set image_src = cat.image ? '/Assets/Categories/' ~ cat.image : '/Assets/Categories/' ~ cat.slug ~ '.png' %}
-            
-            <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border border-[#E8C7A5]
+                   <div class="relative bg-transparent">
+          <img src="/Assets/kitty.png" class="absolute inset-0 -top-10 left-45 object-cover pointer-events-none select-none z-10">
+          
+            <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border-[#876041] border-4 
                          bg-white shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 group">
               
               <a href="?category={{ cat.slug | url_encode }}" class="absolute inset-0 block">
@@ -188,16 +190,19 @@
                 <div class="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent"></div>
               </a>
 
-            {# --- NEW <a> TAG --- #}
+            
             <a href="?category={{ cat.slug | url_encode }}"
-              title="{{ cat.name }}" {# <--- ADDED THIS TITLE #}
-              class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44] text-white font-zen-antique text-lg rounded-full overflow-hidden
-                      shadow-md hover:shadow-xl transition-all duration-300 group/button flex items-center"> {# <--- REMOVED justify-center #}
+              title="{{ cat.name }}" 
+              class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44]/50 border border-white text-white font-zen-antique text-lg rounded-full overflow-hidden
+                      shadow-md hover:shadow-xl transition-all duration-300 group/button flex items-center"> 
 
 
-                <span class="absolute inset-0 bg-white opacity-25 scale-x-0 origin-left group-hover/button:scale-x-100 transition-transform duration-500 ease-in-out"></span>
+            <span class="absolute inset-1 bg-white opacity-25 
+                        scale-x-0 origin-left group-hover/button:scale-x-100
+                        transition-transform duration-500 ease-in-out rounded-full"></span>
                 <span class="relative z-10 w-full truncate text-center px-2">{{ cat.name }}</span>
               </a>
+            </div>
             </div>
           {% endfor %}
         </div>

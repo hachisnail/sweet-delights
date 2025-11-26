@@ -1,28 +1,28 @@
 {% extends "Layouts/public.twig" %}
 
-{# --- NEW: Macro to render a single discount card --- #}
-{% macro renderDiscountCard(discount) %}
+{# --- MACRO: Render Discount Card --- #}
+{# Added 'app_url' as a second parameter so the macro knows where images are #}
+{% macro renderDiscountCard(discount, app_url) %}
     
-    {# 1. Determine the correct URL #}
-    {% set url = discount.discount_scope == 'product' ? '/products/' ~ discount.item_sku : '/products?category=' ~ discount.item_sku %}
+    {# 1. Determine URL #}
+    {% set url = discount.discount_scope == 'product' ? app_url ~ '/products/' ~ discount.item_sku : app_url ~ '/products?category=' ~ discount.item_sku %}
     
-    {# 2. Determine the correct image path #}
-    {% set image_src = '/Assets/placeholder-item.png' %} {# Default #}
+    {# 2. Determine Image Path (Using app_url) #}
+    {# We remove the leading slash from the strings and use app_url/ #}
+    {% set image_src = app_url ~ '/Assets/placeholder-item.png' %}
     
     {% if discount.discount_scope == 'product' and discount.item_image %}
-        {# Product images are typically stored with their full relative path #}
-        {% set image_src = discount.item_image %}
+        {% set image_src = app_url ~ '/Assets/' ~ discount.item_image %}
     {% elseif discount.discount_scope == 'category' %}
-        {# Category images follow the logic from your category grid #}
-        {% set image_src = discount.item_image ? '/Assets/Categories/' ~ discount.item_image : '/Assets/Categories/' ~ discount.item_sku ~ '.png' %}
+        {% set image_src = discount.item_image ? app_url ~ '/Assets/Categories/' ~ discount.item_image : app_url ~ '/Assets/Categories/' ~ discount.item_sku ~ '.png' %}
     {% endif %}
 
-    {# 3. Render the card #}
+    {# 3. Render #}
     <a href="{{ url }}" class="block bg-white rounded-lg shadow-md overflow-hidden group h-full">
         <div class="relative h-48">
             <img src="{{ image_src }}" alt="{{ discount.item_name }}" 
                  class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
-                 onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+                 onerror="this.onerror=null; this.src='{{ app_url }}/Assets/placeholder-item.png';">
             
             <span class="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
                 {% if discount.discount_type == 'percent' %}
@@ -50,34 +50,49 @@
 {% block content %}
 
 {# --- HERO SECTION --- #}
+{# Added app_url to background-image #}
 <section class="min-h-screen bg-cover bg-center bg-no-repeat px-6 sm:px-30 pt-20 sm:pt-15 flex items-center justify-center snap-start"
-         style="background-image: url('/Assets/Background1.png');">
-  <div class="flex flex-col xl:flex-row w-full">
-    <div class="flex flex-col justify-center gap-y-2">
-      <p class="font-zen-antique text-xl sm:text-5xl text-[#835234]">Welcome to</p>
-      <h2 class="text-6xl lg:text-[9rem] leading-10 lg:leading-[7rem] text-[#A96B44] font-zen-antique text-shadow-sm text-shadow-[#8c8989]">
-        FlourEver
-      </h2>
-      <p class="font-zen-antique text-2xl text-[#A69273]">The sweet spot for cravings</p>
+         style="background-image: url('{{ app_url }}/Assets/group-cover.png');">
 
-      <button onclick="location.href='/products'"
-              class="mt-4 w-fit bg-[#A96B44] shadow-md shadow-[#8c8989]/50 text-white flex gap-x-3 pr-3 pl-5 py-2 border border-[#6B4226] rounded-full font-semibold hover:scale-105 transition">
-        Order Now
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-             class="lucide lucide-arrow-right">
-          <path d="M5 12h14"/>
-          <path d="m12 5 7 7-7 7"/>
-        </svg>
-      </button>
+  <div class="flex flex-col w-fit items-start justify-center gap-y-6">
+
+    <div class="relative w-fit flex flex-col items-center justify-center">
+
+      <div class="absolute top-1 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[120%] sm:w-[130%] -z-10 pointer-events-none select-none">
+        {# Added app_url to banner #}
+        <img src="{{ app_url }}/Assets/bg-banner.png" alt="" class="w-full h-auto object-contain opacity-90">
+      </div>
+
+      <div class="text-left z-10 px-4">
+        <p class="font-zen-antique text-xl sm:text-5xl text-[#835234]">Welcome to</p>
+
+        <h2 class="text-6xl lg:text-[9rem] leading-25 text-[#A96B44] 
+                   font-zen-antique text-shadow-sm text-shadow-[#8c8989]">
+          FlourEver
+        </h2>
+
+        <p class="font-zen-antique text-2xl text-[#A69273] mt-2">
+          The sweet spots for cravings
+        </p>
+      </div>
+      
     </div>
 
-    <img src="/Assets/PileOfDonuts.png" alt="Delicious baked goods" class="w-100 lg:w-160 ml-auto drop-shadow-lg">
+    <button onclick="location.href='{{ app_url }}/products'"
+            class="z-20 bg-white shadow-md shadow-[#8c8989]/50 text-[#A96B44] flex gap-x-3 pr-3 pl-5 py-2 border border-[#6B4226] rounded-lg font-semibold hover:scale-105 transition">
+      Order Now
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right">
+        <path d="M5 12h14"/>
+        <path d="m12 5 7 7-7 7"/>
+      </svg>
+    </button>
+
   </div>
 </section>
 
 
-{# --- ACTIVE DISCOUNTS CAROUSEL --- #}
+{# --- ACTIVE DISCOUNTS CAROUSEL (Main Page) --- #}
 {% if active_discounts is not empty %}
     <section class="py-16 bg-[#fff1e1] snap-start pt-25">
         <div class="w-full max-w-7xl mx-auto px-6">
@@ -89,7 +104,8 @@
                 <div class="swiper-wrapper">
                     {% for discount in active_discounts %}
                         <div class="swiper-slide h-auto">
-                            {{ _self.renderDiscountCard(discount) }} {# Call the macro #}
+                            {# Pass app_url to the macro #}
+                            {{ _self.renderDiscountCard(discount, app_url) }} 
                         </div>
                     {% endfor %}
                 </div>
@@ -101,7 +117,8 @@
 
 
 {# --- EXPLORE OUR CATEGORIES SECTION --- #}
-<section class="flex flex-col min-h-screen items-center justify-center snap-start pt-30 bg-[#FFF9F2]">
+<section class="flex flex-col min-h-screen items-center justify-center snap-start pt-30 bg-[#FFF9F2] bg-cover bg-center bg-no-repea"
+style="background-image: url('{{ app_url }}/Assets/category-bg.png');">
   <div class="w-fit flex flex-col items-center gap-y-4">
     <h1 class="font-zen-antique text-3xl lg:text-6xl text-[#835234] text-shadow-sm text-shadow-[#d1bfa5]">
       Explore Our Categories
@@ -113,7 +130,8 @@
         <div class="w-20 lg:w-45 bg-[#C7A97E] h-[0.1rem] rounded-full"></div>
       </div>
 
-      <img src="/Assets/BobaTea.svg" alt="Boba Teas" class="w-15">
+      {# Added app_url #}
+      <img src="{{ app_url }}/Assets/BobaTea.svg" alt="Boba Teas" class="w-15">
 
       <div class="flex flex-col h-full gap-y-3 justify-center items-start">
         <div class="w-30 lg:w-60 bg-[#A96B44] h-[0.1rem] rounded-full"></div>
@@ -124,22 +142,27 @@
     {# --- CATEGORY GRID --- #}
     <div class="min-h-90 w-full flex flex-wrap justify-center items-center gap-6 mt-8">
       {% for cat in categories %}
-        {% set image_src = cat.image ? '/Assets/Categories/' ~ cat.image : '/Assets/Categories/' ~ cat.slug ~ '.png' %}
+        {# Updated Logic to use app_url without leading slash issues #}
+        {% set image_src = cat.image ? app_url ~ '/Assets/Categories/' ~ cat.image : app_url ~ '/Assets/Categories/' ~ cat.slug ~ '.png' %}
+        <div class="relative bg-transparent">
+          <img src="/Assets/kitty.png" class="absolute inset-0 -top-10 left-45 object-cover pointer-events-none select-none z-10">
 
-        <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border border-[#e4d3be] shadow-md shadow-[#d4c2a8] bg-white flex flex-col items-center justify-end group hover:scale-[1.02] transition-transform duration-500">
-
-          <a href="/products?category={{ cat.slug }}" class="absolute inset-0">
+        <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden  border-[#876041] border-4 shadow-md shadow-[#d4c2a8] bg-white flex flex-col items-center justify-end group hover:scale-[1.02] transition-transform duration-500">
+          
+          <a href="{{ app_url }}/products?category={{ cat.slug }}" class="absolute inset-0">
             <img 
               src="{{ image_src }}" 
               alt="{{ cat.name }}" 
               class="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-110"
-              onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
+               onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';">
           </a>
 
-          <a href="/products?category={{ cat.slug }}"
-             class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44] text-white font-semibold rounded-full overflow-hidden group/button shadow-md hover:shadow-lg transition-all duration-300 border border-[#835234]">
+          <a href="{{ app_url }}/products?category={{ cat.slug }}"
+             class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44]/50 border border-white text-white font-semibold rounded-full overflow-hidden group/button shadow-md hover:shadow-lg transition-all duration-300 border border-[#835234]">
             
-            <span class="absolute inset-0 bg-[#fff1e1] opacity-30 scale-x-0 origin-left group-hover/button:scale-x-100 transition-transform duration-500 ease-in-out"></span>
+            <span class="absolute inset-1 bg-white opacity-25 
+                         scale-x-0 origin-left group-hover/button:scale-x-100
+                         transition-transform duration-500 ease-in-out rounded-full"></span>
 
             <span class="relative z-10 flex items-center justify-center h-full tracking-wide">
               {{ cat.name }}
@@ -147,6 +170,8 @@
           </a>
 
         </div>
+        </div>
+
       {% endfor %}
     </div>
 
@@ -157,57 +182,98 @@
   </div>
 </section>
 
-
 {# --- DISCOUNT POPUP --- #}
-
 <div id="modalOverlay" class="fixed inset-0 bg-black/40 z-40 hidden" aria-hidden="true"></div>
 
-<div id="discountModal" 
-     class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 w-full max-w-lg overflow-hidden hidden transform transition-all">
-    
-    <div class="relative">
-        <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 z-10">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-            </svg>
-        </button>
-
-        <div class="flex flex-col items-center p-8 pt-12">
-            <h2 class="text-3xl font-bold font-zen-antique text-[#A96B44] mb-6">
-                Sweet Deals Inside!
-            </h2>
+{% if active_discounts is not empty %}
+    <div id="discountModal" 
+         class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-4xl z-50 hidden transform transition-all duration-300">
+        
+        <div class="relative bg-white shadow-2xl overflow-hidden h-auto md:h-[450px] rounded-lg">
             
-            {% if active_discounts is not empty %}
-                <div class="swiper modalDiscountSwiper w-full">
-                    <div class="swiper-wrapper">
-                        {% for discount in active_discounts %}
-                            <div class="swiper-slide h-auto pb-10"> {# pb-10 to make room for pagination #}
-                                {{ _self.renderDiscountCard(discount) }} {# Re-using your macro #}
-                            </div>
-                        {% endfor %}
-                    </div>
-                    <div class="swiper-pagination modal-swiper-pagination mt-6 relative"></div>
-                </div>
-            {% else %}
-                <img src="/Assets/BobaTea.svg" alt="Special Offer" class="w-24 h-24 mb-4">
-                <p class="text-lg text-gray-600 text-center mb-6">
-                    No active deals right now, but our treats are always fresh!
-                </p>
-                <a href="/products"
-                   class="w-full text-center bg-[#A96B44] shadow-md shadow-[#8c8989]/50 text-white px-6 py-3 rounded-full font-semibold hover:scale-105 transition-transform">
-                    Find Your Treat
-                </a>
-            {% endif %}
+            <button id="closeModalBtn" class="absolute top-4 right-4 z-30 p-1 bg-black/20 hover:bg-black/40 rounded-full text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                </svg>
+            </button>
 
-            <div class="mt-6 flex items-center">
-                <input type="checkbox" id="dontShowAgain" class="w-4 h-4 text-[#A96B44] border-gray-300 rounded focus:ring-[#A96B44]">
-                <label for="dontShowAgain" class="ml-2 block text-sm text-gray-700">
-                    Don't show this again for 12 hours
-                </label>
+            <div class="swiper modalDiscountSwiper h-full w-full">
+                <div class="swiper-wrapper">
+                    
+                    {% for promo in active_discounts %}
+                        
+                        {# --- IMAGE PATH LOGIC --- #}
+                        {% set folder = 'Assets/' %}
+                        {% set img_file = 'placeholder-item.png' %} 
+                        
+                        {% if promo.discount_scope == 'product' and promo.item_image %}
+                             {# Products usually link directly #}
+                             {% set img_file = promo.item_image %}
+                        
+                        {% elseif promo.discount_scope == 'category' %}
+                             {# Categories often look for sku.png if no image is defined #}
+                             {% set folder = 'Assets/Categories/' %}
+                             {% set img_file = promo.item_image ? promo.item_image : promo.item_sku ~ '.png' %}
+                        {% endif %}
+
+                        {# Construct Full Path #}
+                        {% set full_image_path = app_url ~ '/' ~ folder ~ img_file %}
+                        {# ------------------------------- #}
+
+                        <div class="swiper-slide">
+                            <div class="flex flex-col md:flex-row h-full w-full">
+                                
+                                <div class="w-full md:w-1/2 bg-[#755139] text-white p-8 md:p-12 relative flex flex-col justify-center items-start h-full">
+                                    <div class="relative z-10 flex flex-col items-start gap-y-2">
+                                        <h2 class="font-zen-antique text-3xl md:text-5xl tracking-wide uppercase shadow-sm drop-shadow-md leading-tight line-clamp-2">
+                                            {{ promo.item_name }}
+                                        </h2>
+                                        <h3 class="font-zen-antique text-2xl md:text-3xl tracking-wide uppercase mb-2 text-[#D9CAB3]">
+                                            Special Offer
+                                        </h3>
+                                        <p class="font-zen-antique text-lg md:text-xl text-[#E8DCC4] mb-8 uppercase tracking-wider border-l-4 border-[#D9CAB3] pl-4">
+                                            | {% if promo.discount_type == 'percent' %}
+                                                {{ promo.discount_value | number_format(0) }}% OFF
+                                            {% else %}
+                                                ₱{{ promo.discount_value | number_format(2) }} OFF
+                                            {% endif %}
+                                        </p>
+                                        <a href="{{ app_url }}/products" class="px-8 py-3 bg-[#D9CAB3] text-[#5C3A2A] font-bold rounded-full shadow-md hover:scale-105 transition-all uppercase text-sm tracking-wide">
+                                            Order Now
+                                        </a>
+                                    </div>
+                                    <div class="absolute bottom-4 right-4 w-32 md:w-40 z-0 opacity-100 pointer-events-none">
+                                        <img src="{{ app_url }}/Assets/pancake-cat-illustration.png" 
+                                             alt="" 
+                                             class="w-full h-auto object-contain drop-shadow-xl"
+                                             onerror="this.style.display='none'"> 
+                                    </div>
+                                    <div class="absolute bottom-6 left-8 z-10 flex items-center">
+                                        <input type="checkbox" id="dontShowAgain" class="w-4 h-4 text-[#A96B44] border-white/50 bg-transparent rounded focus:ring-0 cursor-pointer">
+                                        <label for="dontShowAgain" class="ml-2 block text-xs text-white/80 font-light tracking-wide cursor-pointer">Don't show again</label>
+                                    </div>
+                                </div>
+
+                                <div class="w-full md:w-1/2 h-64 md:h-full bg-[#5C3A2A] relative overflow-hidden group">
+                                     
+                                     <img src="{{ full_image_path }}" 
+                                          alt="{{ promo.item_name }}" 
+                                          class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                          onerror="this.onerror=null; this.src='{{ app_url }}/Assets/placeholder-item.png';"> 
+                                     
+                                     <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none"></div>
+                                </div>
+                                
+                            </div> 
+                        </div> 
+                    {% endfor %}
+                </div>
+                <div class="swiper-pagination modal-pagination !bottom-2 !text-[#D9CAB3]"></div>
             </div>
         </div>
-        </div>
-</div>
+    </div>
+{% endif %}
+
 <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css" />
 <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
 
@@ -223,42 +289,44 @@
         const storageKey = 'hideDiscountPopupTimestamp';
         const twelveHoursInMs = 12 * 60 * 60 * 1000;
         
-        let modalSwiper = null; // Variable to hold the modal swiper instance
+        let modalSwiperInstance = null; 
 
         const showModal = () => {
-            modal.classList.remove('hidden');
-            overlay.classList.remove('hidden');
-            
-            // --- NEW: Initialize modal swiper ---
-            // We do this here because Swiper needs the element to be visible
-            // We check !modalSwiper to ensure it only initializes ONCE.
-            if (!modalSwiper && {{ active_discounts | length > 0 }}) { 
-                modalSwiper = new Swiper(".modalDiscountSwiper", {
-                    slidesPerView: 1,
-                    spaceBetween: 10,
-                    pagination: {
-                        el: ".modal-swiper-pagination", // Use the unique class
-                        clickable: true,
-                    },
-                    autoplay: {
-                        delay: 3000,
-                        disableOnInteraction: false,
-                    },
-                    loop: {{ (active_discounts | length > 1) ? 'true' : 'false' }} // Loop if more than 1
-                });
+            if(modal && overlay) {
+                modal.classList.remove('hidden');
+                overlay.classList.remove('hidden');
+
+                if (!modalSwiperInstance && document.querySelector('.modalDiscountSwiper')) {
+                    modalSwiperInstance = new Swiper(".modalDiscountSwiper", {
+                        slidesPerView: 1,
+                        effect: 'fade', 
+                        fadeEffect: { crossFade: true },
+                        loop: {{ (active_discounts | length > 1) ? 'true' : 'false' }},
+                        autoplay: {
+                            delay: 3500,
+                            disableOnInteraction: false,
+                        },
+                        pagination: {
+                            el: ".modal-pagination",
+                            clickable: true,
+                            dynamicBullets: true, 
+                        },
+                    });
+                }
             }
         };
 
         const hideModal = () => {
-            modal.classList.add('hidden');
-            overlay.classList.add('hidden');
-            
-            // Stop autoplay when modal is hidden (good practice)
-            if (modalSwiper && modalSwiper.autoplay) {
-                 modalSwiper.autoplay.stop();
+            if(modal && overlay) {
+                modal.classList.add('hidden');
+                overlay.classList.add('hidden');
             }
             
-            if (dontShowCheckbox.checked) {
+            if (modalSwiperInstance && modalSwiperInstance.autoplay) {
+                modalSwiperInstance.autoplay.stop();
+            }
+
+            if (dontShowCheckbox && dontShowCheckbox.checked) {
                 const hideUntil = Date.now() + twelveHoursInMs;
                 localStorage.setItem(storageKey, hideUntil.toString());
             }
@@ -267,17 +335,15 @@
         // Check if we should show the modal on page load
         const hideUntilTimestamp = localStorage.getItem(storageKey);
         
-        if (!hideUntilTimestamp || Date.now() > parseInt(hideUntilTimestamp, 10)) {
+        if (modal && (!hideUntilTimestamp || Date.now() > parseInt(hideUntilTimestamp, 10))) {
             setTimeout(showModal, 500); 
         }
 
-        // Add event listeners
-        closeButton.addEventListener('click', hideModal);
-        overlay.addEventListener('click', hideModal);
+        if(closeButton) closeButton.addEventListener('click', hideModal);
+        if(overlay) overlay.addEventListener('click', hideModal);
 
         
-        // --- Initialize Swiper for MAIN PAGE Discount Carousel ---
-        // (This one runs on page load as before)
+        // --- Initialize MAIN PAGE Carousel (Existing) ---
         new Swiper(".discountSwiper", {
             slidesPerView: 1,
             spaceBetween: 10,
@@ -286,14 +352,8 @@
                 clickable: true,
             },
             breakpoints: {
-                640: {
-                    slidesPerView: 2,
-                    spaceBetween: 20,
-                },
-                1024: {
-                    slidesPerView: 4,
-                    spaceBetween: 30,
-                },
+                640: { slidesPerView: 2, spaceBetween: 20 },
+                1024: { slidesPerView: 4, spaceBetween: 30 },
             },
             autoplay: {
                 delay: 4000,
@@ -303,6 +363,5 @@
         });
     });
 </script>
-
 
 {% endblock %}
