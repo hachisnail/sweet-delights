@@ -1,14 +1,11 @@
 {% extends "Layouts/public.twig" %}
 
-{# --- MACRO: Render Discount Card --- #}
-{# Added 'app_url' as a second parameter so the macro knows where images are #}
 {% macro renderDiscountCard(discount, app_url) %}
     
-    {# 1. Determine URL #}
+
     {% set url = discount.discount_scope == 'product' ? app_url ~ '/products/' ~ discount.item_sku : app_url ~ '/products?category=' ~ discount.item_sku %}
     
-    {# 2. Determine Image Path (Using app_url) #}
-    {# We remove the leading slash from the strings and use app_url/ #}
+
     {% set image_src = app_url ~ '/Assets/placeholder-item.png' %}
     
     {% if discount.discount_scope == 'product' and discount.item_image %}
@@ -17,7 +14,6 @@
         {% set image_src = discount.item_image ? app_url ~ '/Assets/Categories/' ~ discount.item_image : app_url ~ '/Assets/Categories/' ~ discount.item_sku ~ '.png' %}
     {% endif %}
 
-    {# 3. Render #}
     <a href="{{ url }}" class="block bg-white rounded-lg shadow-md overflow-hidden group h-full">
         <div class="relative h-48">
             <img src="{{ image_src }}" alt="{{ discount.item_name }}" 
@@ -49,8 +45,6 @@
 
 {% block content %}
 
-{# --- HERO SECTION --- #}
-{# Added app_url to background-image #}
 <section class="min-h-screen bg-cover bg-center bg-no-repeat px-6 sm:px-30 pt-20 sm:pt-15 flex items-center justify-center snap-start"
          style="background-image: url('{{ app_url }}/Assets/group-cover.png');">
 
@@ -59,12 +53,12 @@
     <div class="relative w-fit flex flex-col items-center justify-center">
 
       <div class="absolute top-1 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[120%] sm:w-[130%] -z-10 pointer-events-none select-none">
-        {# Added app_url to banner #}
+ 
         <img src="{{ app_url }}/Assets/bg-banner.png" alt="" class="w-full h-auto object-contain opacity-90">
       </div>
 
       <div class="text-left z-10 px-4">
-        <p class="font-zen-antique text-xl sm:text-5xl text-[#835234]">Welcome to</p>
+        <p class="font-zen-antique text-xl sm:text-5xl text-[#A96B44]">Welcome to</p>
 
         <h2 class="text-6xl lg:text-[9rem] leading-25 text-[#A96B44] 
                    font-zen-antique text-shadow-sm text-shadow-[#8c8989]">
