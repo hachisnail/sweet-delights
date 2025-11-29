@@ -1,3 +1,59 @@
-<footer class="p-4 text-center text-sm text-gray-500 snap-start">
-  &copy; {{ "now"|date("Y") }} FlourEver. All rights reserved.
-</footer> 
+<footer class="p-6 w-full bg-[#876041] snap-start h-auto flex flex-col items-center gap-6">
+  
+  {# Main Card Container #}
+  <div class="bg-white rounded-3xl w-full shadow-md shadow-black/30 px-6 py-8 md:px-12 md:py-10 font-zen-antique flex flex-col md:flex-row gap-10 justify-between">
+    
+    {# LEFT SIDE: Content #}
+    <div class="flex flex-col w-full ">
+      
+      <h1 class="text-4xl text-[#876041] mb-5">FlourEver</h1>
+      
+      {# Underline Spacer and Content #}
+      <div class="border-t border-[#876041] pt-5 flex flex-col gap-y-4">
+
+        {# Contact Header #}
+        <div class="flex items-center gap-x-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="text-[#876041] shrink-0" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+          <h2 class="text-[#C09370] text-lg font-semibold">Contact us</h2>
+        </div>
+
+        {# Links Container #}
+        <div class="flex flex-col md:ml-9 gap-y-3 text-[#835234]">
+
+          {# Facebook Link 1 #}
+          <a href="https://www.facebook.com/mariellyn.ibana" class="flex items-center gap-x-3 hover:text-[#C09370] transition-colors group">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 group-hover:scale-110 transition-transform"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+            <span class="break-all">/mariellyn.ibana</span>
+          </a>
+
+          {# Facebook Link 2 #}
+          <a href="https://www.facebook.com/richelle.samante.ornales" class="flex items-center gap-x-3 hover:text-[#C09370] transition-colors group">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 group-hover:scale-110 transition-transform"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+            <span class="break-all">/richelle.samante.ornales</span>
+          </a>
+
+          {# Instagram Link #}
+          <a href="https://www.instagram.com/rs_crochetstudio?igsh=MWMzd3hvbXU3aWh5ZQ==" class="flex items-center gap-x-3 hover:text-[#C09370] transition-colors group">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 group-hover:scale-110 transition-transform"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+            <span class="break-all">@rs_crochetstudio</span>
+          </a>
+
+        </div>
+      </div>
+    </div>
+
+    {# RIGHT SIDE: Image #}
+    <div class="w-full md:max-w-70 flex items-center justify-center md:justify-end">
+        <img src="{{ app_url }}/Assets/footer-cat.png" 
+             alt="Cute Cat Decoration" 
+             class="w-28 md:w-full h-auto max-h-60 object-contain">
+    </div>
+
+  </div>
+
+  {# COPYRIGHT SECTION - Added here #}
+  <div class="text-[#FFF9F2] font-zen-antique text-sm text-center opacity-80">
+      &copy; {{ "now"|date("Y") }} FlourEver. All rights reserved.
+  </div>
+
+</footer>

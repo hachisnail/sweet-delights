@@ -1,34 +1,45 @@
 {% extends "Layouts/public.twig" %}
 
 {% block content %}
-  <section class="text-center mt-10 min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center snap-start"
-  style="background-image: url('{{ app_url }}/Assets/group-cover.png');">
+  <section class="text-center mt-10 min-h-[60vh] md:min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center snap-start"
+  style="background-image: url('{{ app_url }}/Assets/aboutus-bg.png');">
 
-  <div class="bg-cover bg-center bg-no-repeat pt-10 w-190 h-50 flex items-center justify-center"
-  style="background-image: url('{{ app_url }}/Assets/flourever-about.png');"
-  >
-  <div clas="flex flex-col ">
-    <h2 class="text-5xl text-left font-zen-antique text-[#835234] text-shadow-sm text-shadow-gray-400">About </h2>
-    <h1 class="text-8xl font-zen-antique text-[#835234] font-medium text-shadow-sm text-shadow-gray-400">FlourEver </h1>
-
-  </div>
-  
-  </div>
+ 
+    <div class="bg-cover bg-center bg-no-repeat py-10 px-4 w-11/12 max-w-4xl md:w-190 md:h-50 flex items-center justify-center rounded-xl"
+    style="background-image: url('{{ app_url }}/Assets/flourever-about.png');"
+    >
+      <div class="flex flex-col">
+        <h2 class="text-3xl md:text-5xl text-left font-zen-antique text-[#835234] text-shadow-sm text-shadow-gray-400">About </h2>
+        <h1 class="text-5xl md:text-8xl font-zen-antique text-[#835234] font-medium text-shadow-sm text-shadow-gray-400 leading-tight">FlourEver </h1>
+      </div>
+    </div>
 
   </section>
-  <section class="min-h-screen flex flex-col items-center justify-center bg-[#FFF9F2] px-6 py-12 snap-start">
-    <div class="max-w-4xl text-center">
-      <h2 class="text-4xl font-zen-antique text-[#835234] mb-6">Our Story</h2>
-      <p class="text-lg text-gray-700 mb-4">
-        At FlourEver, we believe that every celebration deserves a touch of sweetness and a sprinkle of joy. Founded in 2020, our bakery has been dedicated to crafting delicious, handcrafted cakes and pastries that bring smiles to faces and warmth to hearts.
-      </p>
-      <p class="text-lg text-gray-700 mb-4">
-        Our journey began with a simple passion for baking and a dream to create memorable experiences through our confections. Over the years, we've grown from a small home-based bakery to a beloved local establishment, known for our commitment to quality, creativity, and customer satisfaction.
-      </p>
-      <p class="text-lg text-gray-700">
-        Whether you're celebrating a birthday, wedding, or just because, FlourEver is here to make your moments sweeter. Thank you for being part of our story – we look forward to being part of yours!
-      </p>
-    </div>
+
+  <section class="min-h-screen bg-cover bg-center bg-no-repeat flex flex-col items-center justify-center bg-[#FFF9F2] px-4 py-12 md:px-6 snap-start overflow-x-hidden"
+  style="background-image: url('{{ app_url }}/Assets/mission-vission-bg.png');">
+
+      <h2 class="text-3xl md:text-4xl font-zen-antique font-semibold text-[#835234] mb-6 text-center">A Pinch of Love, a Sprinkle of Joy</h2>
+      
+      <img src="{{ app_url }}/Assets/pussy.png" alt="Decorative Line" class="mb-6 mx-auto w-3/4 md:w-auto">
+
+      <div class="relative w-full max-w-4xl bg-[#C09470] px-6 py-8 md:px-20 md:py-10 border-4 rounded-3xl md:rounded-4xl border-white shadow-md shadow-gray-700 text-justify mb-10">
+        
+        <p class="text-lg md:text-2xl leading-relaxed md:leading-9 text-shadow-md text-shadow-black/35 text-white mb-6">
+          <b class="text-gray-700 text-shadow-md text-shadow-black/20 block mb-1">Mission:</b> 
+            To deliver artisan-quality baked goods using the finest ingredients, innovative techniques, and consistent craftsmanship for a memorable bakery experience.
+        </p>
+        
+        <p class="text-lg md:text-2xl leading-relaxed md:leading-9 text-shadow-md text-shadow-black/35 text-white mb-4">
+          <b class="text-gray-700 text-shadow-md text-shadow-black/20 block mb-1">Vision:</b> 
+          To deliver artisan-quality baked goods using the finest ingredients, innovative techniques, and consistent craftsmanship for a memorable bakery experience.
+        </p>
+
+ 
+        <img src="{{ app_url }}/Assets/pussy-cat.png" 
+             alt="Decorative Image" 
+             class="absolute w-24 -bottom-8 -right-2 md:w-auto md:-bottom-10 md:-right-13 pointer-events-none select-none">
+      </div>
   
   </section>
 {% endblock %}
