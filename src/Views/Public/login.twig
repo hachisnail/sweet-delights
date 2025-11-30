@@ -1,25 +1,33 @@
-  {% extends "Layouts/public.twig" %}
+{% extends "Layouts/public.twig" %}
 
-  {% block content %}
-  <div class="min-h-screen flex flex-col justify-center bg-[#9a6546] relative overflow-hidden snap-start">
+{% block content %}
+{# 
+    CHANGES MADE:
+    1. Removed 'snap-start': Prevents jittering when the keyboard opens.
+    2. Changed 'min-h-screen' to 'min-h-[100dvh]': Fixes background sizing on mobile browsers with dynamic address bars.
+    3. Changed 'overflow-hidden' to 'overflow-y-auto': Allows scrolling if the phone is in landscape mode or the keyboard covers the inputs.
+#}
+<div class="min-h-[100dvh] w-full flex flex-col justify-center bg-[#9a6546] relative overflow-y-auto overflow-x-hidden">
 
-    <!-- Decorative Wave -->
-    <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-0 rotate-180">
-      <svg class="relative block w-full h-[120px]" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1200 120">
-        <path d="M985.66,83.29C906,104,823,116,739.29,114.88c-84-.91-168.07-14.29-251.06-27.64C404,74,320,61,236.53,63.33,153.36,65.64,69.18,83.31,0,104V0H1200V104C1128,91,1064,66,985.66,83.29Z" fill="#fee7b5"></path>
-      </svg>
-    </div>
+  {# Added pointer-events-none so it doesn't block clicks on the back button if z-index fails #}
+  <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-0 rotate-180 z-0 pointer-events-none">
+    <svg class="relative block w-full h-[120px]" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1200 120">
+      <path d="M985.66,83.29C906,104,823,116,739.29,114.88c-84-.91-168.07-14.29-251.06-27.64C404,74,320,61,236.53,63.33,153.36,65.64,69.18,83.31,0,104V0H1200V104C1128,91,1064,66,985.66,83.29Z" fill="#fee7b5"></path>
+    </svg>
+  </div>
 
-    <!-- Back Button -->
-    <a href="/" class="absolute top-6 left-6 inline-flex items-center text-[#fee7b5] hover:text-[#fff0d0] font-semibold transition">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-      </svg>
-      Back to Home
-    </a>
+  {# Added z-20 to ensure it sits above the background and wave #}
+  <a href="/" class="absolute top-6 left-6 inline-flex items-center text-[#fee7b5] hover:text-[#fff0d0] font-semibold transition z-20">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+    </svg>
+    Back to Home
+  </a>
 
-    <!-- Login Card -->
-    <div class="relative z-10 w-full max-w-md mx-auto bg-[#fee7b5] p-8 rounded-3xl shadow-2xl border border-[#f1d59d]">
+  {# Added py-10 to give spacing on small screens when scrolling is needed #}
+  <div class="relative z-10 w-full max-w-md mx-auto px-4 py-10">
+    
+    <div class="bg-[#fee7b5] p-8 rounded-3xl shadow-2xl border border-[#f1d59d]">
       <div class="flex justify-center mb-5">
         <img src="/Assets/LogoWithName.png" alt="Sweet Delights Logo" class="h-50 w-auto">
       </div>
@@ -28,27 +36,27 @@
         Welcome back! Please log in.
       </h1>
 
-{% if error == 'invalid' %}
-      <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-center">
-        Invalid email or password. Please try again.
-      </div>
-    {% elseif error == 'not_verified' %}
-      <div class="mb-4 p-3 bg-yellow-100 text-yellow-700 rounded-lg text-center">
-        Your account is not verified. Please check your email for a verification link.
-      </div>
-    {% elseif error == 'verified' %}
-      <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-lg text-center">
-        Email verified! You can now log in.
-      </div>
-    {% elseif error == 'reset_success' %}
-      <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-lg text-center">
-        Password reset successfully. You can now log in with your new password.
-      </div>
-    {% elseif error == 'disabled' %} {# <-- ADD THIS BLOCK #}
-      <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-center">
-        Your account has been disabled. Please contact support.
-      </div>
-    {% endif %}
+      {% if error == 'invalid' %}
+        <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-center">
+          Invalid email or password. Please try again.
+        </div>
+      {% elseif error == 'not_verified' %}
+        <div class="mb-4 p-3 bg-yellow-100 text-yellow-700 rounded-lg text-center">
+          Your account is not verified. Please check your email for a verification link.
+        </div>
+      {% elseif error == 'verified' %}
+        <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-lg text-center">
+          Email verified! You can now log in.
+        </div>
+      {% elseif error == 'reset_success' %}
+        <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-lg text-center">
+          Password reset successfully. You can now log in with your new password.
+        </div>
+      {% elseif error == 'disabled' %}
+        <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-center">
+          Your account has been disabled. Please contact support.
+        </div>
+      {% endif %}
 
       <form action="/login" method="POST" class="space-y-5">
         <div>
@@ -71,24 +79,22 @@
             required
             class="w-full px-3 py-2 border border-[#b06f52] rounded-lg bg-[#fff9ec] text-[#5b3621] focus:outline-none focus:ring-2 focus:ring-[#d3a175] focus:border-[#d3a175] transition"
           >
-           <a href="/forgot-password" class="text-sm text-[#835234] opacity-80 hover:underline">Forgot?</a>
+           <div class="flex justify-end mt-1">
+             <a href="/forgot-password" class="text-sm text-[#835234] opacity-80 hover:underline">Forgot?</a>
+           </div>
         </div>
 
         <button type="submit" class="w-full py-3 bg-[#b06f52] hover:bg-[#a26046] text-white font-semibold rounded-xl shadow-md transition">
           Log In
         </button>
       </form>
-      <div class="mt-6 text-center">
-      <p class="text-sm text-[#835234] opacity-80">
-        Don't have an account? <a href="/register" class="font-semibold hover:underline">Sign up</a>
-      </p>
-    </div>
 
-      {# <div class="mt-6 text-center">
+      <div class="mt-6 text-center">
         <p class="text-sm text-[#835234] opacity-80">
-          (Hint: Try <code>mayie@example.com</code> / <code>password123</code>)
+          Don't have an account? <a href="/register" class="font-semibold hover:underline">Sign up</a>
         </p>
-      </div> #}
+      </div>
     </div>
   </div>
-  {% endblock %}
+</div>
+{% endblock %}

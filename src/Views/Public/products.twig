@@ -186,8 +186,17 @@
             {% set image_src = cat.image ? '/Assets/Categories/' ~ cat.image : '/Assets/Categories/' ~ cat.slug ~ '.png' %}
             
             <div class="relative bg-transparent">
-              <img src="/Assets/kitty.png" class="absolute inset-0 -top-10 left-45 object-cover pointer-events-none select-none z-10" onerror="this.style.display='none'">
-          
+<img src="/Assets/kitty.png" 
+     class="absolute z-10 pointer-events-none select-none object-cover
+            /* Mobile: Smaller, centered on top, slightly higher */
+            w-24 -top-12 left-1/2 -translate-x-1/2
+            
+            /* Tablet: Slightly larger, moving to the right */
+            md:w-32 md:left-28 md:translate-x-0
+            
+            /* Desktop: Original size and position */
+            lg:w-auto lg:left-45 lg:-top-10" 
+     onerror="this.style.display='none'">
               <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border-[#876041] border-4 
                           bg-white shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 group">
               

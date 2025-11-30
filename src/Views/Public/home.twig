@@ -1,5 +1,7 @@
 {% extends "Layouts/public.twig" %}
 
+{% set enable_scroll_snap = true %}
+
 {% macro renderDiscountCard(discount, app_url) %}
     
 
@@ -141,7 +143,17 @@ style="background-image: url('{{ app_url }}/Assets/category-bg.png');">
         {% set image_src = cat.image ? app_url ~ '/Assets/Categories/' ~ cat.image : app_url ~ '/Assets/Categories/' ~ cat.slug ~ '.png' %}
         
         <div class="relative bg-transparent">
-          <img src="/Assets/kitty.png" class="absolute inset-0 -top-10 left-45 object-cover pointer-events-none select-none z-10" onerror="this.style.display='none'">
+<img src="/Assets/kitty.png" 
+     class="absolute z-10 pointer-events-none select-none object-cover
+            /* Mobile: Smaller, centered on top, slightly higher */
+            w-24 -top-12 left-1/2 -translate-x-1/2
+            
+            /* Tablet: Slightly larger, moving to the right */
+            md:w-32 md:left-28 md:translate-x-0
+            
+            /* Desktop: Original size and position */
+            lg:w-auto lg:left-45 lg:-top-10" 
+     onerror="this.style.display='none'">
 
           <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border-[#876041] border-4 shadow-md shadow-[#d4c2a8] bg-white flex flex-col items-center justify-end group hover:scale-[1.02] transition-transform duration-500">
           
@@ -154,7 +166,7 @@ style="background-image: url('{{ app_url }}/Assets/category-bg.png');">
             </a>
 
             <a href="{{ app_url }}/products?category={{ cat.slug }}"
-               class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44]/50 border border-white text-white font-semibold rounded-full overflow-hidden group/button shadow-md hover:shadow-lg transition-all duration-300 border border-[#835234]">
+               class="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 lg:w-40 h-10 bg-[#A96B44]/50 border  text-white font-semibold rounded-full overflow-hidden group/button shadow-md hover:shadow-lg transition-all duration-300  border-[#835234]">
               
               <span class="absolute inset-1 bg-white opacity-25 
                            scale-x-0 origin-left group-hover/button:scale-x-100

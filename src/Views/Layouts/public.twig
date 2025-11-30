@@ -1,6 +1,5 @@
-{# FILE: Views/Layouts/public.twig (or whatever you named this file) #}
 <!DOCTYPE html>
-<html lang="en" class="snap-y snap-mandatory">
+<html lang="en" class="{{ enable_scroll_snap|default(false) ? 'snap-y snap-mandatory' : '' }}">
 <head>
  <meta charset="UTF-8">
  <title>{{ title|default('FlourEver') }}</title>
