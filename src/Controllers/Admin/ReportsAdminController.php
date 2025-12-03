@@ -12,25 +12,24 @@ class ReportsAdminController extends BaseAdminController
      * This is the helper function that does the actual work.
      * We'll use this for both the web view and the CSV export.
      */
-    private function generateReportData(string $dateStart, string $dateEnd): array
-    {
-        $allOrders = $this->getOrders(); // Inherited
+private function generateReportData(string $dateStart, string $dateEnd): array
+{
+    $allOrders = $this->getOrders(); // Inherited
+    
+    // Change the array_filter function in ReportsAdminController.php:
+    $filteredOrders = array_filter($allOrders, function($order) use ($dateStart, $dateEnd) {
+        // Convert $orderDate to a timestamp for easier comparison
+        $orderTimestamp = strtotime($order['date']);
         
-        // Change the array_filter function in ReportsAdminController.php:
-        $filteredOrders = array_filter($allOrders, function($order) use ($dateStart, $dateEnd) {
-            // Convert $orderDate to a timestamp for easier comparison
-            $orderTimestamp = strtotime($order['date']);
-            
-            // Convert date strings to timestamps for comparison
-            // Note: strtotime('YYYY-MM-DD') returns 00:00:00 for that day
-            $startOfDay = strtotime($dateStart);
-            // Add one day to $dateEnd to cover all hours up to the start of the next day
-            $endOfPeriod = strtotime($dateEnd . ' +1 day');
+        $startOfDay = strtotime($dateStart);
+        // Add one day to $dateEnd to cover all hours up to the start of the next day
+        $endOfPeriod = strtotime($dateEnd . ' +1 day');
 
-            return in_array($order['status'], ['Shipped', 'Delivered']) &&
-                $orderTimestamp >= $startOfDay &&
-                $orderTimestamp < $endOfPeriod; // Use < here
-        });
+        // 🟢 FIX HERE: Change the status check to exclude only 'Cancelled'
+        return $order['status'] !== 'Cancelled' &&
+               $orderTimestamp >= $startOfDay &&
+               $orderTimestamp < $endOfPeriod; // Use < here
+    });
 
         $totalSales = 0;
         $totalOrders = count($filteredOrders);
@@ -44,7 +43,7 @@ class ReportsAdminController extends BaseAdminController
             if (isset($order['items']) && is_array($order['items'])) {
                 foreach ($order['items'] as $item) {
                     // --- FIX: Use 'product_sku' which comes from the DB ---
-                    $sku = $item['product_sku'] ?? null; 
+                    $sku = $item['sku'] ?? null; 
                     if ($sku) { // Only process if SKU exists
                         $qty = $item['quantity'];
                         if (!isset($itemsSold[$sku])) {
