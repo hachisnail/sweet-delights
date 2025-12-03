@@ -8,12 +8,15 @@
     {% set url = discount.discount_scope == 'product' ? app_url ~ '/products/' ~ discount.item_sku : app_url ~ '/products?category=' ~ discount.item_sku %}
     
 
-    {% set image_src = app_url ~ '/Assets/placeholder-item.png' %}
+{% set image_src = app_url ~ '/Assets/placeholder-item.png' %}
     
     {% if discount.discount_scope == 'product' and discount.item_image %}
-        {% set image_src = app_url ~ '/Assets/' ~ discount.item_image %}
+        {% set image_src = app_url ~ discount.item_image %}
     {% elseif discount.discount_scope == 'category' %}
-        {% set image_src = discount.item_image ? app_url ~ '/Assets/Categories/' ~ discount.item_image : app_url ~ '/Assets/Categories/' ~ discount.item_sku ~ '.png' %}
+        {% set image_src = discount.item_image 
+                         ? app_url ~ '/Assets/Categories/' ~ discount.item_image 
+                         : app_url ~ '/Assets/Categories/' ~ discount.item_sku ~ '.png' 
+        %}
     {% endif %}
 
     <a href="{{ url }}" class="block bg-white rounded-lg shadow-md overflow-hidden group h-full">

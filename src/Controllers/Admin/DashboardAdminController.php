@@ -4,18 +4,14 @@ namespace SweetDelights\Mayie\Controllers\Admin;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
-// Make sure it extends your BaseAdminController
 class DashboardAdminController extends BaseAdminController
 {
-    // --- Removed local path properties ---
 
     public function __construct()
     {
-        // --- Call parent to set up all data paths ---
         parent::__construct();
     }
 
-    // --- Data Helpers (getOrders, getUsers, getProducts) are now inherited ---
 
     /**
      * Gathers all data and renders the main admin dashboard.

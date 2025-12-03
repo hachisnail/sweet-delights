@@ -296,10 +296,7 @@ class CheckoutController extends BaseAdminController {
         ]);
     }
 
-    /**
-     * Finds the best active discount for a product.
-     * Checks for a product-specific discount first, then for a category discount.
-     */
+
 /**
  * Finds the best active discount for a product.
  * Order of priority:

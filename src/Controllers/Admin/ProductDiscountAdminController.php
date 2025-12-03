@@ -14,7 +14,6 @@ class ProductDiscountAdminController extends BaseAdminController
     {
         $view = $this->viewFromRequest($request);
 
-        // --- MODIFIED: Join both products and categories ---
         $stmt = $this->db->query("
             SELECT pd.*, p.name AS product_name, p.sku AS product_sku, c.name AS category_name
             FROM product_discounts pd
@@ -47,7 +46,6 @@ class ProductDiscountAdminController extends BaseAdminController
             SELECT id, name, sku, image FROM products ORDER BY name ASC
         ")->fetchAll();
 
-        // --- NEW: Fetch categories ---
         $categories = $this->db->query("
             SELECT id, name, slug FROM categories ORDER BY name ASC
         ")->fetchAll();
@@ -62,7 +60,7 @@ class ProductDiscountAdminController extends BaseAdminController
         return $view->render($response, 'Admin/product-discount-form.twig', [
             'title' => 'Add Discount',
             'products' => $products,
-            'categories' => $categories, // --- PASS CATEGORIES ---
+            'categories' => $categories, 
             'discount' => null,
             'active_page' => 'product_discounts',
             'breadcrumbs' => $breadcrumbs,
@@ -90,7 +88,6 @@ class ProductDiscountAdminController extends BaseAdminController
             $endDate = $data['end_date_date'] . ' ' . $data['end_date_time'] . ':00';
         }
 
-        // --- NEW: Handle product or category ---
         $productId = null;
         $categoryId = null;
         
@@ -151,7 +148,6 @@ class ProductDiscountAdminController extends BaseAdminController
             SELECT id, name, sku, image FROM products ORDER BY name ASC
         ")->fetchAll();
 
-        // --- NEW: Fetch categories ---
         $categories = $this->db->query("
             SELECT id, name, slug FROM categories ORDER BY name ASC
         ")->fetchAll();
@@ -165,7 +161,7 @@ class ProductDiscountAdminController extends BaseAdminController
             'title' => 'Edit Discount',
             'discount' => $discount,
             'products' => $products,
-            'categories' => $categories, // --- PASS CATEGORIES ---
+            'categories' => $categories, 
             'active_page' => 'product_discounts',
             'breadcrumbs' => $breadcrumbs,
             'form_action' => $routeParser->urlFor('admin.discount.update', ['id' => $id]),
@@ -195,7 +191,6 @@ class ProductDiscountAdminController extends BaseAdminController
             $endDate = $data['end_date_date'] . ' ' . $data['end_date_time'] . ':00';
         }
 
-        // --- NEW: Handle product or category ---
         $productId = null;
         $categoryId = null;
         

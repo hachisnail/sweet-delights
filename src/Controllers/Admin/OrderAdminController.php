@@ -8,8 +8,6 @@ use \PDO;
 
 class OrderAdminController extends BaseAdminController
 {
-    // --- All data helpers are now in BaseAdminController ---
-    // --- Add a constructor ---
     public function __construct()
     {
         parent::__construct();
@@ -25,7 +23,6 @@ class OrderAdminController extends BaseAdminController
         
         $filterStatus = $params['status'] ?? '';
         
-        // --- REFACTORED: Use SQL for filtering and sorting ---
         $sql = "SELECT * FROM orders";
         $queryParams = [];
         
@@ -39,11 +36,10 @@ class OrderAdminController extends BaseAdminController
         $stmt = $this->db->prepare($sql);
         $stmt->execute($queryParams);
         $filteredOrders = $stmt->fetchAll();
-        // --- END REFACTOR ---
 
         return $view->render($response, 'Admin/orders.twig', [
             'title' => 'Manage Orders',
-            'orders' => $filteredOrders, // <-- Now from our query
+            'orders' => $filteredOrders, 
             'current_status' => $filterStatus,
             'breadcrumbs' => $this->breadcrumbs($request, [
                 ['name' => 'Orders', 'url' => null]
@@ -61,18 +57,13 @@ class OrderAdminController extends BaseAdminController
         $view = $this->viewFromRequest($request);
         $orderId = (int)$args['id'];
         
-        // --- REFACTORED: Use new helper to get ONE order ---
         $foundOrder = $this->getOrderById($orderId);
-        // --- END REFACTOR ---
 
         if (!$foundOrder) {
             $routeParser = RouteContext::fromRequest($request)->getRouteParser();
             return $response->withHeader('Location', $routeParser->urlFor('app.orders.index'))->withStatus(302);
         }
 
-        // --- REFACTORED: Item Hydration ---
-        // This logic now populates 'id' and 'sku' from 'product_sku'
-        // for the Twig templates to use.
         $allProducts = $this->getProducts();
         $productMapBySku = array_column($allProducts, null, 'sku');
 
@@ -80,32 +71,26 @@ class OrderAdminController extends BaseAdminController
             foreach ($foundOrder['items'] as &$item) {
                 $productData = null;
                 
-                // The DB only stores 'product_sku'
                 if (isset($item['product_sku'])) { 
                     $productData = $productMapBySku[$item['product_sku']] ?? null;
                 }
 
                 if ($productData) {
-                    // Add 'id' and 'sku' keys for the template to use
                     $item['id'] = $productData['id'];
                     $item['sku'] = $productData['sku'];
                 } else {
-                    // Product was deleted
                     $item['id'] = null;
                     $item['sku'] = $item['product_sku'] ?? 'unknown';
                 }
             }
-            unset($item); // Unset the reference
+            unset($item); 
         }
-        // --- END REFACTOR ---
         
-        // --- REFACTORED: Get Customer Details ---
-        $customer = $this->findUserById($foundOrder['user_id']); // <-- Use new helper
+        $customer = $this->findUserById($foundOrder['user_id']); 
         if ($customer) {
             $foundOrder['customer_email'] = $customer['email'];
             $foundOrder['customer_contact'] = $customer['contact_number'];
         }
-        // --- END REFACTOR ---
 
         return $view->render($response, 'Admin/order-details.twig', [
             'title' => "Order #" . $foundOrder['id'],
@@ -131,7 +116,6 @@ class OrderAdminController extends BaseAdminController
             $newStatus = $data['status'] ?? 'Processing';
             $routeParser = RouteContext::fromRequest($request)->getRouteParser();
             
-            // --- MODIFIED: Define base URL early ---
             $url = $routeParser->urlFor('app.orders.show', ['id' => $orderId]); 
             
             $user = $request->getAttribute('user');
@@ -147,13 +131,10 @@ class OrderAdminController extends BaseAdminController
                 return $response->withHeader('Location', $routeParser->urlFor('app.orders.index'))->withStatus(302);
             }
 
-            // --- NEW VALIDATION: Prevent reverting to 'Processing' ---
             $currentStatus = $orderBefore['status'];
             if (($currentStatus === 'Shipped' || $currentStatus === 'Delivered') && $newStatus === 'Processing') {
-                // Redirect back with an error flag
                 return $response->withHeader('Location', $url . '?error=revert')->withStatus(302);
             }
-            // --- END NEW VALIDATION ---
 
             if ($orderBefore['status'] === $newStatus) {
                 return $response->withHeader('Location', $url)->withStatus(302);
@@ -168,7 +149,6 @@ class OrderAdminController extends BaseAdminController
                 $actorId, 'update', 'order', $orderId, $orderBefore, $orderAfter
             );
             
-            // --- MODIFIED: Add success flag to URL ---
             return $response->withHeader('Location', $url . '?success=status')->withStatus(302);
         }
 }

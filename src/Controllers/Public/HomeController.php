@@ -4,7 +4,7 @@ namespace SweetDelights\Mayie\Controllers\Public;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use SweetDelights\Mayie\Controllers\Admin\BaseAdminController;
-use \PDO; // Make sure PDO is imported
+use \PDO; 
 
 class HomeController extends BaseAdminController {
 
@@ -14,7 +14,6 @@ class HomeController extends BaseAdminController {
     }
     
     /**
-     * --- NEW ---
      * Fetches all active discounts (both product and category)
      */
     private function getAllActiveDiscounts(): array
@@ -50,25 +49,20 @@ class HomeController extends BaseAdminController {
     }
 
     /**
-     * --- MODIFIED ---
      * Now also fetches and passes 'active_discounts'
      */
     public function index(Request $request, Response $response): Response {
         $view = $this->viewFromRequest($request);
         
-        // Fetch categories (existing)
         $categories = $this->getCategories();
         $topCategories = array_filter($categories, fn($cat) => $cat['parent_id'] === null);
 
-        // --- NEW ---
-        // Fetch active discounts
         $activeDiscounts = $this->getAllActiveDiscounts();
-        // --- END NEW ---
 
         return $view->render($response, 'Public/home.twig', [
             'title' => 'Welcome to FlourEver',
             'categories' => $topCategories,
-            'active_discounts' => $activeDiscounts, // <-- Pass discounts to Twig
+            'active_discounts' => $activeDiscounts, 
             'app_url' => $_ENV['APP_URL'] ?? '',
         ]);
     }

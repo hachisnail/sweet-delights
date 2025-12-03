@@ -4,17 +4,14 @@ namespace SweetDelights\Mayie\Controllers\Admin;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Routing\RouteContext;
-use \PDO; // <-- Not strictly needed but good practice
+use \PDO; 
 
 class SystemAdminController extends BaseAdminController {
 
-    // --- FIX: Call the parent constructor ---
     public function __construct()
     {
         parent::__construct();
     }
-
-    // --- Data Helpers (getUsers/saveUsers) are now inherited ---
 
 
     /**
@@ -23,7 +20,6 @@ class SystemAdminController extends BaseAdminController {
     public function viewLogs(Request $request, Response $response): Response {
         $view = $this->viewFromRequest($request);
         
-        // --- NEW: Handle filter query parameters ---
         $params = $request->getQueryParams();
         $filters = [
             'actor'  => $params['actor'] ?? null,
@@ -31,11 +27,9 @@ class SystemAdminController extends BaseAdminController {
             'target' => $params['target'] ?? null,
         ];
 
-        // --- NEW: Handle pagination ---
         $currentPage = (int)($params['page'] ?? 1);
-        $perPage = 20; // Set how many logs to show per page
+        $perPage = 20;
         
-        // --- FIX: Use inherited helper method with filters ---
         $logData = $this->getLogs($filters, $currentPage, $perPage);
         $logs = $logData['logs'];
         $totalLogs = $logData['total'];
@@ -50,10 +44,9 @@ class SystemAdminController extends BaseAdminController {
             'logs'  => $logs,
             'breadcrumbs' => $breadcrumbs, 
             'active_page' => 'system_logs',
-            'app_url' => $_ENV['APP_URL'] ?? '', // <-- Added for filter form
-            'current_filters' => $filters,     // <-- Added for filter form
+            'app_url' => $_ENV['APP_URL'] ?? '', 
+            'current_filters' => $filters,     
 
-            // --- NEW PAGINATION VARS ---
             'currentPage' => $currentPage,
             'totalPages' => $totalPages,
             'totalLogs' => $totalLogs
@@ -69,11 +62,9 @@ class SystemAdminController extends BaseAdminController {
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         $id = (int)$args['id'];
         
-        // Use the getLogById helper from BaseAdminController
         $log = $this->getLogById($id);
 
         if (!$log) {
-            // Log not found, redirect back to the list
             return $response->withHeader('Location', $routeParser->urlFor('system.logs.index'))->withStatus(302);
         }
 
@@ -96,7 +87,7 @@ class SystemAdminController extends BaseAdminController {
      */
     public function manageUsers(Request $request, Response $response): Response {
         $view = $this->viewFromRequest($request);
-        $allUsers = $this->getUsers(); // <-- Inherited DB method
+        $allUsers = $this->getUsers(); 
         
         $safeUsers = array_map(function($user) {
             unset($user['password_hash']);
@@ -117,8 +108,7 @@ class SystemAdminController extends BaseAdminController {
     }
 
     /**
-     * Show the form to create a new user (superadmin version).
-     * (This method is correct, no data logic)
+     * Show the form to create a new user.
      */
     public function createUser(Request $request, Response $response): Response
     {
@@ -129,7 +119,7 @@ class SystemAdminController extends BaseAdminController {
             'title' => 'Add New User',
             'form_action' => $routeParser->urlFor('system.users.store'),
             'form_mode' => 'create',
-            'user_roles' => ['customer', 'admin', 'superadmin'], // Superadmin can create any role
+            'user_roles' => ['customer', 'admin', 'superadmin'],
             'breadcrumbs' => $this->breadcrumbs($request, [
                 ['name' => 'Manage All Users', 'url' => 'system.users.index'],
                 ['name' => 'Add New', 'url' => null]
@@ -146,20 +136,15 @@ class SystemAdminController extends BaseAdminController {
         $data = $request->getParsedBody();
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
-        // --- 1. GET ACTOR ---
         $user = $request->getAttribute('user');
         $actorId = $user ? (int)$user['id'] : null;
 
-        // --- REFACTORED: Use DB helpers ---
-        // 1. Check for duplicate email
         if ($this->findUserByEmail($data['email'])) {
             $url = $routeParser->urlFor('system.users.create') . '?error=email_exists';
             return $response->withHeader('Location', $url)->withStatus(302);
         }
         
-        // 2. Build the new user array
         $newUser = [
-            // 'id' is removed (AUTO_INCREMENT)
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
             'email' => $data['email'],
@@ -168,7 +153,7 @@ class SystemAdminController extends BaseAdminController {
                 'street' => '', 'city' => '', 'state' => '', 'postal_code' => '',
             ],
             'password_hash' => password_hash($data['password'], PASSWORD_DEFAULT),
-            'role' => $data['role'], // No security check, superadmin can set any role
+            'role' => $data['role'], 
             'is_verified' => true,
             'is_active' => isset($data['is_active']),
             'verification_token' => null,
@@ -178,10 +163,8 @@ class SystemAdminController extends BaseAdminController {
             'favourites' => []
         ];
 
-        // 3. Create the user
-        $newId = $this->createNewUser($newUser); // <-- New helper from BaseAdminController
+        $newId = $this->createNewUser($newUser);
         
-        // --- 4. LOG ACTIVITY ---
         $userAfter = $this->findUserById($newId);
         $this->logEntityChange(
             $actorId,
@@ -191,7 +174,6 @@ class SystemAdminController extends BaseAdminController {
             null,
             $userAfter
         );
-        // --- END LOG ---
 
         return $response->withHeader('Location', $routeParser->urlFor('system.users.index'))->withStatus(302);
     }
@@ -205,9 +187,7 @@ class SystemAdminController extends BaseAdminController {
         $id = (int)$args['id'];
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
         
-        // --- REFACTORED: Use DB helper ---
         $foundUser = $this->findUserById($id);
-        // --- END REFACTOR ---
 
         if (!$foundUser) {
             return $response->withHeader('Location', $routeParser->urlFor('system.users.index'))->withStatus(302);
@@ -218,7 +198,7 @@ class SystemAdminController extends BaseAdminController {
             'user' => $foundUser,
             'form_action' => $routeParser->urlFor('system.users.update', ['id' => $id]),
             'form_mode' => 'edit',
-            'user_roles' => ['customer', 'admin', 'superadmin'], // Superadmin can see all roles
+            'user_roles' => ['customer', 'admin', 'superadmin'], 
             'breadcrumbs' => $this->breadcrumbs($request, [
                 ['name' => 'Manage All Users', 'url' => 'system.users.index'],
                 ['name' => 'Edit User', 'url' => null]
@@ -229,9 +209,7 @@ class SystemAdminController extends BaseAdminController {
     }
 
     /**
-     * Update the user (superadmin version).
-     *
-     * --- FIX: Renamed from 'updateUser' to 'update' to avoid conflict ---
+     * Update the user.
      */
     public function update(Request $request, Response $response, array $args): Response
     {
@@ -239,36 +217,29 @@ class SystemAdminController extends BaseAdminController {
         $data = $request->getParsedBody();
         $routeParser = RouteContext::fromRequest($request)->getRouteParser();
 
-        // --- 1. GET ACTOR ---
         $user = $request->getAttribute('user');
         $actorId = $user ? (int)$user['id'] : null;
 
-        // --- 2. GET "BEFORE" STATE ---
         $userBefore = $this->findUserById($id);
         if (!$userBefore) {
-            // User not found
             return $response->withHeader('Location', $routeParser->urlFor('system.users.index'))->withStatus(302);
         }
 
-        // 3. Build the data array for the helper
         $updateData = [
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
             'email' => $data['email'],
-            'role' => $data['role'], // Superadmin can set any role
+            'role' => $data['role'], 
             'is_active' => isset($data['is_active']) ? 1 : 0
         ];
         
-        // 4. Only add password if it's not empty
         if (!empty($data['password'])) {
             $updateData['password_hash'] = password_hash($data['password'], PASSWORD_DEFAULT);
         }
 
-        // 5. Call the parent helper
         try {
             $this->updateUser($id, $updateData);
 
-            // --- 6. LOG ACTIVITY ---
             $userAfter = $this->findUserById($id);
             $this->logEntityChange(
                 $actorId,
@@ -278,12 +249,9 @@ class SystemAdminController extends BaseAdminController {
                 $userBefore,
                 $userAfter
             );
-            // --- END LOG ---
 
         } catch (\Exception $e) {
-            // Handle potential errors, e.g., duplicate email
-            // In a real app, log this: error_log($e->getMessage());
-            // For now, we just redirect. A flash message would be good.
+
         }
 
         return $response->withHeader('Location', $routeParser->urlFor('system.users.index'))->withStatus(302);

@@ -4,7 +4,7 @@ namespace SweetDelights\Mayie\Controllers\Public;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use SweetDelights\Mayie\Controllers\Admin\BaseAdminController;
-use \PDO; // <-- Make sure PDO is imported at the top
+use \PDO;
 
 class ProductsController extends BaseAdminController
 {
@@ -13,14 +13,11 @@ class ProductsController extends BaseAdminController
         parent::__construct();
     }
 
-    // --- NEW HELPER: Replaces the broken getProducts() from base class ---
     private function getAllProductsWithData(): array
     {
-        // 1. Fetch all listed products with their category_id
         $productSql = "SELECT * FROM products WHERE is_listed = 1";
         $products = $this->db->query($productSql)->fetchAll(PDO::FETCH_ASSOC);
 
-        // 2. Fetch all sizes and map them by product_id
         $sizeSql = "SELECT * FROM product_sizes";
         $sizes = $this->db->query($sizeSql)->fetchAll(PDO::FETCH_ASSOC);
         
@@ -29,7 +26,6 @@ class ProductsController extends BaseAdminController
             $sizeMap[$size['product_id']][] = $size;
         }
 
-        // 3. Attach sizes to products
         foreach ($products as &$product) {
             $product['sizes'] = $sizeMap[$product['id']] ?? [];
         }
@@ -38,7 +34,6 @@ class ProductsController extends BaseAdminController
         return $products;
     }
 
-    // --- NEW HELPER: Replaces the getCategories() from base class ---
     private function getAllCategories(): array
     {
         return $this->db->query("SELECT * FROM categories ORDER BY name ASC")
@@ -126,14 +121,12 @@ class ProductsController extends BaseAdminController
         /**
          * Finds the best active discount for a product.
          * Checks for product-specific discount first, then category discount.
-         * --- MODIFIED TO CHECK PARENT CATEGORIES ---
          */
         private function findActiveDiscountForProduct(array $product): ?array
         {
             $productId  = $product['id'] ?? null;
             $categoryId = $product['category_id'] ?? null;
 
-            // 1. Product-specific discount (Highest Priority)
             if ($productId) {
                 $stmt = $this->db->prepare("
                     SELECT * FROM product_discounts
@@ -148,17 +141,8 @@ class ProductsController extends BaseAdminController
                 if ($discount) return $discount;
             }
 
-            // 2. Category-level discount (Checks product's category AND all parents)
             if ($categoryId) {
-                /**
-                 * This recursive query "walks up" the category tree.
-                 * 1. The "Anchor" (NON-recursive part) selects the product's own category.
-                 * 2. The "Recursive" part (after UNION ALL) joins the categories table
-                 * with the "Ancestors" table itself to find the parent_id.
-                 * 3. This continues until parent_id is NULL (a root category).
-                 * 4. The final SELECT query looks for a discount matching ANY
-                 * ID in the generated Ancestors list.
-                 */
+
                 $sql = "
                     WITH RECURSIVE Ancestors AS (
                         -- 1. Anchor: The product's own category
@@ -215,12 +199,11 @@ class ProductsController extends BaseAdminController
     private function applyDiscountToProduct(array $product): array
     {
         if (empty($product['id'])) {
-            return $product; // Can't get discount without ID
+            return $product; 
         }
 
        $discount = $this->findActiveDiscountForProduct($product);
 
-        // Set defaults for base product
         $product['original_price'] = (float)$product['price'];
         $product['discount_type'] = null;
         $product['discount_value'] = 0;
@@ -236,23 +219,21 @@ class ProductsController extends BaseAdminController
             }
             if ($discountAmount > $basePrice) $discountAmount = $basePrice;
             
-            $product['price'] = $basePrice - $discountAmount; // 'price' is now the final, discounted price
+            $product['price'] = $basePrice - $discountAmount; 
             $product['discount_type'] = $discount['discount_type'];
-            $product['discount_value'] = (float)$discount['discount_value']; // The raw value (e.g., 10 or 50)
+            $product['discount_value'] = (float)$discount['discount_value'];
             $product['discount_amount'] = $discountAmount;
         }
 
-        // --- NOW, APPLY TO SIZES ---
         if (isset($product['sizes']) && is_array($product['sizes'])) {
             foreach ($product['sizes'] as &$size) {
-                // Set defaults
                 $size['original_price'] = (float)$size['price'];
                 $size['discount_type'] = null;
                 $size['discount_value'] = 0;
                 $size['discount_amount'] = 0;
                 $sizePrice = (float)$size['price'];
 
-                if ($discount) { // Apply the *same* product discount to all sizes
+                if ($discount) { 
                     $sizeDiscountAmount = 0;
                     if ($discount['discount_type'] === 'percent') {
                         $sizeDiscountAmount = $sizePrice * ((float)$discount['discount_value'] / 100);

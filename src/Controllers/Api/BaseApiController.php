@@ -3,15 +3,12 @@ namespace SweetDelights\Mayie\Controllers\Api;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-// Inherit from your most powerful base controller to get all data methods
 use SweetDelights\Mayie\Controllers\Admin\BaseAdminController; 
 
 class BaseApiController extends BaseAdminController
 {
     public function __construct()
     {
-        // This calls the BaseAdminController's constructor
-        // and sets up the database connection ($this->db)
         parent::__construct();
     }
 
@@ -55,16 +52,10 @@ class BaseApiController extends BaseAdminController
         $dataToSync = $request->getParsedBody();
         $userId = $_SESSION['user']['id'];
         
-        // 1. Update the session
         $_SESSION['user'][$keyToSync] = $dataToSync;
 
-        // --- REFACTORED ---
-        // 2. Save to database using the new inherited helper
-        // This is much faster than reading/writing the entire users file.
         $this->saveUserKey($userId, $keyToSync, $dataToSync);
-        // --- END REFACTOR ---
         
-        // 3. Send success response
         $responseData = [
             'status' => 'success',
             $keyToSync => $dataToSync

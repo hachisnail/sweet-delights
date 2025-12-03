@@ -6,7 +6,6 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 class ReportsAdminController extends BaseAdminController
 {
-    // --- All data helpers and __construct are now in BaseAdminController ---
 
     /**
      * This is the helper function that does the actual work.
@@ -14,37 +13,30 @@ class ReportsAdminController extends BaseAdminController
      */
 private function generateReportData(string $dateStart, string $dateEnd): array
 {
-    $allOrders = $this->getOrders(); // Inherited
+    $allOrders = $this->getOrders(); 
     
-    // Change the array_filter function in ReportsAdminController.php:
     $filteredOrders = array_filter($allOrders, function($order) use ($dateStart, $dateEnd) {
-        // Convert $orderDate to a timestamp for easier comparison
         $orderTimestamp = strtotime($order['date']);
         
         $startOfDay = strtotime($dateStart);
-        // Add one day to $dateEnd to cover all hours up to the start of the next day
         $endOfPeriod = strtotime($dateEnd . ' +1 day');
 
-        // 🟢 FIX HERE: Change the status check to exclude only 'Cancelled'
         return $order['status'] !== 'Cancelled' &&
                $orderTimestamp >= $startOfDay &&
-               $orderTimestamp < $endOfPeriod; // Use < here
+               $orderTimestamp < $endOfPeriod; 
     });
 
         $totalSales = 0;
         $totalOrders = count($filteredOrders);
         $itemsSold = [];
 
-        // --- THIS BLOCK IS NOW FIXED ---
         foreach ($filteredOrders as $order) {
             $totalSales += $order['total'];
             
-            // Check if items exist and is an array before looping
             if (isset($order['items']) && is_array($order['items'])) {
                 foreach ($order['items'] as $item) {
-                    // --- FIX: Use 'product_sku' which comes from the DB ---
                     $sku = $item['sku'] ?? null; 
-                    if ($sku) { // Only process if SKU exists
+                    if ($sku) { 
                         $qty = $item['quantity'];
                         if (!isset($itemsSold[$sku])) {
                             $itemsSold[$sku] = 0;
@@ -54,29 +46,23 @@ private function generateReportData(string $dateStart, string $dateEnd): array
                 }
             }
         }
-        // --- END FIX ---
 
-        // Build maps using SKU as the key
-        $allProducts = $this->getProducts(); // Inherited
+        $allProducts = $this->getProducts();
         $productNameMap = array_column($allProducts, 'name', 'sku');
         $productIdMap = array_column($allProducts, 'id', 'sku');
         
         $bestSellers = [];
-        // This loop was already correct
         foreach ($itemsSold as $sku => $quantity) {
             $bestSellers[] = [
-                'id' => $productIdMap[$sku] ?? null, // Get the ID from the sku
-                'name' => $productNameMap[$sku] ?? 'Unknown Product', // Get the name from the sku
+                'id' => $productIdMap[$sku] ?? null, 
+                'name' => $productNameMap[$sku] ?? 'Unknown Product', 
                 'quantity' => $quantity
             ];
         }
         
-        // --- SYNTAX FIX ---
-        // Replaced arrow function with traditional function for wider compatibility.
         usort($bestSellers, function($a, $b) {
             return $b['quantity'] <=> $a['quantity'];
         });
-        // --- END FIX ---
 
         return [
             'stats' => [
@@ -125,7 +111,6 @@ private function generateReportData(string $dateStart, string $dateEnd): array
     {
         $params = $request->getQueryParams();
 
-        // --- 1. GET ACTOR ---
         $user = $request->getAttribute('user');
         $actorId = $user ? (int)$user['id'] : null;
 
@@ -136,57 +121,46 @@ private function generateReportData(string $dateStart, string $dateEnd): array
 
         $reportData = $this->generateReportData($dateStart, $dateEnd);
 
-        // --- 2. LOG THE EXPORT ACTION ---
         $this->logAction(
             $actorId,
-            'export', // actionType
-            'report', // targetType
-            null,     // targetId
+            'export', 
+            'report', 
+            null,     
             [ 
                 'report_type' => 'sales',
                 'date_start' => $dateStart,
                 'date_end' => $dateEnd,
-                'summary' => $reportData['stats'] // Log summary data
+                'summary' => $reportData['stats'] 
             ]
         );
-        // --- END LOG ---
 
-        // --- Build the CSV String (FIXED) ---
         
-        // 3. Open a temporary memory stream to write the CSV
         $stream = fopen('php://memory', 'w');
 
-        // 4. Add headers
         fputcsv($stream, ["Sales Report ($dateStart to $dateEnd)"]);
-        fputcsv($stream, []); // Blank line
+        fputcsv($stream, []); 
 
-        // 5. Add Summary Data
         fputcsv($stream, ["Metric", "Value"]);
-        // REMOVED currency symbols and number formatting for a clean CSV
         fputcsv($stream, ["Total Sales", $reportData['stats']['total_sales']]);
         fputcsv($stream, ["Total Orders", $reportData['stats']['total_orders']]);
         fputcsv($stream, ["Total Items Sold", $reportData['stats']['total_items_sold']]);
         
-        fputcsv($stream, []); // Blank line
+        fputcsv($stream, []); 
 
-        // 6. Add Best Sellers Data
         fputcsv($stream, ["Top 10 Best Sellers"]);
         fputcsv($stream, ["Rank", "Product Name", "Quantity Sold"]);
         foreach ($reportData['best_sellers'] as $index => $item) {
             fputcsv($stream, [
                 $index + 1,
-                $item['name'], // fputcsv handles escaping quotes automatically
+                $item['name'], 
                 $item['quantity']
             ]);
         }
-        // --- END OF CSV BUILDING ---
 
-        // 7. Rewind the stream and get its contents
         rewind($stream);
         $csv = stream_get_contents($stream);
         fclose($stream);
 
-        // 8. Set Headers to Force Download
         $filename = "sales-report-{$dateStart}-to-{$dateEnd}.csv";
         $response->getBody()->write($csv);
         

@@ -4,23 +4,20 @@ namespace SweetDelights\Mayie\Controllers\Admin;
 use Slim\Routing\RouteContext;
 use Slim\Views\Twig;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use \PDO; // <-- Use PHP's built-in database object
+use \PDO; 
 
 class BaseAdminController
 {
-    // --- DATABASE CONNECTION ---
-    protected $db; // <-- The database connection
+    protected $db;
 
     public function __construct()
     {
-        // --- DATABASE CONNECTION ---
         try {
             $dbHost = $_ENV['DB_HOST'];
             $dbName = $_ENV['DB_NAME'];
             $dbUser = $_ENV['DB_USER'];
             $dbPass = $_ENV['DB_PASS'];
 
-            // Data Source Name (DSN)
             $dsn = "mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4";
             
             $options = [
@@ -31,12 +28,10 @@ class BaseAdminController
 
             $this->db = new PDO($dsn, $dbUser, $dbPass, $options);
         } catch (\PDOException $e) {
-            // In a real app, you'd have a proper error page
             die('Database Connection Failed: ' . $e->getMessage());
         }
     }
 
-    // --- NEW DATABASE-DRIVEN DATA HELPERS ---
     
     /**
      * Hydrates a given array of products with their sizes and calculated stock.
@@ -47,32 +42,24 @@ class BaseAdminController
             return [];
         }
 
-        // 1. Get all product IDs from the provided array
         $productIds = array_column($products, 'id');
         
-        // 2. Fetch all sizes for *only* these products in one query
         $placeholders = implode(',', array_fill(0, count($productIds), '?'));
         $sizeStmt = $this->db->prepare("SELECT * FROM product_sizes WHERE product_id IN ($placeholders)");
         $sizeStmt->execute($productIds);
         $allSizes = $sizeStmt->fetchAll();
 
-        // 3. Map sizes to their products
         $sizesByProductId = [];
         foreach ($allSizes as $size) {
             $sizesByProductId[$size['product_id']][] = $size;
         }
 
-        // 4. "Hydrate" the product objects
         foreach ($products as &$product) {
             $product['sizes'] = $sizesByProductId[$product['id']] ?? [];
             
-            // Calculate total stock from sizes
             if (!empty($product['sizes'])) {
-                // If there are sizes, stock is the sum of size stocks
                 $product['stock'] = array_sum(array_column($product['sizes'], 'stock'));
             } else {
-                // This product has no sizes, its stock is 0 (or should be handled differently)
-                // For safety, we check if it's a "Default" size stock
                 $product['stock'] = $product['sizes'][0]['stock'] ?? 0;
             }
         }
@@ -81,11 +68,9 @@ class BaseAdminController
     }
 
     protected function getProducts(): array {
-        // 1. Fetch all products
         $stmt = $this->db->query("SELECT * FROM products");
         $products = $stmt->fetchAll();
         
-        // 2. Hydrate them with their size/stock info
         return $this->hydrateProductsWithSizes($products);
     }
 
@@ -95,7 +80,6 @@ class BaseAdminController
     }
 
     protected function getOrders(): array {
-        // 1. Fetch all orders
         $stmt = $this->db->query("SELECT * FROM orders ORDER BY date DESC");
         $orders = $stmt->fetchAll();
         
@@ -103,11 +87,9 @@ class BaseAdminController
             return [];
         }
         
-        // 2. Fetch all order items
         $itemStmt = $this->db->query("SELECT * FROM order_items");
         $allItems = $itemStmt->fetchAll();
 
-        // 3. Map items to their orders
         $itemsByOrderId = [];
         foreach ($allItems as $item) {
             $item['price'] = (float)$item['price'];
@@ -115,7 +97,6 @@ class BaseAdminController
             $itemsByOrderId[$item['order_id']][] = $item;
         }
 
-        // 4. Hydrate the order objects
         foreach ($orders as &$order) {
             $order['address'] = $this->safeJsonDecode($order['address']);
             $order['items'] = $itemsByOrderId[$order['id']] ?? [];
@@ -127,7 +108,6 @@ class BaseAdminController
     protected function getUsers(): array { 
         $stmt = $this->db->query("SELECT * FROM users");
         
-        // Decode JSON strings back into arrays
         return array_map(function($user) {
             $user['address'] = $this->safeJsonDecode($user['address']);
             $user['cart'] = $this->safeJsonDecode($user['cart']);
@@ -185,7 +165,6 @@ class BaseAdminController
         $params = [];
 
         if ($actorName) {
-            // Filter by actor name (first, last, or email)
             $where[] = "(CONCAT(u.first_name, ' ', u.last_name) LIKE ? OR u.email LIKE ?)";
             $params[] = "%{$actorName}%";
             $params[] = "%{$actorName}%";
@@ -205,7 +184,6 @@ class BaseAdminController
             $sql .= " WHERE " . implode(" AND ", $where);
         }
 
-        // --- NEW: Perform a COUNT query first ---
         $countSql = str_replace("SELECT 
                 a.*, 
                 u.first_name, 
@@ -217,25 +195,18 @@ class BaseAdminController
         $countStmt = $this->db->prepare($countSql);
         $countStmt->execute($params);
         $totalLogs = (int)$countStmt->fetchColumn();
-        // --- END COUNT QUERY ---
 
-        // --- NEW: Add pagination to the main query ---
         $offset = ($page - 1) * $perPage;
-        // We can safely inject $perPage and $offset because they are cast to int
         $sql .= " ORDER BY a.timestamp DESC LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
 
-        // Prepare and execute the query
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         $logs = $stmt->fetchAll();
 
-        // Now, we process the results to make them easy to display
         $processedLogs = array_map(function($log) {
             
-            // 1. Decode the JSON 'details' field
             $log['details'] = $this->safeJsonDecode($log['details']);
 
-            // 2. Create a friendly "actor_name"
             if (!empty($log['first_name'])) {
                 $log['actor_name'] = $log['first_name'] . ' ' . $log['last_name'];
             } else if (!empty($log['email'])) {
@@ -246,13 +217,11 @@ class BaseAdminController
                 $log['actor_name'] = 'System/Unknown';
             }
 
-            // 3. Clean up the raw user fields we don't need
             unset($log['first_name'], $log['last_name'], $log['email']);
 
             return $log;
         }, $logs);
 
-        // --- NEW: Return logs and total count ---
         return [
             'logs' => $processedLogs,
             'total' => $totalLogs
@@ -286,8 +255,7 @@ class BaseAdminController
                 ':details'     => $details ? json_encode($details) : null
             ]);
         } catch (\PDOException $e) {
-            // IMPORTANT: A logging failure should *not* crash the main application.
-            // We log this error to the server's error log instead of dying.
+
             error_log('Failed to write to audit log: ' . $e->getMessage());
         }
     }
@@ -341,7 +309,6 @@ class BaseAdminController
             return null;
         }
 
-        // Process the log just like in getLogs()
         $log['details'] = $this->safeJsonDecode($log['details']);
 
         if (!empty($log['first_name'])) {
@@ -369,7 +336,7 @@ class BaseAdminController
     {
         if (count($purchasedSkus) < 2) return;
 
-        sort($purchasedSkus); // avoid duplicate reversed pairs
+        sort($purchasedSkus);
 
         $insertStmt = $this->db->prepare("
             INSERT INTO product_associations (product_sku_1, product_sku_2, support_count)
@@ -388,7 +355,6 @@ class BaseAdminController
     }
 
 
-    // --- USER-SPECIFIC HELPERS (The missing methods) ---
 
     /**
      * Finds a single user by their ID.
@@ -417,7 +383,6 @@ class BaseAdminController
         $user = $stmt->fetch();
 
         if ($user) {
-            // Decode JSON fields
             $user['address'] = $this->safeJsonDecode($user['address']);
             $user['cart'] = $this->safeJsonDecode($user['cart']);
             $user['favourites'] = $this->safeJsonDecode($user['favourites']);
@@ -431,7 +396,6 @@ class BaseAdminController
      */
     protected function getOrderById(int $id): ?array
     {
-        // 1. Fetch the specific order
         $stmt = $this->db->prepare("SELECT * FROM orders WHERE id = ?");
         $stmt->execute([$id]);
         $order = $stmt->fetch();
@@ -440,16 +404,13 @@ class BaseAdminController
             return null;
         }
 
-        // 2. Fetch items for *this* order
         $itemStmt = $this->db->prepare("SELECT * FROM order_items WHERE order_id = ?");
         $itemStmt->execute([$id]);
         $items = $itemStmt->fetchAll();
 
-        // 3. Hydrate the order
         $order['address'] = $this->safeJsonDecode($order['address']);
         $order['items'] = [];
         foreach ($items as $item) {
-            // Cast types for safety
             $item['price'] = (float)$item['price'];
             $item['quantity'] = (int)$item['quantity'];
             $order['items'][] = $item;
@@ -504,10 +465,8 @@ class BaseAdminController
         $params = [];
         
         foreach ($data as $key => $value) {
-            // Whitelist columns to prevent arbitrary updates
             if (in_array($key, ['first_name', 'last_name', 'email', 'password_hash', 'contact_number', 'address', 'role', 'is_verified', 'is_active', 'verification_token', 'password_reset_token', 'password_reset_expires', 'cart', 'favourites'])) {
                 $sql .= "`$key` = ?, ";
-                // JSON-encode arrays if needed
                 if (in_array($key, ['address', 'cart', 'favourites']) && is_array($value)) {
                     $params[] = json_encode($value);
                 } else {
@@ -516,7 +475,7 @@ class BaseAdminController
             }
         }
         
-        $sql = rtrim($sql, ', '); // Remove trailing comma
+        $sql = rtrim($sql, ', '); 
         $sql .= " WHERE id = ?";
         $params[] = $id;
 
@@ -539,7 +498,6 @@ class BaseAdminController
      */
     protected function saveUserKey(int $userId, string $key, array $data)
     {
-        // Whitelist keys to prevent SQL injection
         if (!in_array($key, ['cart', 'favourites', 'address'])) {
             return;
         }
@@ -566,11 +524,9 @@ class BaseAdminController
         $stmt = $this->db->prepare("UPDATE users SET is_verified = 1, verification_token = NULL WHERE verification_token = ?");
         $stmt->execute([$token]);
         
-        // return true if a row was affected, false otherwise
         return $stmt->rowCount() > 0;
     }
 
-    // --- (Standard Methods Below) ---
 
     protected function viewFromRequest(Request $request): Twig
     {
@@ -596,8 +552,6 @@ class BaseAdminController
      */
     protected function saveData(string $filePath, array $data)
     {
-        // This is now legacy. We leave it here so old controllers don't break,
-        // but we should not use it in new DB-driven code.
         $indexedData = array_values($data);
         $phpCode = '<?php' . PHP_EOL . 'return ' . var_export($indexedData, true) . ';';
         file_put_contents($filePath, $phpCode, LOCK_EX);
@@ -609,7 +563,6 @@ class BaseAdminController
      */
     protected function saveConfigData(string $filePath, array $data)
     {
-        // This is now legacy.
         $phpCode = '<?php' . PHP_EOL . 'return ' . var_export($data, true) . ';';
         file_put_contents($filePath, $phpCode, LOCK_EX);
     }
