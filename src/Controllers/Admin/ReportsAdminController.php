@@ -16,11 +16,20 @@ class ReportsAdminController extends BaseAdminController
     {
         $allOrders = $this->getOrders(); // Inherited
         
+        // Change the array_filter function in ReportsAdminController.php:
         $filteredOrders = array_filter($allOrders, function($order) use ($dateStart, $dateEnd) {
-            $orderDate = date('Y-m-d', strtotime($order['date']));
+            // Convert $orderDate to a timestamp for easier comparison
+            $orderTimestamp = strtotime($order['date']);
+            
+            // Convert date strings to timestamps for comparison
+            // Note: strtotime('YYYY-MM-DD') returns 00:00:00 for that day
+            $startOfDay = strtotime($dateStart);
+            // Add one day to $dateEnd to cover all hours up to the start of the next day
+            $endOfPeriod = strtotime($dateEnd . ' +1 day');
+
             return in_array($order['status'], ['Shipped', 'Delivered']) &&
-                   $orderDate >= $dateStart &&
-                   $orderDate <= $dateEnd;
+                $orderTimestamp >= $startOfDay &&
+                $orderTimestamp < $endOfPeriod; // Use < here
         });
 
         $totalSales = 0;
