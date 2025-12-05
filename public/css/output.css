@@ -1576,6 +1576,9 @@
   .pb-5 {
     padding-bottom: calc(var(--spacing) * 5);
   }
+  .pb-6 {
+    padding-bottom: calc(var(--spacing) * 6);
+  }
   .pb-10 {
     padding-bottom: calc(var(--spacing) * 10);
   }

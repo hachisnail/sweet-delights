@@ -78,15 +78,12 @@
 /* --- End Carousel Styles --- */
 </style>
 
-
-
-{# --- MODIFIED: Main content div with correct padding --- #}
-<div class="px-6 pt-20 flex flex-col items-center snap-start bg-[#FFF8F2]">
+{# --- Main content div --- #}
+<div class="px-6 pt-20 pb-6 flex flex-col items-center snap-start bg-[#FFF8F2]">
 {% if active_discounts is defined and active_discounts|length > 0 %}
 <section class="w-full pt-10 pb-10 bg-[#FFF8F2] ">
     <div class="max-w-6xl mx-auto px-4">
-        {# <h2 class="text-3xl font-zen-antique text-[#A96B44] mb-4 text-center">Current Offers</h2> #}
-
+        
         <div id="discountCarousel" class="discount-carousel">
             
             <div class="discount-slides-container">
@@ -114,7 +111,7 @@
                    class="discount-slide {{ loop.first ? 'active' : '' }}" 
                    style="background-image: url('{{ item_image | default('/Assets/placeholder-item.png') }}');"
                    data-index="{{ loop.index0 }}">
-                    
+                   
                     <div class="discount-content">
                         <span class="block text-2xl md:text-3xl font-bold text-yellow-300 drop-shadow-md">
                             {% if discount.discount_type == 'percent' %}
@@ -186,17 +183,13 @@
             {% set image_src = cat.image ? '/Assets/Categories/' ~ cat.image : '/Assets/Categories/' ~ cat.slug ~ '.png' %}
             
             <div class="relative bg-transparent">
-<img src="/Assets/kitty.png" 
-     class="absolute z-10 pointer-events-none select-none object-cover
-            /* Mobile: Smaller, centered on top, slightly higher */
-            w-24 -top-12 left-1/2 -translate-x-1/2
-            
-            /* Tablet: Slightly larger, moving to the right */
-            md:w-32 md:left-28 md:translate-x-0
-            
-            /* Desktop: Original size and position */
-            lg:w-auto lg:left-45 lg:-top-10" 
-     onerror="this.style.display='none'">
+                <img src="/Assets/kitty.png" 
+                     class="absolute z-10 pointer-events-none select-none object-cover
+                            w-24 -top-12 left-1/2 -translate-x-1/2
+                            md:w-32 md:left-28 md:translate-x-0
+                            lg:w-auto lg:left-45 lg:-top-10" 
+                     onerror="this.style.display='none'">
+              
               <div class="relative w-40 h-60 lg:w-60 lg:h-90 rounded-4xl overflow-hidden border-[#876041] border-4 
                           bg-white shadow-md hover:shadow-xl transition-transform transform hover:-translate-y-1 group">
               
@@ -222,9 +215,12 @@
           {% endfor %}
         </div>
 
-      {% else %}
+      {% elseif not selected_category %}
 
         {# --- EMPTY STATE PLACEHOLDER --- #}
+        {# MODIFIED: We only show this if we are at ROOT and have no categories. 
+           If we are inside a category like 'Hot Drinks', we show nothing here 
+           so the products grid below is visible. #}
         <div class="flex flex-col items-center justify-center py-12 opacity-80 mt-8">
             
             {# Chef Hat / Pantry Icon #}
@@ -236,21 +232,18 @@
             </div>
             
             <h3 class="font-zen-antique text-2xl text-[#835234]">Pantry Empty</h3>
-            <p class="text-[#A96B44] text-sm mt-1 max-w-xs text-center">We are currently restocking our shelves. Check back soon for new categories!</p>
+            <p class="text-[#A96B44] text-sm mt-1 max-w-xs text-center">We are currently restocking our shelves.</p>
             
-            {% if selected_category %}
-                <a href="{{ app_url }}/products" 
-                   class="mt-5 text-xs uppercase tracking-widest font-bold text-[#835234] border-b border-[#835234] hover:text-[#A96B44] hover:border-[#A96B44] transition-colors">
-                    Go Back Home
-                </a>
-            {% endif %}
+            <a href="{{ app_url }}/products" 
+               class="mt-5 text-xs uppercase tracking-widest font-bold text-[#835234] border-b border-[#835234] hover:text-[#A96B44] hover:border-[#A96B44] transition-colors">
+               Go Back Home
+            </a>
         </div>
 
       {% endif %}
     </div>
   </section>
 
-  {# --- PRODUCT GRID (Unchanged from last fix) --- #}
 {# --- PRODUCT GRID --- #}
   <section class="mt-10 ">
     <h1 class="text-3xl font-zen-antique text-[#A96B44] mb-6 text-center">Our Treats</h1>
@@ -356,7 +349,7 @@
 
 </div>
 
-{# --- NEW JAVASCRIPT for Carousel --- #}
+{# --- JAVASCRIPT for Carousel --- #}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const carousel = document.getElementById('discountCarousel');

@@ -233,7 +233,7 @@ class ApiAuthController extends BaseAdminController
             return $response->withHeader('Location', '/app/dashboard')->withStatus(302);
         }
 
-        // Customer registration path
+
         $view = Twig::fromRequest($request);
         $mailService = new MailService($view);
         $emailSent = $mailService->sendVerificationEmail($newUser, $token);
