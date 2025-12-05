@@ -4,28 +4,42 @@
 
 {% macro renderDiscountCard(discount, app_url) %}
     
+    {% set url = discount.discount_scope == 'product' 
+        ? app_url ~ '/products/' ~ discount.item_sku 
+        : app_url ~ '/products?category=' ~ discount.item_sku 
+    %}
 
-    {% set url = discount.discount_scope == 'product' ? app_url ~ '/products/' ~ discount.item_sku : app_url ~ '/products?category=' ~ discount.item_sku %}
-    
-
-{% set image_src = app_url ~ '/Assets/placeholder-item.png' %}
+    {# --- IMAGE LOGIC --- #}
+    {% set image_src = '/Assets/placeholder-item.png' %}
     
     {% if discount.discount_scope == 'product' and discount.item_image %}
-        {% set image_src = app_url ~ discount.item_image %}
+        {# Product images in DB already start with /Assets/Products/... #}
+        {# We just use the raw string from the DB #}
+        {% set image_src = discount.item_image %}
+        
     {% elseif discount.discount_scope == 'category' %}
-        {% set image_src = discount.item_image 
-                         ? app_url ~ '/Assets/Categories/' ~ discount.item_image 
-                         : app_url ~ '/Assets/Categories/' ~ discount.item_sku ~ '.png' 
-        %}
+        {# Category images in DB are JUST the filename (e.g. "cookies.jpg") #}
+        {# We manually add the folder path #}
+        {% if discount.item_image %}
+            {% set image_src = '/Assets/Categories/' ~ discount.item_image %}
+        {% else %}
+            {# If no image, try to find a png matching the slug #}
+            {% set image_src = '/Assets/Categories/' ~ discount.item_sku ~ '.png' %}
+        {% endif %}
     {% endif %}
 
-    <a href="{{ url }}" class="block bg-white rounded-lg shadow-md overflow-hidden group h-full">
-        <div class="relative h-48">
-            <img src="{{ image_src }}" alt="{{ discount.item_name }}" 
-                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
-                 onerror="this.onerror=null; this.src='{{ app_url }}/Assets/placeholder-item.png';">
+    {# --- RENDER CARD --- #}
+    <a href="{{ url }}" class="block bg-white rounded-lg shadow-md overflow-hidden group h-full border border-[#EADBCB]">
+        <div class="relative h-48 bg-[#FFF8F2]">
+            {# Added debugging: If it fails, it will print the path in console if you inspect #}
+            <img src="{{ image_src }}" 
+                 alt="{{ discount.item_name }}" 
+                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                 onerror="console.log('Failed to load:', this.src); this.onerror=null; this.src='/Assets/placeholder-item.png';">
             
-            <span class="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
+            <div class="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
+
+            <span class="absolute top-2 right-2 bg-[#A96B44] text-white text-xs font-bold px-3 py-1 rounded-full shadow-md border border-[#C7A97E]">
                 {% if discount.discount_type == 'percent' %}
                     {{ discount.discount_value | number_format(0) }}% OFF
                 {% else %}
@@ -33,16 +47,25 @@
                 {% endif %}
             </span>
         </div>
-        <div class="p-4">
-            <p class="text-sm text-gray-500 capitalize">{{ discount.discount_scope }} Offer</p>
-            <h3 class="text-lg font-semibold text-[#835234] truncate group-hover:underline">{{ discount.item_name }}</h3>
-            <p class="text-xs text-gray-400 mt-2">
-                {% if discount.end_date %}
-                    Ends: {{ discount.end_date | date('M d, Y') }}
-                {% else %}
-                    Ongoing Deal
-                {% endif %}
-            </p>
+        
+        <div class="p-4 flex flex-col gap-1">
+            <p class="text-xs font-bold tracking-widest text-[#A96B44] uppercase opacity-70">{{ discount.discount_scope }} Deal</p>
+            <h3 class="text-lg font-zen-antique font-bold text-[#5C3A2A] truncate group-hover:text-[#A96B44] transition-colors">
+                {{ discount.item_name }}
+            </h3>
+            
+            <div class="flex items-center gap-2 mt-2 pt-2 border-t border-[#EADBCB]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="#A69273" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <p class="text-xs text-[#A69273] font-medium">
+                    {% if discount.end_date %}
+                        Ends {{ discount.end_date | date('M j, Y') }}
+                    {% else %}
+                        Limited Time
+                    {% endif %}
+                </p>
+            </div>
         </div>
     </a>
 {% endmacro %}
@@ -225,6 +248,7 @@ style="background-image: url('{{ app_url }}/Assets/category-bg.png');">
         
         <div class="relative bg-white shadow-2xl overflow-hidden h-auto md:h-[450px] rounded-lg">
             
+            {# Close Button #}
             <button id="closeModalBtn" class="absolute top-4 right-4 z-30 p-1 bg-black/20 hover:bg-black/40 rounded-full text-white transition">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
@@ -236,27 +260,29 @@ style="background-image: url('{{ app_url }}/Assets/category-bg.png');">
                     
                     {% for promo in active_discounts %}
                         
-                        {# --- IMAGE PATH LOGIC --- #}
-                        {% set folder = 'Assets/' %}
-                        {% set img_file = 'placeholder-item.png' %} 
-                        
-                        {% if promo.discount_scope == 'product' and promo.item_image %}
-                             {# Products usually link directly #}
-                             {% set img_file = promo.item_image %}
-                        
-                        {% elseif promo.discount_scope == 'category' %}
-                             {# Categories often look for sku.png if no image is defined #}
-                             {% set folder = 'Assets/Categories/' %}
-                             {% set img_file = promo.item_image ? promo.item_image : promo.item_sku ~ '.png' %}
-                        {% endif %}
+                        {# --- FIXED IMAGE PATH LOGIC --- #}
+                        {# 1. Default Fallback #}
+                        {% set full_image_path = '/Assets/placeholder-item.png' %}
 
-                        {# Construct Full Path #}
-                        {% set full_image_path = app_url ~ '/' ~ folder ~ img_file %}
+                        {# 2. Product Logic: DB stores full path like '/Assets/Products/img.jpg' #}
+                        {% if promo.discount_scope == 'product' and promo.item_image %}
+                            {% set full_image_path = promo.item_image %}
+                        
+                        {# 3. Category Logic: DB stores filename like 'cookie.jpg' or NULL #}
+                        {% elseif promo.discount_scope == 'category' %}
+                            {% if promo.item_image %}
+                                {% set full_image_path = '/Assets/Categories/' ~ promo.item_image %}
+                            {% else %}
+                                {# Fallback to slug.png #}
+                                {% set full_image_path = '/Assets/Categories/' ~ promo.item_sku ~ '.png' %}
+                            {% endif %}
+                        {% endif %}
                         {# ------------------------------- #}
 
                         <div class="swiper-slide">
                             <div class="flex flex-col md:flex-row h-full w-full">
                                 
+                                {# --- LEFT SIDE: TEXT CONTENT --- #}
                                 <div class="w-full md:w-1/2 bg-[#755139] text-white p-8 md:p-12 relative flex flex-col justify-center items-start h-full">
                                     <div class="relative z-10 flex flex-col items-start gap-y-2">
                                         <h2 class="font-zen-antique text-3xl md:text-5xl tracking-wide uppercase shadow-sm drop-shadow-md leading-tight line-clamp-2">
@@ -276,24 +302,30 @@ style="background-image: url('{{ app_url }}/Assets/category-bg.png');">
                                             Order Now
                                         </a>
                                     </div>
+
+                                    {# Decoration Image (Cat) #}
                                     <div class="absolute bottom-4 right-4 w-32 md:w-40 z-0 opacity-100 pointer-events-none">
-                                        <img src="{{ app_url }}/Assets/pancake-cat-illustration.png" 
+                                        <img src="/Assets/pancake-cat-illustration.png" 
                                              alt="" 
                                              class="w-full h-auto object-contain drop-shadow-xl"
                                              onerror="this.style.display='none'"> 
                                     </div>
+                                    
+                                    {# Checkbox #}
                                     <div class="absolute bottom-6 left-8 z-10 flex items-center">
                                         <input type="checkbox" id="dontShowAgain" class="w-4 h-4 text-[#A96B44] border-white/50 bg-transparent rounded focus:ring-0 cursor-pointer">
                                         <label for="dontShowAgain" class="ml-2 block text-xs text-white/80 font-light tracking-wide cursor-pointer">Don't show again</label>
                                     </div>
                                 </div>
 
+                                {# --- RIGHT SIDE: PRODUCT IMAGE --- #}
                                 <div class="w-full md:w-1/2 h-64 md:h-full bg-[#5C3A2A] relative overflow-hidden group">
                                      
+                                     {# IMAGE TAG using fixed path #}
                                      <img src="{{ full_image_path }}" 
                                           alt="{{ promo.item_name }}" 
                                           class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                          onerror="this.onerror=null; this.src='{{ app_url }}/Assets/placeholder-item.png';"> 
+                                          onerror="this.onerror=null; this.src='/Assets/placeholder-item.png';"> 
                                      
                                      <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none"></div>
                                 </div>
