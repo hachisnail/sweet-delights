@@ -5,8 +5,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "8090:80"
     volumes:
       - ./:/var/www/html
     environment:
@@ -17,6 +15,16 @@ services:
       - DB_PASS=secret
     depends_on:
       - db
+
+  web:
+    image: nginx:alpine
+    ports:
+      - "8090:80"
+    volumes:
+      - ./:/var/www/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
 
   db:
     image: mariadb:11.4
