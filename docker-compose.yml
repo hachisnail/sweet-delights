@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8090:80"
+    volumes:
+      - ./:/var/www/html
+    environment:
+      - ENV=development
+      - DB_HOST=db
+      - DB_NAME=sweet_delights
+      - DB_USER=root
+      - DB_PASS=secret
+    depends_on:
+      - db
+
+  db:
+    image: mariadb:11.4
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=secret
+      - MYSQL_DATABASE=sweet_delights
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./flourever.sql:/docker-entrypoint-initdb.d/flourever.sql
+
+volumes:
+  db_data:
