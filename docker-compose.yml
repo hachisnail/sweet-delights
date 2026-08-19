@@ -11,6 +11,15 @@ services:
       - DB_NAME=sweet_delights
       - DB_USER=root
       - DB_PASS=secret
+      - MAIL_HOST=10.101.1.114
+      - MAIL_SMTPAuth=0
+      - MAIL_USERNAME=
+      - MAIL_PASSWORD=
+      - MAIL_SMTPSECURE=
+      - MAIL_PORT=1025
+      - MAIL_FROM_ADDRESS=hello@sweet-delights.local
+      - MAIL_FROM_NAME=Sweet Delights
+      - APP_URL=http://10.101.1.114:8090
     depends_on:
       - db
 
